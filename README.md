@@ -54,6 +54,16 @@ Self-host everything (no cloud dependency):
 pnpm selfhost:up
 ```
 
+## Firebase deploy
+
+The web app can now be deployed to Firebase Hosting from this monorepo.
+
+1. Create a Firebase project and Hosting site for the web app.
+2. Copy `.firebaserc.example` to `.firebaserc` and replace the placeholder project id.
+3. Deploy locally with `pnpm firebase:deploy`.
+4. Add the GitHub secrets `FIREBASE_PROJECT_ID` and `FIREBASE_SERVICE_ACCOUNT` to enable the `Firebase Hosting` workflow.
+5. Open a pull request to get a preview channel, or push to `main` to publish the live site.
+
 ## Open-source references
 
 Gravador stands on the shoulders of these projects — see [`docs/credits.md`](docs/credits.md) for what we borrow from each:
