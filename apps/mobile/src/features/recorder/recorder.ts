@@ -107,7 +107,7 @@ async function showOngoingNotification() {
       identifier: 'gravador-recording',
       content: {
         title: '🎙️ Gravando…',
-        body: 'Toque para abrir o Gravador',
+        body: 'Toque para abrir o Audio Notes Pro',
         sticky: true,
       },
       trigger: null,

@@ -47,7 +47,7 @@ export default async function LandingPage() {
       </section>
 
       <footer className="px-8 py-6 border-t border-border text-sm text-mute flex justify-between">
-        <span>© 2026 Gravador · AGPL-3.0</span>
+        <span>© 2026 Audio Notes Pro · AGPL-3.0</span>
         <span>
           <Link href="/docs" className="hover:text-text">
             Docs

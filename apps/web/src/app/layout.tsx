@@ -4,10 +4,14 @@ import { getLocale, getMessages } from 'next-intl/server';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Gravador',
-  description: 'Grave, transcreva, transforme em conhecimento. Open-source AI audio workspace.',
-  applicationName: 'Gravador',
+  title: 'Audio Notes Pro',
+  description: 'Grave, transcreva e transforme áudios em conhecimento acionável.',
+  applicationName: 'Audio Notes Pro',
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

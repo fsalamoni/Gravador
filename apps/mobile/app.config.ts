@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'Gravador',
+  name: 'Audio Notes Pro',
   slug: 'gravador',
   scheme: 'gravador',
   version: '0.1.0',
@@ -15,7 +15,7 @@ const config: ExpoConfig = {
     buildNumber: '1',
     infoPlist: {
       NSMicrophoneUsageDescription:
-        'Gravador precisa acessar o microfone para capturar seus áudios.',
+        'Audio Notes Pro precisa acessar o microfone para capturar seus áudios.',
       NSLocationWhenInUseUsageDescription:
         'Opcional: anotar a localização aproximada das gravações.',
       UIBackgroundModes: ['audio', 'fetch', 'processing'],
@@ -46,7 +46,7 @@ const config: ExpoConfig = {
     [
       'expo-audio',
       {
-        microphonePermission: 'Permitir Gravador acessar o microfone?',
+        microphonePermission: 'Permitir Audio Notes Pro acessar o microfone?',
       },
     ],
     [

@@ -13,7 +13,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <div className="min-h-screen flex">
       <aside className="w-60 border-r border-border bg-surface p-6 flex flex-col gap-2">
         <Link href="/workspace" className="text-lg font-semibold tracking-tight mb-6">
-          Gravador
+          Audio Notes Pro
         </Link>
         <NavItem href="/workspace">Início</NavItem>
         <NavItem href="/workspace/recordings">Gravações</NavItem>

@@ -1,7 +1,7 @@
 {
-  "name": "Gravador",
-  "short_name": "Gravador",
-  "description": "Grave, transcreva, transforme em conhecimento.",
+  "name": "Audio Notes Pro",
+  "short_name": "AudioNotes",
+  "description": "Grave, transcreva e transforme áudios em conhecimento acionável.",
   "start_url": "/workspace",
   "display": "standalone",
   "background_color": "#0b0e14",

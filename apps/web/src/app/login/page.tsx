@@ -11,17 +11,38 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const callbackUrl =
+    typeof window === 'undefined'
+      ? ''
+      : `${window.location.origin}/auth/callback?next=${encodeURIComponent('/workspace')}`;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/workspace` },
+      options: { emailRedirectTo: callbackUrl },
     });
     if (error) setError(error.message);
     else setSent(true);
     setLoading(false);
+  };
+
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: callbackUrl,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
+    });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -34,6 +55,15 @@ export default function LoginPage() {
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
+            <button
+              type="button"
+              onClick={signInWithGoogle}
+              disabled={loading}
+              className="w-full border border-border rounded-lg py-3 font-medium hover:bg-surfaceAlt disabled:opacity-50"
+            >
+              {t('auth.continueWithGoogle')}
+            </button>
+            <div className="text-center text-xs uppercase tracking-[0.2em] text-mute">ou</div>
             <input
               type="email"
               required
