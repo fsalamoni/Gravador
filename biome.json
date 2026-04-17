@@ -12,6 +12,7 @@
       "**/.expo/**",
       "**/ios/**",
       "**/android/**",
+      "references/audionotes-pro/**",
       "**/*.generated.*",
       "**/supabase/.branches/**",
       "**/supabase/.temp/**"
