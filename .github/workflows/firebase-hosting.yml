@@ -1,0 +1,99 @@
+name: Firebase Hosting
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/firebase-hosting.yml'
+      - '.firebaserc.example'
+      - 'firebase.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'README.md'
+      - 'apps/web/**'
+      - 'packages/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/firebase-hosting.yml'
+      - '.firebaserc.example'
+      - 'firebase.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'README.md'
+      - 'apps/web/**'
+      - 'packages/**'
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-hosting-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check Firebase secrets
+        id: firebase
+        shell: bash
+        run: |
+          if [[ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" && -n "${{ secrets.FIREBASE_PROJECT_ID }}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip when Firebase is not configured
+        if: steps.firebase.outputs.enabled != 'true'
+        run: echo "Skipping Firebase deploy because FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID is missing."
+
+      - name: Checkout repository
+        if: steps.firebase.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        if: steps.firebase.outputs.enabled == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.9.0
+
+      - name: Setup Node.js
+        if: steps.firebase.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.firebase.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate workspace
+        if: steps.firebase.outputs.enabled == 'true'
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm --filter @gravador/web build
+
+      - name: Deploy preview channel
+        if: steps.firebase.outputs.enabled == 'true' && github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+      - name: Deploy live channel
+        if: steps.firebase.outputs.enabled == 'true' && github.event_name != 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
