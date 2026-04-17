@@ -1,0 +1,164 @@
+# Self-host Gravador — everything local, no external APIs required.
+#
+# Run: `docker compose up -d`
+# Then: visit http://localhost:3000 and create an account.
+#
+# Components:
+#   - supabase-*   : Postgres 16 + Auth + Storage + Realtime (OSS bundle)
+#   - web          : Next.js app (apps/web)
+#   - worker       : Trigger.dev OSS + AI pipeline tasks
+#   - whisper      : faster-whisper HTTP server (transcription)
+#   - ollama       : local LLM for chat + summaries (optional, recommended 32GB RAM)
+#
+# Replaces cloud transcription (Groq/OpenAI) and cloud LLM (Claude/GPT) with
+# on-prem equivalents. You can still BYOK at the workspace level if you want
+# the local install to call out to OpenAI-compatible endpoints.
+
+version: '3.9'
+
+name: gravador
+
+services:
+  db:
+    image: supabase/postgres:15.6.1.146
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters}
+      JWT_EXP: 3600
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ../../supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kong:
+    image: kong:2.8
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+    volumes:
+      - ./kong.yml:/var/lib/kong/kong.yml:ro
+    ports:
+      - '${SUPABASE_PORT:-54321}:8000'
+
+  auth:
+    image: supabase/gotrue:v2.164.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      GOTRUE_SITE_URL: ${APP_URL:-http://localhost:3000}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters}
+      GOTRUE_JWT_EXP: 3600
+      API_EXTERNAL_URL: ${APP_URL:-http://localhost:3000}
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters}
+
+  storage:
+    image: supabase/storage-api:v1.14.2
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters}
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: gravador
+    volumes:
+      - storage_data:/var/lib/storage
+
+  whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-large-v3}
+      COMPUTE_TYPE: ${WHISPER_COMPUTE:-int8}
+    ports:
+      - '9000:9000'
+    volumes:
+      - whisper_cache:/models
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama_data:/root/.ollama
+    # To pre-pull a model on first start: `docker exec -it <container> ollama pull llama3.1:8b`
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - kong
+      - whisper
+      - ollama
+    environment:
+      DEPLOYMENT_MODE: selfhost
+      NEXT_PUBLIC_SUPABASE_URL: http://kong:8000
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      LOCAL_WHISPER_URL: http://whisper:9000
+      OLLAMA_BASE_URL: http://ollama:11434
+      AI_TRANSCRIBE_PROVIDER: local-faster-whisper
+      AI_CHAT_PROVIDER: ollama
+      AI_CHAT_MODEL: llama3.1:8b
+      AI_EMBEDDING_PROVIDER: ollama
+      AI_EMBEDDING_MODEL: nomic-embed-text
+    ports:
+      - '3000:3000'
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.worker-node
+    restart: unless-stopped
+    depends_on:
+      - db
+      - whisper
+      - ollama
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      LOCAL_WHISPER_URL: http://whisper:9000
+      OLLAMA_BASE_URL: http://ollama:11434
+      AI_TRANSCRIBE_PROVIDER: local-faster-whisper
+      AI_CHAT_PROVIDER: ollama
+      AI_EMBEDDING_PROVIDER: ollama
+
+volumes:
+  db_data:
+  storage_data:
+  whisper_cache:
+  ollama_data:

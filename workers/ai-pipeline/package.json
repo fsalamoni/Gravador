@@ -1,0 +1,25 @@
+{
+  "name": "@gravador/ai-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "trigger dev",
+    "deploy": "trigger deploy",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .trigger .turbo dist"
+  },
+  "dependencies": {
+    "@gravador/ai": "workspace:*",
+    "@gravador/core": "workspace:*",
+    "@gravador/db": "workspace:*",
+    "@supabase/supabase-js": "2.48.0",
+    "@trigger.dev/sdk": "3.3.10",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@trigger.dev/build": "3.3.10",
+    "@types/node": "22.10.2",
+    "typescript": "5.7.2"
+  }
+}

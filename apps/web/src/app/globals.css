@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    background: #0b0e14;
+    color: #e6e8ef;
+  }
+  body {
+    font-feature-settings: "cv11";
+  }
+}
+
+@layer utilities {
+  .card {
+    @apply bg-surface border border-border rounded-xl;
+  }
+}

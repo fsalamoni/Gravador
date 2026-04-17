@@ -1,0 +1,32 @@
+{
+  "name": "@gravador/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./providers": "./src/providers/index.ts",
+    "./pipelines": "./src/pipelines/index.ts",
+    "./prompts": "./src/prompts/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "1.0.8",
+    "@ai-sdk/google": "1.0.14",
+    "@ai-sdk/groq": "1.0.10",
+    "@ai-sdk/openai": "1.0.14",
+    "ai": "4.0.27",
+    "@gravador/core": "workspace:*",
+    "ollama-ai-provider": "1.2.0",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "typescript": "5.7.2"
+  }
+}
