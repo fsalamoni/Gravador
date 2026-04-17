@@ -1,0 +1,69 @@
+# deps
+node_modules
+.pnpm-store
+
+# build
+dist
+build
+.next
+.turbo
+out
+*.tsbuildinfo
+
+# expo / react native
+.expo
+.expo-shared
+apps/mobile/ios/Pods
+apps/mobile/ios/build
+apps/mobile/ios/.xcode.env.local
+apps/mobile/android/.gradle
+apps/mobile/android/build
+apps/mobile/android/app/build
+apps/mobile/android/local.properties
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# native
+*.apk
+*.ipa
+
+# supabase
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea
+
+# os
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# test
+coverage
+.nyc_output
+
+# misc
+.eslintcache
+*.pem
