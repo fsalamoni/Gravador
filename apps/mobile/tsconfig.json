@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-native",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "types": ["expo", "react-native", "nativewind/types"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*", "app/**/*", "*.ts", "*.tsx", "expo-env.d.ts", "nativewind-env.d.ts"]
+}

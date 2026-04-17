@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Gravador",
+    "tagline": "Record, transcribe, turn into knowledge."
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "signOut": "Sign out",
+    "email": "Email",
+    "magicLink": "Send magic link",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple"
+  },
+  "nav": {
+    "home": "Home",
+    "recordings": "Recordings",
+    "folders": "Folders",
+    "tags": "Tags",
+    "search": "Search",
+    "settings": "Settings",
+    "integrations": "Integrations",
+    "workspace": "Workspace"
+  },
+  "recorder": {
+    "start": "Start recording",
+    "stop": "Stop",
+    "pause": "Pause",
+    "resume": "Resume",
+    "recording": "Recording…",
+    "uploading": "Uploading…",
+    "queued": "Queued",
+    "offline": "You're offline — we'll upload when you're back",
+    "permissionDenied": "Microphone permission denied",
+    "background": "Recording continues while your screen is off",
+    "quickAction": "Quick capture"
+  },
+  "recording": {
+    "status": {
+      "queued": "Queued",
+      "uploading": "Uploading",
+      "transcribing": "Transcribing",
+      "diarizing": "Identifying speakers",
+      "summarizing": "Summarizing",
+      "embedding": "Indexing for search",
+      "ready": "Ready",
+      "failed": "Failed"
+    },
+    "tabs": {
+      "transcript": "Transcript",
+      "summary": "Summary",
+      "actions": "Actions",
+      "mindmap": "Mind map",
+      "chapters": "Chapters",
+      "speakers": "Speakers",
+      "quotes": "Quotes",
+      "chat": "Chat with recording"
+    },
+    "actions": {
+      "rename": "Rename",
+      "move": "Move",
+      "delete": "Delete",
+      "share": "Share",
+      "export": "Export",
+      "reprocess": "Re-run AI"
+    }
+  },
+  "chat": {
+    "placeholder": "Ask anything about this recording…",
+    "thinking": "Thinking…"
+  },
+  "share": {
+    "createLink": "Create public link",
+    "password": "Password (optional)",
+    "expiresIn": "Expires in",
+    "copied": "Link copied"
+  },
+  "export": {
+    "pdf": "PDF",
+    "markdown": "Markdown",
+    "docx": "Word (.docx)",
+    "notion": "Send to Notion",
+    "obsidian": "Send to Obsidian"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "We couldn't find what you're looking for.",
+    "unauthorized": "You need to sign in to continue."
+  }
+}

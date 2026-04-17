@@ -1,0 +1,26 @@
+name: EAS preview
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+
+jobs:
+  eas-build:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.EXPO_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.9.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Build dev client
+        working-directory: apps/mobile
+        run: eas build --profile development --platform all --non-interactive --no-wait

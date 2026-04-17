@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "Gravador",
+    "tagline": "Grave, transcreva, transforme em conhecimento."
+  },
+  "auth": {
+    "signIn": "Entrar",
+    "signUp": "Criar conta",
+    "signOut": "Sair",
+    "email": "E-mail",
+    "magicLink": "Enviar link mágico",
+    "continueWithGoogle": "Continuar com Google",
+    "continueWithApple": "Continuar com Apple"
+  },
+  "nav": {
+    "home": "Início",
+    "recordings": "Gravações",
+    "folders": "Pastas",
+    "tags": "Tags",
+    "search": "Buscar",
+    "settings": "Configurações",
+    "integrations": "Integrações",
+    "workspace": "Workspace"
+  },
+  "recorder": {
+    "start": "Começar a gravar",
+    "stop": "Parar",
+    "pause": "Pausar",
+    "resume": "Continuar",
+    "recording": "Gravando…",
+    "uploading": "Enviando…",
+    "queued": "Na fila",
+    "offline": "Sem conexão — gravação será enviada quando voltar online",
+    "permissionDenied": "Permissão de microfone negada",
+    "background": "Gravação continua mesmo com tela bloqueada",
+    "quickAction": "Gravação rápida"
+  },
+  "recording": {
+    "status": {
+      "queued": "Na fila",
+      "uploading": "Enviando",
+      "transcribing": "Transcrevendo",
+      "diarizing": "Identificando falantes",
+      "summarizing": "Resumindo",
+      "embedding": "Indexando para busca",
+      "ready": "Pronto",
+      "failed": "Falhou"
+    },
+    "tabs": {
+      "transcript": "Transcrição",
+      "summary": "Resumo",
+      "actions": "Ações",
+      "mindmap": "Mapa mental",
+      "chapters": "Capítulos",
+      "speakers": "Falantes",
+      "quotes": "Citações",
+      "chat": "Chat com a gravação"
+    },
+    "actions": {
+      "rename": "Renomear",
+      "move": "Mover",
+      "delete": "Excluir",
+      "share": "Compartilhar",
+      "export": "Exportar",
+      "reprocess": "Reprocessar IA"
+    }
+  },
+  "chat": {
+    "placeholder": "Pergunte algo sobre esta gravação…",
+    "thinking": "Pensando…"
+  },
+  "share": {
+    "createLink": "Criar link público",
+    "password": "Senha (opcional)",
+    "expiresIn": "Expira em",
+    "copied": "Link copiado"
+  },
+  "export": {
+    "pdf": "PDF",
+    "markdown": "Markdown",
+    "docx": "Word (.docx)",
+    "notion": "Enviar ao Notion",
+    "obsidian": "Enviar ao Obsidian"
+  },
+  "errors": {
+    "generic": "Algo deu errado. Tente novamente.",
+    "notFound": "Não encontramos o que você procura.",
+    "unauthorized": "Você precisa entrar para continuar."
+  }
+}
