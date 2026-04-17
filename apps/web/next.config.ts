@@ -10,7 +10,10 @@ const config: NextConfig = {
     optimizePackageImports: ['lucide-react', 'reactflow'],
   },
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.googleapis.com' },
+      { protocol: 'https', hostname: '**.firebasestorage.app' },
+    ],
   },
 };
 

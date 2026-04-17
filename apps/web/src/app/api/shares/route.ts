@@ -1,5 +1,6 @@
-import { createSupabaseServer } from '@/lib/supabase-server';
+import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { shortId } from '@gravador/core';
+import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
 /** Create a public share link for a recording. */
@@ -10,18 +11,14 @@ export async function POST(req: Request) {
     password?: string;
     permissions?: { viewTranscript: boolean; viewSummary: boolean; viewChat: boolean };
   };
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+
+  const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { data: rec } = await supabase
-    .from('recordings')
-    .select('workspace_id')
-    .eq('id', recordingId)
-    .single();
-  if (!rec) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const db = getServerDb();
+  const recDoc = await db.collection('recordings').doc(recordingId).get();
+  if (!recDoc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const rec = recDoc.data() as { workspaceId: string };
 
   let passwordHash: string | null = null;
   if (password) {
@@ -35,29 +32,29 @@ export async function POST(req: Request) {
   }
 
   const token = shortId(24);
-  const expires = expiresInDays
-    ? new Date(Date.now() + expiresInDays * 86400 * 1000).toISOString()
-    : null;
+  const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 86400 * 1000) : null;
 
-  const { data, error } = await supabase
-    .from('shares')
-    .insert({
-      recording_id: recordingId,
-      workspace_id: rec.workspace_id,
-      created_by: user.id,
-      token,
-      password_hash: passwordHash,
-      expires_at: expires,
-      permissions: permissions ?? {
-        viewTranscript: true,
-        viewSummary: true,
-        viewChat: false,
-      },
-    })
-    .select()
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const shareData = {
+    recordingId,
+    workspaceId: rec.workspaceId,
+    createdBy: user.uid,
+    token,
+    passwordHash,
+    expiresAt,
+    permissions: permissions ?? {
+      viewTranscript: true,
+      viewSummary: true,
+      viewChat: false,
+    },
+    revokedAt: null,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  const shareRef = await db.collection('shares').add(shareData);
 
   const origin = req.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL;
-  return NextResponse.json({ url: `${origin}/share/${token}`, share: data });
+  return NextResponse.json({
+    url: `${origin}/share/${token}`,
+    share: { id: shareRef.id, ...shareData },
+  });
 }

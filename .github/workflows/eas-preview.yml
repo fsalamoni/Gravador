@@ -9,7 +9,7 @@ on:
 jobs:
   eas-build:
     runs-on: ubuntu-latest
-    if: ${{ secrets.EXPO_TOKEN != '' }}
+    if: ${{ vars.HAS_EXPO_TOKEN == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

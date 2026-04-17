@@ -1,12 +1,9 @@
-import { createSupabaseServer } from '@/lib/supabase-server';
+import { getSessionUser } from '@/lib/firebase-server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect('/login');
 
   return (

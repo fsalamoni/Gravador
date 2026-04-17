@@ -2,23 +2,33 @@ import { formatDurationMs } from '@gravador/core';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Pressable, Text, View } from 'react-native';
+import { db } from '../src/lib/firebase';
 import { t } from '../src/lib/i18n';
-import { supabase } from '../src/lib/supabase';
 
 export default function RecordingsScreen() {
   const router = useRouter();
   const { data, isLoading } = useQuery({
     queryKey: ['recordings'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('recordings')
-        .select('id,title,duration_ms,status,captured_at')
-        .is('deleted_at', null)
-        .order('captured_at', { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return data ?? [];
+      const q = query(
+        collection(db, 'recordings'),
+        where('deletedAt', '==', null),
+        orderBy('capturedAt', 'desc'),
+        limit(100),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Array<{
+        id: string;
+        title?: string;
+        durationMs: number;
+        status: string;
+        capturedAt: { toDate: () => Date };
+      }>;
     },
   });
 
@@ -44,10 +54,10 @@ export default function RecordingsScreen() {
             onPress={() => router.push(`/recording/${item.id}`)}
           >
             <Text className="text-text font-medium">
-              {item.title ?? new Date(item.captured_at).toLocaleString()}
+              {item.title ?? item.capturedAt.toDate().toLocaleString()}
             </Text>
             <Text className="text-mute text-sm mt-1">
-              {formatDurationMs(item.duration_ms)} · {t(`recording.status.${item.status}`)}
+              {formatDurationMs(item.durationMs)} · {t(`recording.status.${item.status}`)}
             </Text>
           </Pressable>
         )}

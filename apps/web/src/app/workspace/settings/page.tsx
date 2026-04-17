@@ -1,17 +1,26 @@
-import { createSupabaseServer } from '@/lib/supabase-server';
+import { getServerAuth, getSessionUser } from '@/lib/firebase-server';
 
 export default async function SettingsPage() {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSessionUser();
+  let email = '-';
+  let uid = '-';
+  if (session) {
+    uid = session.uid;
+    const auth = getServerAuth();
+    try {
+      const userRecord = await auth.getUser(session.uid);
+      email = userRecord.email ?? '-';
+    } catch {
+      // User may not exist in auth
+    }
+  }
 
   return (
     <div className="max-w-2xl">
       <h1 className="text-3xl font-semibold mb-6">Configurações</h1>
       <div className="card p-6 space-y-4">
-        <Field label="E-mail" value={user?.email ?? '-'} />
-        <Field label="User ID" value={user?.id ?? '-'} />
+        <Field label="E-mail" value={email} />
+        <Field label="User ID" value={uid} />
       </div>
 
       <h2 className="text-xl font-medium mt-10 mb-3">Provedores de IA (BYOK)</h2>

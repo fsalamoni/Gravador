@@ -1,58 +1,65 @@
-import { type SupabaseClient, createClient } from '@supabase/supabase-js';
-import { type PostgresJsDatabase, drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema.ts';
+import {
+  type App,
+  type ServiceAccount,
+  cert,
+  getApp,
+  getApps,
+  initializeApp,
+} from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { type Firestore, getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
-export type Database = PostgresJsDatabase<typeof schema>;
+const FIRESTORE_DATABASE = 'anotes';
+
+let _app: App | undefined;
 
 /**
- * Drizzle client for server-side use (never expose to browser).
- * Connects via the session pooler URL set in DATABASE_URL.
+ * Get or initialize the Firebase Admin app (singleton).
+ * Uses FIREBASE_SERVICE_ACCOUNT_KEY env var (JSON string) or
+ * GOOGLE_APPLICATION_CREDENTIALS file path for auth.
  */
-export function createDb(databaseUrl = process.env.DATABASE_URL): Database {
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required to create the Drizzle client');
+function getAdminApp(): App {
+  if (_app) return _app;
+  if (getApps().length > 0) {
+    _app = getApp();
+    return _app;
   }
-  const queryClient = postgres(databaseUrl, { prepare: false });
-  return drizzle(queryClient, { schema, casing: 'snake_case' });
-}
 
-/**
- * Supabase service-role client — server-only. Bypasses RLS.
- */
-export function createServiceClient(
-  url = process.env.SUPABASE_URL,
-  serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY,
-): SupabaseClient {
-  if (!url || !serviceKey) {
-    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  const keyJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (keyJson) {
+    const serviceAccount = JSON.parse(keyJson) as ServiceAccount;
+    _app = initializeApp({ credential: cert(serviceAccount) });
+  } else {
+    // Falls back to GOOGLE_APPLICATION_CREDENTIALS or default credentials
+    _app = initializeApp();
   }
-  return createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return _app;
 }
 
 /**
- * Supabase anon client — safe to expose. RLS enforced.
- * Accepts a user access token for per-user authenticated requests.
+ * Get the Firestore instance for the `anotes` named database.
+ * All Gravador data lives here, isolated from other apps in the project.
  */
-export function createAnonClient(
-  options: {
-    url?: string;
-    anonKey?: string;
-    accessToken?: string;
-  } = {},
-): SupabaseClient {
-  const url = options.url ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const anonKey =
-    options.anonKey ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
-  if (!url || !anonKey) throw new Error('Supabase URL and anon key required');
-  return createClient(url, anonKey, {
-    auth: { persistSession: false },
-    global: options.accessToken
-      ? { headers: { Authorization: `Bearer ${options.accessToken}` } }
-      : undefined,
-  });
+export function getDb(): Firestore {
+  return getFirestore(getAdminApp(), FIRESTORE_DATABASE);
 }
 
-export { schema };
+/**
+ * Get the Firebase Admin Auth instance.
+ */
+export function getAdminAuth() {
+  return getAuth(getAdminApp());
+}
+
+/**
+ * Get the Firebase Admin Storage instance.
+ */
+export function getAdminStorage() {
+  return getStorage(getAdminApp());
+}
+
+/**
+ * Re-export for convenience.
+ */
+export { getAdminApp };

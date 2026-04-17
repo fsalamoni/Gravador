@@ -1,4 +1,4 @@
-import { createSupabaseServer } from '@/lib/supabase-server';
+import { getServerDb } from '@/lib/firebase-server';
 import { formatDurationMs } from '@gravador/core';
 import { notFound } from 'next/navigation';
 
@@ -8,16 +8,18 @@ export default async function PublicSharePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const supabase = await createSupabaseServer();
+  const db = getServerDb();
 
-  const { data: share } = await supabase
-    .from('shares')
-    .select('*, recordings(id,title,duration_ms,status,captured_at,storage_path,storage_bucket)')
-    .eq('token', token)
-    .maybeSingle();
+  const shareSnap = await db.collection('shares').where('token', '==', token).limit(1).get();
 
-  if (!share) notFound();
-  if (share.revoked_at || (share.expires_at && new Date(share.expires_at) < new Date())) {
+  if (shareSnap.empty) notFound();
+  const share = shareSnap.docs[0]!.data() as {
+    recordingId: string;
+    revokedAt?: { toDate: () => Date } | null;
+    expiresAt?: { toDate: () => Date } | null;
+  };
+
+  if (share.revokedAt || (share.expiresAt && share.expiresAt.toDate() < new Date())) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8">
         <p className="text-mute">Este link expirou ou foi revogado.</p>
@@ -25,20 +27,24 @@ export default async function PublicSharePage({
     );
   }
 
-  const rec = share.recordings as {
-    id: string;
-    title: string | null;
-    duration_ms: number;
-    status: string;
-    captured_at: string;
-  };
+  const recDoc = await db.collection('recordings').doc(share.recordingId).get();
+  const rec = recDoc.data() as
+    | {
+        title?: string;
+        durationMs: number;
+        status: string;
+        capturedAt: { toDate: () => Date };
+      }
+    | undefined;
+
+  if (!rec) notFound();
 
   return (
     <main className="min-h-screen p-8 max-w-3xl mx-auto">
       <h1 className="text-2xl font-semibold">
-        {rec.title ?? new Date(rec.captured_at).toLocaleString()}
+        {rec.title ?? rec.capturedAt.toDate().toLocaleString()}
       </h1>
-      <div className="text-mute mt-1">{formatDurationMs(rec.duration_ms)}</div>
+      <div className="text-mute mt-1">{formatDurationMs(rec.durationMs)}</div>
       <p className="text-mute mt-8">
         Compartilhamento público — conteúdo é restrito pelas permissões configuradas pelo dono.
       </p>

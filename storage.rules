@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // All anotes audio files live under anotes/ prefix
+    match /anotes/audio-raw/{workspaceId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 524 * 1024 * 1024
+                   && request.resource.contentType.matches('audio/.*');
+    }
+
+    match /anotes/audio-processed/{workspaceId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // server-only
+    }
+
+    match /anotes/exports/{workspaceId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // server-only
+    }
+
+    // Block everything else under anotes/
+    match /anotes/{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
-import { supabase } from '@/lib/supabase-browser';
+import { db } from '@/lib/firebase-browser';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useState } from 'react';
 
 interface ActionItem {
@@ -31,7 +32,8 @@ export function ActionsView({
     next[idx] = { ...curr, done: !curr.done };
     setItems(next);
     if (curr.id) {
-      await supabase.from('action_items').update({ done: next[idx]!.done }).eq('id', curr.id);
+      const itemRef = doc(db, 'recordings', recordingId, 'action_items', curr.id);
+      await updateDoc(itemRef, { done: next[idx]!.done });
     }
   };
 

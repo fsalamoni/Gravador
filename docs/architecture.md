@@ -6,21 +6,22 @@
 │  • record        │      │  • dashboard     │
 │  • widgets/QS    │      │  • transcript    │
 │  • offline queue │      │  • AI tabs       │
-│  • TUS upload    │      │  • chat RAG      │
+│  • Firebase SDK  │      │  • chat RAG      │
 └────────┬─────────┘      └────────┬─────────┘
-         │ Supabase JS              │ Server Components + API routes
+         │ Firebase JS SDK          │ Server Components + API routes
          ▼                          ▼
 ┌──────────────────────────────────────────────┐
-│          Supabase (Postgres + RLS)           │
+│      Firebase (Firestore named DB "anotes")  │
 │  users · workspaces · recordings · transcripts │
-│  segments · ai_outputs · embeddings (pgvector) │
+│  segments · ai_outputs · embeddings (vector) │
 │  shares · integrations · jobs · usage_events   │
-│  Storage buckets: audio-raw, audio-processed   │
+│  Storage: anotes/audio-raw, anotes/audio-proc  │
+│  Auth: Firebase Authentication                  │
 └────────┬────────────────────┬────────────────┘
-         │ Storage webhook    │ RPC match_embeddings / search_segments
+         │ Webhook / job doc  │ findNearest vector search
          ▼                    │
 ┌──────────────────┐          │
-│ Trigger.dev job  │          │
+│ AI pipeline job  │          │
 │ process-recording│          │
 │  1. transcribe   │          │
 │  2. summary/ai   │          │
@@ -39,19 +40,19 @@
 
 - `@gravador/core`      : shared types, Zod schemas, pure utils
 - `@gravador/i18n`      : PT-BR + EN message bundles
-- `@gravador/db`        : Drizzle schema + Supabase clients
+- `@gravador/db`        : Firebase Admin client + Firestore document types
 - `@gravador/ai`        : providers + pipelines + prompts
-- `@gravador/mobile`    : Expo app
-- `@gravador/web`       : Next.js app
-- `@gravador/ai-pipeline`: Trigger.dev worker
+- `@gravador/mobile`    : Expo app (Firebase JS SDK)
+- `@gravador/web`       : Next.js app (Firebase JS + Admin SDK)
+- `@gravador/ai-pipeline`: AI processing worker (Firebase Admin)
 
 ## Data flow: recording → knowledge
 
 1. User taps record on iOS widget / Android QS tile → deep-link opens app and starts recorder.
 2. Audio saved to local storage; metadata enqueued in AsyncStorage (`@gravador/upload-queue/v1`).
-3. Background task drains queue → uploads audio to `audio-raw/<workspaceId>/<recId>.m4a`.
-4. Supabase Storage webhook calls `/api/webhooks/recording-uploaded` on the web app.
-5. Web inserts a `jobs` row and triggers `process-recording` via Trigger.dev.
-6. Worker runs the pipeline: transcribe → persist segments → fan-out AI outputs → embed.
+3. Background task drains queue → uploads audio to Firebase Storage `anotes/audio-raw/<workspaceId>/<recId>.m4a`.
+4. Upload completes → webhook calls `/api/webhooks/recording-uploaded` on the web app.
+5. Web inserts a `jobs` doc in Firestore and worker picks it up for processing.
+6. Worker runs the pipeline: transcribe → persist segments → fan-out AI outputs → embed with vectors.
 7. `recordings.status` transitions `queued → transcribing → summarizing → embedding → ready`.
-8. Web client reads via Server Components with RLS; chat uses `/api/chat` with pgvector RAG.
+8. Web client reads via Server Components; chat uses `/api/chat` with Firestore vector search (findNearest).

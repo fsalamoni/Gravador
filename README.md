@@ -9,12 +9,12 @@
 - 🎙️ **One-tap capture** — iOS home-screen widget, Android Quick Settings tile, lock-screen/Control Center shortcuts, Siri & Google Assistant intents.
 - 🔇 **Background recording** with persistent notification, live waveform and offline queue.
 - 🤖 **AI pipeline** — transcription (Whisper v3 on Groq / OpenAI / local `faster-whisper`), speaker diarization, summary, action items, mind map, chapters, key quotes, sentiment.
-- 💬 **Chat with any recording** via RAG (pgvector embeddings) with streaming responses.
+- 💬 **Chat with any recording** via RAG (Firestore vector embeddings) with streaming responses.
 - 🌐 **Web workspace** — synced transcript player (wavesurfer.js), semantic + keyword search, folders/tags, multi-user workspaces.
 - 🔗 **Share** public links with password and expiration, export to PDF / Markdown / DOCX / Notion / Obsidian.
 - ☁️ **Cloud connectors** — Google Drive, Dropbox, OneDrive, Notion.
 - 🧩 **BYOK** — bring your own OpenAI / Anthropic / Groq / Google keys, or run fully local with Ollama.
-- 🐳 **Self-host** via a single `docker compose up` (Supabase OSS + Trigger.dev OSS + faster-whisper + Ollama).
+- 🐳 **Self-host** via a single `docker compose up` (Firebase emulators + faster-whisper + Ollama).
 
 ## Architecture
 
@@ -24,21 +24,18 @@ apps/web      Next.js 15 App Router — workspace + landing
 packages/core Types, Zod schemas, shared logic
 packages/ui   Cross-platform UI primitives
 packages/ai   Provider abstraction + pipelines
-packages/db   Drizzle schema + Supabase client
+packages/db   Firebase Admin client + Firestore schema types
 packages/i18n PT-BR + EN messages
-workers/ai-pipeline  Trigger.dev jobs
-supabase/     Migrations + Edge Functions
+workers/ai-pipeline  AI processing jobs (Firebase-triggered)
 infra/docker  Self-host compose
 ```
 
 ## Quick start
 
 ```bash
-# Prereqs: Node 22+, pnpm 10+, Docker, Supabase CLI, EAS CLI.
+# Prereqs: Node 22+, pnpm 10+, Firebase CLI, EAS CLI.
 pnpm install
-cp .env.example .env   # fill Supabase + AI keys
-pnpm supabase:start
-pnpm db:push
+cp .env.example .env   # fill Firebase + AI keys
 pnpm dev               # web on :3000, Expo dev server
 ```
 

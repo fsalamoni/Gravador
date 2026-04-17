@@ -9,190 +9,220 @@ import {
 } from '@gravador/ai';
 import type { Locale, TranscriptSegment } from '@gravador/core';
 import { shortId } from '@gravador/core';
-import { createServiceClient } from '@gravador/db';
-import { logger, task } from '@trigger.dev/sdk/v3';
+import { getAdminStorage, getDb } from '@gravador/db';
+import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 
 /**
  * Orchestrates the full AI pipeline for a single recording:
  *   1. Transcribe (Whisper v3 via Groq by default)
  *   2. Persist transcript + segments
  *   3. Fan-out: summary, action items, mindmap, chapters
- *   4. Embed chunks into pgvector for RAG
+ *   4. Embed chunks into Firestore vector fields for RAG
  *
- * Idempotent: safe to re-trigger. Writes are upserted or deduped by unique indexes.
+ * Can be invoked from a Cloud Function (Firestore onCreate trigger on `jobs`)
+ * or called directly.
  */
-export const processRecording = task({
-  id: 'process-recording',
-  maxDuration: 900,
-  retry: { maxAttempts: 3 },
-  run: async (payload: { recordingId: string; locale?: Locale }) => {
-    const supabase = createServiceClient();
-    const { recordingId } = payload;
+export async function processRecording(payload: { recordingId: string; locale?: Locale }) {
+  const db = getDb();
+  const { recordingId } = payload;
 
-    const { data: recording, error: recErr } = await supabase
-      .from('recordings')
-      .select('*')
-      .eq('id', recordingId)
-      .single();
-    if (recErr || !recording) throw new Error(`recording ${recordingId} not found`);
+  const recDoc = await db.collection('recordings').doc(recordingId).get();
+  if (!recDoc.exists) throw new Error(`recording ${recordingId} not found`);
+  const recording = recDoc.data()!;
 
-    const workspaceAI = await loadWorkspaceAI(supabase, recording.workspace_id);
+  const workspaceAI = await loadWorkspaceAI(db, recording.workspaceId);
 
-    await setStatus(supabase, recordingId, 'transcribing');
-    const { data: audioUrl } = await supabase.storage
-      .from(recording.storage_bucket)
-      .createSignedUrl(recording.storage_path, 3600);
-    if (!audioUrl?.signedUrl) throw new Error('failed to sign audio URL');
+  await setStatus(db, recordingId, 'transcribing');
 
-    const tx = await transcribe({
-      audioUrl: audioUrl.signedUrl,
-      locale: payload.locale ?? recording.locale ?? 'auto',
-      provider: workspaceAI.transcribeProvider,
-    });
-    const segments = await persistTranscript(supabase, recordingId, tx);
-    logger.log('transcribed', { segments: segments.length });
+  // Get a signed URL for the audio file
+  const storage = getAdminStorage();
+  const bucket = storage.bucket();
+  const [audioUrl] = await bucket.file(recording.storagePath).getSignedUrl({
+    action: 'read',
+    expires: Date.now() + 3600 * 1000,
+  });
+  if (!audioUrl) throw new Error('failed to sign audio URL');
 
-    const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
+  const tx = await transcribe({
+    audioUrl,
+    locale: payload.locale ?? recording.locale ?? 'auto',
+    provider: workspaceAI.transcribeProvider,
+  });
+  const segments = await persistTranscript(db, recordingId, tx);
+  console.log('[pipeline] transcribed', { segments: segments.length });
 
-    await setStatus(supabase, recordingId, 'summarizing');
-    const [summary, actions, mindmap, chapters] = await Promise.allSettled([
-      runSummary({
-        segments,
-        fullText: tx.fullText,
-        locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
-        keys: workspaceAI.keys,
-      }),
-      runActionItems({
-        segments,
-        locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
-        keys: workspaceAI.keys,
-      }),
-      runMindmap({
-        fullText: tx.fullText,
-        locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
-        keys: workspaceAI.keys,
-      }),
-      runChapters({
-        segments,
-        locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
-        keys: workspaceAI.keys,
-      }),
-    ]);
+  const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
 
-    if (summary.status === 'fulfilled')
-      await insertOutput(supabase, recordingId, 'summary', summary.value, locale);
-    if (actions.status === 'fulfilled')
-      await insertOutput(supabase, recordingId, 'action_items', actions.value, locale);
-    if (mindmap.status === 'fulfilled')
-      await insertOutput(supabase, recordingId, 'mindmap', mindmap.value, locale);
-    if (chapters.status === 'fulfilled')
-      await insertOutput(supabase, recordingId, 'chapters', chapters.value, locale);
-
-    if (actions.status === 'fulfilled') {
-      const rows = actions.value.payload.map((a) => ({
-        recording_id: recordingId,
-        text: a.text,
-        assignee: a.assignee,
-        due_date: a.dueDate,
-        source_segment_ids: a.sourceSegmentIds,
-      }));
-      if (rows.length) await supabase.from('action_items').insert(rows);
-    }
-
-    await setStatus(supabase, recordingId, 'embedding');
-    const chunks = await chunkAndEmbed(segments, {
-      provider: workspaceAI.embeddingProvider,
-      model: workspaceAI.embeddingModel,
+  await setStatus(db, recordingId, 'summarizing');
+  const [summary, actions, mindmap, chapters] = await Promise.allSettled([
+    runSummary({
+      segments,
+      fullText: tx.fullText,
+      locale,
+      provider: workspaceAI.chatProvider,
+      model: workspaceAI.chatModel,
       keys: workspaceAI.keys,
-    });
-    if (chunks.length) {
-      await supabase.from('embeddings').insert(
-        chunks.map((c, i) => ({
-          recording_id: recordingId,
-          workspace_id: recording.workspace_id,
-          chunk_index: i,
-          start_segment_id: c.startSegmentId,
-          end_segment_id: c.endSegmentId,
-          start_ms: c.startMs,
-          end_ms: c.endMs,
-          content: c.content,
-          embedding: c.embedding,
-          model: workspaceAI.embeddingModel ?? 'text-embedding-3-small',
-        })),
-      );
+    }),
+    runActionItems({
+      segments,
+      locale,
+      provider: workspaceAI.chatProvider,
+      model: workspaceAI.chatModel,
+      keys: workspaceAI.keys,
+    }),
+    runMindmap({
+      fullText: tx.fullText,
+      locale,
+      provider: workspaceAI.chatProvider,
+      model: workspaceAI.chatModel,
+      keys: workspaceAI.keys,
+    }),
+    runChapters({
+      segments,
+      locale,
+      provider: workspaceAI.chatProvider,
+      model: workspaceAI.chatModel,
+      keys: workspaceAI.keys,
+    }),
+  ]);
+
+  const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
+
+  if (summary.status === 'fulfilled')
+    await insertOutput(outputsCollection, recordingId, 'summary', summary.value, locale);
+  if (actions.status === 'fulfilled')
+    await insertOutput(outputsCollection, recordingId, 'action_items', actions.value, locale);
+  if (mindmap.status === 'fulfilled')
+    await insertOutput(outputsCollection, recordingId, 'mindmap', mindmap.value, locale);
+  if (chapters.status === 'fulfilled')
+    await insertOutput(outputsCollection, recordingId, 'chapters', chapters.value, locale);
+
+  if (actions.status === 'fulfilled') {
+    const actionItemsCollection = db
+      .collection('recordings')
+      .doc(recordingId)
+      .collection('action_items');
+    const batch = db.batch();
+    for (const a of actions.value.payload) {
+      const ref = actionItemsCollection.doc();
+      batch.set(ref, {
+        recordingId,
+        text: a.text,
+        assignee: a.assignee ?? null,
+        dueDate: a.dueDate ?? null,
+        done: false,
+        sourceSegmentIds: a.sourceSegmentIds ?? [],
+        createdAt: FieldValue.serverTimestamp(),
+      });
     }
+    await batch.commit();
+  }
 
-    await setStatus(supabase, recordingId, 'ready');
-    return { recordingId, segments: segments.length, chunks: chunks.length };
-  },
-});
+  await setStatus(db, recordingId, 'embedding');
+  const chunks = await chunkAndEmbed(segments, {
+    provider: workspaceAI.embeddingProvider,
+    model: workspaceAI.embeddingModel,
+    keys: workspaceAI.keys,
+  });
+  if (chunks.length) {
+    const embCollection = db.collection('recordings').doc(recordingId).collection('embeddings');
+    const batch = db.batch();
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i]!;
+      const ref = embCollection.doc();
+      batch.set(ref, {
+        recordingId,
+        workspaceId: recording.workspaceId,
+        chunkIndex: i,
+        startSegmentId: c.startSegmentId ?? null,
+        endSegmentId: c.endSegmentId ?? null,
+        startMs: c.startMs,
+        endMs: c.endMs,
+        content: c.content,
+        embedding: FieldValue.vector(c.embedding),
+        model: workspaceAI.embeddingModel ?? 'text-embedding-3-small',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
 
-async function setStatus(
-  supabase: ReturnType<typeof createServiceClient>,
-  id: string,
-  status: string,
-) {
-  await supabase.from('recordings').update({ status }).eq('id', id);
+  await setStatus(db, recordingId, 'ready');
+  return { recordingId, segments: segments.length, chunks: chunks.length };
+}
+
+async function setStatus(db: Firestore, id: string, status: string) {
+  await db.collection('recordings').doc(id).update({
+    status,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }
 
 async function persistTranscript(
-  supabase: ReturnType<typeof createServiceClient>,
+  db: Firestore,
   recordingId: string,
   tx: TranscribeResult,
 ): Promise<TranscriptSegment[]> {
-  const { data: transcript, error } = await supabase
-    .from('transcripts')
-    .upsert(
-      {
-        recording_id: recordingId,
-        provider: tx.provider,
-        model: tx.model,
-        detected_locale: tx.detectedLocale,
-        full_text: tx.fullText,
-      },
-      { onConflict: 'recording_id' },
-    )
-    .select()
-    .single();
-  if (error || !transcript) throw error ?? new Error('failed to persist transcript');
+  const transcriptsRef = db.collection('recordings').doc(recordingId).collection('transcripts');
 
-  await supabase.from('transcript_segments').delete().eq('transcript_id', transcript.id);
-
-  const rows = tx.segments.map((s) => ({
-    id: shortId(24),
-    transcript_id: transcript.id,
-    recording_id: recordingId,
-    speaker_id: s.speakerId,
-    start_ms: s.startMs,
-    end_ms: s.endMs,
-    text: s.text,
-    confidence: s.confidence,
-  }));
-  if (rows.length) {
-    const { error: insErr } = await supabase.from('transcript_segments').insert(rows);
-    if (insErr) throw insErr;
+  // Upsert: delete existing then create
+  const existing = await transcriptsRef.limit(1).get();
+  if (!existing.empty) {
+    await existing.docs[0]!.ref.delete();
   }
 
-  return rows.map((r) => ({
-    id: r.id,
-    startMs: r.start_ms,
-    endMs: r.end_ms,
-    speakerId: r.speaker_id,
-    text: r.text,
-    confidence: r.confidence,
-  }));
+  const transcriptRef = await transcriptsRef.add({
+    recordingId,
+    provider: tx.provider,
+    model: tx.model,
+    detectedLocale: tx.detectedLocale ?? null,
+    fullText: tx.fullText,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  // Delete existing segments
+  const segCollection = db
+    .collection('recordings')
+    .doc(recordingId)
+    .collection('transcript_segments');
+  const oldSegs = await segCollection.get();
+  if (!oldSegs.empty) {
+    const batch = db.batch();
+    for (const doc of oldSegs.docs) batch.delete(doc.ref);
+    await batch.commit();
+  }
+
+  // Insert new segments
+  const rows: TranscriptSegment[] = [];
+  const batch = db.batch();
+  for (const s of tx.segments) {
+    const id = shortId(24);
+    const ref = segCollection.doc(id);
+    batch.set(ref, {
+      transcriptId: transcriptRef.id,
+      recordingId,
+      speakerId: s.speakerId ?? null,
+      startMs: s.startMs,
+      endMs: s.endMs,
+      text: s.text,
+      confidence: s.confidence ?? null,
+    });
+    rows.push({
+      id,
+      startMs: s.startMs,
+      endMs: s.endMs,
+      speakerId: s.speakerId,
+      text: s.text,
+      confidence: s.confidence,
+    });
+  }
+  await batch.commit();
+
+  return rows;
 }
 
 async function insertOutput(
-  supabase: ReturnType<typeof createServiceClient>,
+  collection: FirebaseFirestore.CollectionReference,
   recordingId: string,
   kind: string,
   result: {
@@ -204,31 +234,24 @@ async function insertOutput(
   },
   locale: Locale,
 ) {
-  await supabase.from('ai_outputs').upsert(
-    {
-      recording_id: recordingId,
-      kind,
-      payload: result.payload,
-      provider: result.provider,
-      model: result.model,
-      prompt_version: result.promptVersion,
-      latency_ms: result.latencyMs,
-      locale,
-    },
-    { onConflict: 'recording_id,kind' },
-  );
+  // Upsert by kind: use kind as doc ID
+  await collection.doc(kind).set({
+    recordingId,
+    kind,
+    payload: result.payload,
+    provider: result.provider,
+    model: result.model,
+    promptVersion: result.promptVersion,
+    latencyMs: result.latencyMs,
+    locale,
+    costCents: 0,
+    createdAt: FieldValue.serverTimestamp(),
+  });
 }
 
-async function loadWorkspaceAI(
-  supabase: ReturnType<typeof createServiceClient>,
-  workspaceId: string,
-) {
-  const { data } = await supabase
-    .from('workspaces')
-    .select('ai_settings')
-    .eq('id', workspaceId)
-    .single();
-  const s = (data?.ai_settings ?? {}) as {
+async function loadWorkspaceAI(db: Firestore, workspaceId: string) {
+  const wsDoc = await db.collection('workspaces').doc(workspaceId).get();
+  const s = (wsDoc.data()?.aiSettings ?? {}) as {
     transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
     chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama';
     chatModel?: string;
