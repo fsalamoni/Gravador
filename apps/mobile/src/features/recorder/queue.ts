@@ -71,6 +71,9 @@ export async function drainQueue(onProgress?: (item: QueuedUpload) => void): Pro
       await uploadBytes(storageRef, byteArray, { contentType: item.mimeType });
 
       const userId = auth.currentUser?.uid;
+      if (!userId) {
+        throw new Error('User not authenticated — cannot create recording');
+      }
       await addDoc(collection(db, 'recordings'), {
         workspaceId: item.workspaceId,
         createdBy: userId,

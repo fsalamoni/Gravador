@@ -62,8 +62,14 @@ service cloud.firestore {
     match /recordings/{recId} {
       allow read: if isAuth() && isWorkspaceMember(resource.data.workspaceId);
       allow create: if isAuth() && isWorkspaceMember(request.resource.data.workspaceId);
-      allow update: if isAuth() && isWorkspaceMember(resource.data.workspaceId);
+      allow update: if isAuth() && isWorkspaceMember(resource.data.workspaceId)
+                    && request.resource.data.workspaceId == resource.data.workspaceId;
       allow delete: if isAuth() && isWorkspaceAdmin(resource.data.workspaceId);
+
+      match /transcripts/{trId} {
+        allow read: if isAuth();
+        allow write: if false; // server-only via admin SDK
+      }
 
       match /transcript_segments/{segId} {
         allow read: if isAuth();

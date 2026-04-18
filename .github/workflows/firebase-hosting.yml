@@ -4,26 +4,24 @@ on:
   pull_request:
     paths:
       - '.github/workflows/firebase-hosting.yml'
-      - '.firebaserc.example'
+      - '.firebaserc'
       - 'firebase.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
-      - 'README.md'
       - 'apps/web/**'
       - 'packages/**'
   push:
     branches: [main]
     paths:
       - '.github/workflows/firebase-hosting.yml'
-      - '.firebaserc.example'
+      - '.firebaserc'
       - 'firebase.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
-      - 'README.md'
       - 'apps/web/**'
       - 'packages/**'
   workflow_dispatch:
@@ -31,6 +29,9 @@ on:
 concurrency:
   group: firebase-hosting-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy:
@@ -42,16 +43,16 @@ jobs:
       - name: Check Firebase secrets
         id: firebase
         shell: bash
+        env:
+          HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          HAS_PID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
         run: |
-          if [[ -n "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" && -n "${{ secrets.FIREBASE_PROJECT_ID }}" ]]; then
+          if [[ "$HAS_SA" == "true" && "$HAS_PID" == "true" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping deploy — set FIREBASE_SERVICE_ACCOUNT and FIREBASE_PROJECT_ID secrets to enable."
           fi
-
-      - name: Skip when Firebase is not configured
-        if: steps.firebase.outputs.enabled != 'true'
-        run: echo "Skipping Firebase deploy because FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID is missing."
 
       - name: Checkout repository
         if: steps.firebase.outputs.enabled == 'true'
@@ -79,21 +80,27 @@ jobs:
         run: |
           pnpm lint
           pnpm typecheck
-          pnpm --filter @gravador/web build
 
-      - name: Deploy preview channel
-        if: steps.firebase.outputs.enabled == 'true' && github.event_name == 'pull_request'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+      - name: Build web app
+        if: steps.firebase.outputs.enabled == 'true'
+        run: pnpm --filter @gravador/web build
 
-      - name: Deploy live channel
-        if: steps.firebase.outputs.enabled == 'true' && github.event_name != 'pull_request'
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          channelId: live
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+      - name: Deploy to Firebase Hosting
+        if: steps.firebase.outputs.enabled == 'true'
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          # Write service account key to temp file for auth
+          printf '%s\n' "$FIREBASE_SA" > "$RUNNER_TEMP/sa-key.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa-key.json"
+
+          # Deploy using Firebase CLI
+          npx firebase-tools@latest deploy \
+            --only hosting \
+            --project "$FIREBASE_PID" \
+            --non-interactive \
+            --force
+
+          # Cleanup
+          rm -f "$RUNNER_TEMP/sa-key.json"

@@ -12,12 +12,22 @@ export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  // Verify user is a member of the requested workspace
+  const db = getServerDb();
+  const memberDoc = await db
+    .collection('workspaces')
+    .doc(workspaceId)
+    .collection('members')
+    .doc(user.uid)
+    .get();
+  if (!memberDoc.exists) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
   const [queryEmbedding] = await embedTexts([q]);
   if (!queryEmbedding) {
     return NextResponse.json({ error: 'embed_failed' }, { status: 500 });
   }
-
-  const db = getServerDb();
 
   // Semantic search: query each recording's embeddings subcollection
   // For now, use collection group query on embeddings filtered by workspaceId

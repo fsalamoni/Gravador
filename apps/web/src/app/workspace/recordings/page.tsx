@@ -1,13 +1,16 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { formatDurationMs } from '@gravador/core';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export default async function RecordingsListPage() {
   const user = await getSessionUser();
+  if (!user) redirect('/login');
   const db = getServerDb();
 
   const snapshot = await db
     .collection('recordings')
+    .where('createdBy', '==', user.uid)
     .where('deletedAt', '==', null)
     .orderBy('capturedAt', 'desc')
     .get();

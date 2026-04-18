@@ -21,7 +21,18 @@ export async function POST(req: Request) {
   const db = getServerDb();
   const recDoc = await db.collection('recordings').doc(recordingId).get();
   if (!recDoc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  const rec = recDoc.data() as { workspaceId: string; locale?: string };
+  const rec = recDoc.data() as { workspaceId: string; createdBy: string; locale?: string };
+
+  // Verify user owns this recording or is a workspace member
+  if (rec.createdBy !== user.uid) {
+    const memberDoc = await db
+      .collection('workspaces')
+      .doc(rec.workspaceId)
+      .collection('members')
+      .doc(user.uid)
+      .get();
+    if (!memberDoc.exists) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
 
   const query = messages[messages.length - 1]!.content;
   const [queryEmbedding] = await embedTexts([query]);

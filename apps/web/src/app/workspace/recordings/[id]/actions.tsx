@@ -32,8 +32,12 @@ export function ActionsView({
     next[idx] = { ...curr, done: !curr.done };
     setItems(next);
     if (curr.id) {
-      const itemRef = doc(db, 'recordings', recordingId, 'action_items', curr.id);
-      await updateDoc(itemRef, { done: next[idx]!.done });
+      try {
+        const itemRef = doc(db, 'recordings', recordingId, 'action_items', curr.id);
+        await updateDoc(itemRef, { done: next[idx]!.done });
+      } catch {
+        setItems(items); // revert optimistic update
+      }
     }
   };
 
