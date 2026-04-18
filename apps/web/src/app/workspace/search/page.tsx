@@ -27,7 +27,7 @@ export default function SearchPage() {
     const res = await fetch('/api/search', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ q, workspaceId: 'current' }),
+      body: JSON.stringify({ q }),
     });
     const json = await res.json();
     setSemantic(json.semantic ?? []);

@@ -7,6 +7,7 @@ import { Waveform } from '../src/components/Waveform';
 import { drainQueue, enqueueUpload } from '../src/features/recorder/queue';
 import { useRecordingController } from '../src/features/recorder/recorder';
 import { useRecorder } from '../src/features/recorder/store';
+import { auth } from '../src/lib/firebase';
 import { t } from '../src/lib/i18n';
 
 export default function HomeScreen() {
@@ -52,8 +53,10 @@ export default function HomeScreen() {
             } else if (isRecording) {
               const { uri, durationMs, sizeBytes } = await stop();
               if (uri && durationMs > 500) {
+                const userId = auth.currentUser?.uid;
+                if (!userId) throw new Error('Not authenticated');
                 await enqueueUpload({
-                  workspaceId: 'me',
+                  workspaceId: userId,
                   uri,
                   durationMs,
                   sizeBytes,

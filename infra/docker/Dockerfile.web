@@ -11,6 +11,7 @@ RUN pnpm fetch --prod=false
 
 FROM base AS builder
 WORKDIR /repo
+ENV NEXT_BUILD_OUTPUT=standalone
 COPY --from=deps /repo ./
 COPY . .
 RUN pnpm install --offline --frozen-lockfile

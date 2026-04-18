@@ -30,125 +30,145 @@ export async function processRecording(payload: { recordingId: string; locale?: 
   if (!recDoc.exists) throw new Error(`recording ${recordingId} not found`);
   const recording = recDoc.data()!;
 
+  // Idempotency guard: skip if already processed
+  if (recording.status === 'ready') {
+    console.log('[pipeline] recording already processed, skipping');
+    return { recordingId, segments: 0, chunks: 0 };
+  }
+
   const workspaceAI = await loadWorkspaceAI(db, recording.workspaceId);
 
-  await setStatus(db, recordingId, 'transcribing');
+  try {
+    await setStatus(db, recordingId, 'transcribing');
 
-  // Get a signed URL for the audio file
-  const storage = getAdminStorage();
-  const bucket = storage.bucket();
-  const [audioUrl] = await bucket.file(recording.storagePath).getSignedUrl({
-    action: 'read',
-    expires: Date.now() + 3600 * 1000,
-  });
-  if (!audioUrl) throw new Error('failed to sign audio URL');
+    // Get a signed URL for the audio file
+    const storage = getAdminStorage();
+    const bucket = storage.bucket();
+    const [audioUrl] = await bucket.file(recording.storagePath).getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 3600 * 1000,
+    });
+    if (!audioUrl) throw new Error('failed to sign audio URL');
 
-  const tx = await transcribe({
-    audioUrl,
-    locale: payload.locale ?? recording.locale ?? 'auto',
-    provider: workspaceAI.transcribeProvider,
-  });
-  const segments = await persistTranscript(db, recordingId, tx);
-  console.log('[pipeline] transcribed', { segments: segments.length });
+    const tx = await transcribe({
+      audioUrl,
+      locale: payload.locale ?? recording.locale ?? 'auto',
+      provider: workspaceAI.transcribeProvider,
+    });
+    const segments = await persistTranscript(db, recordingId, tx);
+    console.log('[pipeline] transcribed', { segments: segments.length });
 
-  const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
+    const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
 
-  await setStatus(db, recordingId, 'summarizing');
-  const [summary, actions, mindmap, chapters] = await Promise.allSettled([
-    runSummary({
-      segments,
-      fullText: tx.fullText,
-      locale,
-      provider: workspaceAI.chatProvider,
-      model: workspaceAI.chatModel,
-      keys: workspaceAI.keys,
-    }),
-    runActionItems({
-      segments,
-      locale,
-      provider: workspaceAI.chatProvider,
-      model: workspaceAI.chatModel,
-      keys: workspaceAI.keys,
-    }),
-    runMindmap({
-      fullText: tx.fullText,
-      locale,
-      provider: workspaceAI.chatProvider,
-      model: workspaceAI.chatModel,
-      keys: workspaceAI.keys,
-    }),
-    runChapters({
-      segments,
-      locale,
-      provider: workspaceAI.chatProvider,
-      model: workspaceAI.chatModel,
-      keys: workspaceAI.keys,
-    }),
-  ]);
+    await setStatus(db, recordingId, 'summarizing');
+    const [summary, actions, mindmap, chapters] = await Promise.allSettled([
+      runSummary({
+        segments,
+        fullText: tx.fullText,
+        locale,
+        provider: workspaceAI.chatProvider,
+        model: workspaceAI.chatModel,
+        keys: workspaceAI.keys,
+      }),
+      runActionItems({
+        segments,
+        locale,
+        provider: workspaceAI.chatProvider,
+        model: workspaceAI.chatModel,
+        keys: workspaceAI.keys,
+      }),
+      runMindmap({
+        fullText: tx.fullText,
+        locale,
+        provider: workspaceAI.chatProvider,
+        model: workspaceAI.chatModel,
+        keys: workspaceAI.keys,
+      }),
+      runChapters({
+        segments,
+        locale,
+        provider: workspaceAI.chatProvider,
+        model: workspaceAI.chatModel,
+        keys: workspaceAI.keys,
+      }),
+    ]);
 
-  const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
+    const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
 
-  if (summary.status === 'fulfilled')
-    await insertOutput(outputsCollection, recordingId, 'summary', summary.value, locale);
-  if (actions.status === 'fulfilled')
-    await insertOutput(outputsCollection, recordingId, 'action_items', actions.value, locale);
-  if (mindmap.status === 'fulfilled')
-    await insertOutput(outputsCollection, recordingId, 'mindmap', mindmap.value, locale);
-  if (chapters.status === 'fulfilled')
-    await insertOutput(outputsCollection, recordingId, 'chapters', chapters.value, locale);
+    if (summary.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'summary', summary.value, locale);
+    if (actions.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'action_items', actions.value, locale);
+    if (mindmap.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'mindmap', mindmap.value, locale);
+    if (chapters.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'chapters', chapters.value, locale);
 
-  if (actions.status === 'fulfilled') {
-    const actionItemsCollection = db
-      .collection('recordings')
-      .doc(recordingId)
-      .collection('action_items');
-    const batch = db.batch();
-    for (const a of actions.value.payload) {
-      const ref = actionItemsCollection.doc();
-      batch.set(ref, {
-        recordingId,
-        text: a.text,
-        assignee: a.assignee ?? null,
-        dueDate: a.dueDate ?? null,
-        done: false,
-        sourceSegmentIds: a.sourceSegmentIds ?? [],
-        createdAt: FieldValue.serverTimestamp(),
-      });
+    if (actions.status === 'fulfilled') {
+      const actionItemsCollection = db
+        .collection('recordings')
+        .doc(recordingId)
+        .collection('action_items');
+      await commitInBatches(
+        db,
+        (
+          actions.value.payload as Array<{
+            text: string;
+            assignee?: string;
+            dueDate?: string;
+            sourceSegmentIds?: string[];
+          }>
+        ).map((a) => ({
+          ref: actionItemsCollection.doc(),
+          data: {
+            recordingId,
+            text: a.text,
+            assignee: a.assignee ?? null,
+            dueDate: a.dueDate ?? null,
+            done: false,
+            sourceSegmentIds: a.sourceSegmentIds ?? [],
+            createdAt: FieldValue.serverTimestamp(),
+          },
+        })),
+      );
     }
-    await batch.commit();
-  }
 
-  await setStatus(db, recordingId, 'embedding');
-  const chunks = await chunkAndEmbed(segments, {
-    provider: workspaceAI.embeddingProvider,
-    model: workspaceAI.embeddingModel,
-    keys: workspaceAI.keys,
-  });
-  if (chunks.length) {
-    const embCollection = db.collection('recordings').doc(recordingId).collection('embeddings');
-    const batch = db.batch();
-    for (let i = 0; i < chunks.length; i++) {
-      const c = chunks[i]!;
-      const ref = embCollection.doc();
-      batch.set(ref, {
-        recordingId,
-        workspaceId: recording.workspaceId,
-        chunkIndex: i,
-        startSegmentId: c.startSegmentId ?? null,
-        endSegmentId: c.endSegmentId ?? null,
-        startMs: c.startMs,
-        endMs: c.endMs,
-        content: c.content,
-        embedding: FieldValue.vector(c.embedding),
-        model: workspaceAI.embeddingModel ?? 'text-embedding-3-small',
-        createdAt: FieldValue.serverTimestamp(),
-      });
+    await setStatus(db, recordingId, 'embedding');
+    const chunks = await chunkAndEmbed(segments, {
+      provider: workspaceAI.embeddingProvider,
+      model: workspaceAI.embeddingModel,
+      keys: workspaceAI.keys,
+    });
+    if (chunks.length) {
+      const embCollection = db.collection('recordings').doc(recordingId).collection('embeddings');
+      await commitInBatches(
+        db,
+        chunks.map((c, i) => ({
+          ref: embCollection.doc(),
+          data: {
+            recordingId,
+            workspaceId: recording.workspaceId,
+            chunkIndex: i,
+            startSegmentId: c.startSegmentId ?? null,
+            endSegmentId: c.endSegmentId ?? null,
+            startMs: c.startMs,
+            endMs: c.endMs,
+            content: c.content,
+            embedding: FieldValue.vector(c.embedding),
+            model: workspaceAI.embeddingModel ?? 'text-embedding-3-small',
+            createdAt: FieldValue.serverTimestamp(),
+          },
+        })),
+      );
     }
-    await batch.commit();
-  }
 
-  await setStatus(db, recordingId, 'ready');
-  return { recordingId, segments: segments.length, chunks: chunks.length };
+    await setStatus(db, recordingId, 'ready');
+    return { recordingId, segments: segments.length, chunks: chunks.length };
+  } catch (err) {
+    // Mark recording as failed so it doesn't stay stuck
+    await setStatus(db, recordingId, 'failed').catch(() => {});
+    throw err;
+  }
 }
 
 async function setStatus(db: Firestore, id: string, status: string) {
@@ -187,25 +207,29 @@ async function persistTranscript(
     .collection('transcript_segments');
   const oldSegs = await segCollection.get();
   if (!oldSegs.empty) {
-    const batch = db.batch();
-    for (const doc of oldSegs.docs) batch.delete(doc.ref);
-    await batch.commit();
+    await commitInBatches(
+      db,
+      oldSegs.docs.map((doc) => ({ ref: doc.ref, delete: true })),
+    );
   }
 
-  // Insert new segments
+  // Insert new segments (chunked to stay under 500-operation batch limit)
   const rows: TranscriptSegment[] = [];
-  const batch = db.batch();
+  const ops: BatchOp[] = [];
   for (const s of tx.segments) {
     const id = shortId(24);
     const ref = segCollection.doc(id);
-    batch.set(ref, {
-      transcriptId: transcriptRef.id,
-      recordingId,
-      speakerId: s.speakerId ?? null,
-      startMs: s.startMs,
-      endMs: s.endMs,
-      text: s.text,
-      confidence: s.confidence ?? null,
+    ops.push({
+      ref,
+      data: {
+        transcriptId: transcriptRef.id,
+        recordingId,
+        speakerId: s.speakerId ?? null,
+        startMs: s.startMs,
+        endMs: s.endMs,
+        text: s.text,
+        confidence: s.confidence ?? null,
+      },
     });
     rows.push({
       id,
@@ -216,7 +240,7 @@ async function persistTranscript(
       confidence: s.confidence,
     });
   }
-  await batch.commit();
+  await commitInBatches(db, ops);
 
   return rows;
 }
@@ -267,4 +291,29 @@ async function loadWorkspaceAI(db: Firestore, workspaceId: string) {
     embeddingModel: s.embeddingModel,
     keys: s.byokKeys ?? {},
   };
+}
+
+// ── Batch helper: commits in chunks of 490 to stay under Firestore's 500-op limit ──
+
+interface BatchOp {
+  ref: FirebaseFirestore.DocumentReference;
+  data?: Record<string, unknown>;
+  delete?: boolean;
+}
+
+const BATCH_LIMIT = 490;
+
+async function commitInBatches(db: Firestore, ops: BatchOp[]) {
+  for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+    const chunk = ops.slice(i, i + BATCH_LIMIT);
+    const batch = db.batch();
+    for (const op of chunk) {
+      if (op.delete) {
+        batch.delete(op.ref);
+      } else {
+        batch.set(op.ref, op.data!);
+      }
+    }
+    await batch.commit();
+  }
 }

@@ -2,7 +2,12 @@
 
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { type Auth, connectAuthEmulator, getAuth } from 'firebase/auth';
-import { type Firestore, connectFirestoreEmulator, initializeFirestore } from 'firebase/firestore';
+import {
+  type Firestore,
+  connectFirestoreEmulator,
+  getFirestore,
+  initializeFirestore,
+} from 'firebase/firestore';
 import { type FirebaseStorage, connectStorageEmulator, getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -14,10 +19,17 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const isExistingApp = getApps().length > 0;
+const app = isExistingApp ? getApp() : initializeApp(firebaseConfig);
 
 // Use named database 'anotes' for isolation
-const db: Firestore = initializeFirestore(app, {}, 'anotes');
+// initializeFirestore can only be called once; on HMR re-import, use getFirestore
+let db: Firestore;
+try {
+  db = isExistingApp ? getFirestore(app, 'anotes') : initializeFirestore(app, {}, 'anotes');
+} catch {
+  db = getFirestore(app, 'anotes');
+}
 
 const auth: Auth = getAuth(app);
 

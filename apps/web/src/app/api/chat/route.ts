@@ -6,6 +6,11 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+type VectorQueryOptionsCompat = {
+  limit: number;
+  distanceMeasure: 'COSINE' | 'EUCLIDEAN' | 'DOT_PRODUCT';
+};
+
 export async function POST(req: Request) {
   const { recordingId, messages } = (await req.json()) as {
     recordingId: string;
@@ -42,10 +47,16 @@ export async function POST(req: Request) {
 
   // Vector search using Firestore findNearest
   const embeddingsRef = db.collection('recordings').doc(recordingId).collection('embeddings');
-  const vectorQuery = embeddingsRef.findNearest('embedding', queryEmbedding, {
+  const findNearestOpts = {
     limit: 6,
-    distanceMeasure: 'COSINE',
-  });
+    distanceMeasure: 'COSINE' as const,
+    distanceResultField: '_distance',
+  };
+  const vectorQuery = embeddingsRef.findNearest(
+    'embedding',
+    queryEmbedding,
+    findNearestOpts as unknown as VectorQueryOptionsCompat,
+  );
   const embSnap = await vectorQuery.get();
 
   const context = embSnap.docs.map((d) => {

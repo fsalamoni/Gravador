@@ -1,5 +1,5 @@
-import { getServerDb, getServerStorage } from '@/lib/firebase-server';
-import { notFound } from 'next/navigation';
+import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
+import { notFound, redirect } from 'next/navigation';
 import { Player } from './player';
 import { RecordingTabs } from './tabs';
 
@@ -8,12 +8,28 @@ export default async function RecordingPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await getSessionUser();
+  if (!user) redirect('/login');
+
   const { id } = await params;
   const db = getServerDb();
 
   const recDoc = await db.collection('recordings').doc(id).get();
   if (!recDoc.exists) notFound();
-  const recording = { id: recDoc.id, ...recDoc.data() } as {
+  const recData = recDoc.data()!;
+
+  // Authorization: must be creator or workspace member
+  if (recData.createdBy !== user.uid) {
+    const memberDoc = await db
+      .collection('workspaces')
+      .doc(recData.workspaceId as string)
+      .collection('members')
+      .doc(user.uid)
+      .get();
+    if (!memberDoc.exists) notFound();
+  }
+
+  const recording = { id: recDoc.id, ...recData } as {
     id: string;
     title?: string;
     capturedAt: { toDate: () => Date };
@@ -23,10 +39,11 @@ export default async function RecordingPage({
     storageBucket: string;
   };
 
-  const [transcriptSnap, segmentsSnap, outputsSnap] = await Promise.all([
+  const [transcriptSnap, segmentsSnap, outputsSnap, actionItemsSnap] = await Promise.all([
     db.collection('recordings').doc(id).collection('transcripts').limit(1).get(),
     db.collection('recordings').doc(id).collection('transcript_segments').orderBy('startMs').get(),
     db.collection('recordings').doc(id).collection('ai_outputs').get(),
+    db.collection('recordings').doc(id).collection('action_items').orderBy('createdAt').get(),
   ]);
 
   const transcript = transcriptSnap.docs[0]
@@ -51,6 +68,17 @@ export default async function RecordingPage({
   const outputs = outputsSnap.docs.map((d) => {
     const data = d.data();
     return { kind: data.kind as string, payload: data.payload };
+  });
+
+  const actionItems = actionItemsSnap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      text: data.text as string,
+      assignee: (data.assignee as string) ?? null,
+      dueDate: (data.dueDate as string) ?? null,
+      done: (data.done as boolean) ?? false,
+    };
   });
 
   // Get a signed URL for the audio file
@@ -86,6 +114,7 @@ export default async function RecordingPage({
           transcript={transcript}
           segments={segments}
           outputs={outputs}
+          actionItems={actionItems}
         />
       </div>
     </div>

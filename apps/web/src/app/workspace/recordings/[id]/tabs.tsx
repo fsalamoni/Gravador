@@ -12,6 +12,14 @@ import { TranscriptView } from './transcript';
 
 type Output = { kind: string; payload: unknown };
 
+interface ActionItem {
+  id: string;
+  text: string;
+  assignee: string | null;
+  dueDate: string | null;
+  done: boolean;
+}
+
 interface Props {
   recordingId: string;
   transcript: { full_text: string; detected_locale: string | null } | null;
@@ -23,9 +31,10 @@ interface Props {
     speaker_id: string | null;
   }>;
   outputs: Output[];
+  actionItems: ActionItem[];
 }
 
-export function RecordingTabs({ recordingId, transcript, segments, outputs }: Props) {
+export function RecordingTabs({ recordingId, transcript, segments, outputs, actionItems }: Props) {
   const t = useTranslations('recording.tabs');
   const [tab, setTab] = useState('transcript');
 
@@ -61,7 +70,7 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs }: Pr
           <SummaryView payload={byKind.get('summary')} />
         </Tabs.Content>
         <Tabs.Content value="actions">
-          <ActionsView payload={byKind.get('action_items')} recordingId={recordingId} />
+          <ActionsView items={actionItems} recordingId={recordingId} />
         </Tabs.Content>
         <Tabs.Content value="mindmap">
           <MindmapView payload={byKind.get('mindmap')} />

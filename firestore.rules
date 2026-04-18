@@ -67,28 +67,28 @@ service cloud.firestore {
       allow delete: if isAuth() && isWorkspaceAdmin(resource.data.workspaceId);
 
       match /transcripts/{trId} {
-        allow read: if isAuth();
+        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /transcript_segments/{segId} {
-        allow read: if isAuth();
+        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /ai_outputs/{kind} {
-        allow read: if isAuth();
+        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /embeddings/{chunkId} {
-        allow read: if isAuth();
+        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /action_items/{itemId} {
-        allow read: if isAuth();
-        allow update: if isAuth(); // toggle done
+        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
+        allow update: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
         allow create, delete: if false; // server-only
       }
     }

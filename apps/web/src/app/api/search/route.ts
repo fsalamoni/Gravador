@@ -2,26 +2,34 @@ import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { embedTexts } from '@gravador/ai';
 import { NextResponse } from 'next/server';
 
-/** Workspace-wide semantic search. */
+type VectorQueryOptionsCompat = {
+  limit: number;
+  distanceMeasure: 'COSINE' | 'EUCLIDEAN' | 'DOT_PRODUCT';
+};
+
+/** User-scoped semantic + keyword search across all recordings. */
 export async function POST(req: Request) {
-  const { q, workspaceId } = (await req.json()) as { q: string; workspaceId: string };
-  if (!q || !workspaceId) {
+  const { q } = (await req.json()) as { q: string };
+  if (!q) {
     return NextResponse.json({ error: 'missing_input' }, { status: 400 });
   }
 
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  // Verify user is a member of the requested workspace
   const db = getServerDb();
-  const memberDoc = await db
-    .collection('workspaces')
-    .doc(workspaceId)
-    .collection('members')
-    .doc(user.uid)
+
+  // Get all recordings belonging to this user
+  const userRecordings = await db
+    .collection('recordings')
+    .where('createdBy', '==', user.uid)
+    .where('deletedAt', '==', null)
+    .select()
     .get();
-  if (!memberDoc.exists) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const recordingIds = userRecordings.docs.map((d) => d.id);
+
+  if (recordingIds.length === 0) {
+    return NextResponse.json({ semantic: [], keyword: [] });
   }
 
   const [queryEmbedding] = await embedTexts([q]);
@@ -29,13 +37,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'embed_failed' }, { status: 500 });
   }
 
-  // Semantic search: query each recording's embeddings subcollection
-  // For now, use collection group query on embeddings filtered by workspaceId
-  const embeddingsRef = db.collectionGroup('embeddings').where('workspaceId', '==', workspaceId);
-  const vectorQuery = embeddingsRef.findNearest('embedding', queryEmbedding, {
+  // Semantic search: query embeddings filtered by user's recordings
+  // Firestore 'in' filter supports up to 30 values
+  const batchIds = recordingIds.slice(0, 30);
+  const embeddingsRef = db.collectionGroup('embeddings').where('recordingId', 'in', batchIds);
+  const findNearestOpts = {
     limit: 15,
-    distanceMeasure: 'COSINE',
-  });
+    distanceMeasure: 'COSINE' as const,
+    distanceResultField: '_distance',
+  };
+  const vectorQuery = embeddingsRef.findNearest(
+    'embedding',
+    queryEmbedding,
+    findNearestOpts as unknown as VectorQueryOptionsCompat,
+  );
   const embSnap = await vectorQuery.get();
 
   const semantic = embSnap.docs.map((d) => {
@@ -49,25 +64,37 @@ export async function POST(req: Request) {
     };
   });
 
-  // Keyword search: simple text search across transcript_segments
-  // Firestore doesn't have full-text search natively, so we do prefix matching
-  const segSnap = await db
-    .collectionGroup('transcript_segments')
-    .orderBy('text')
-    .startAt(q)
-    .endAt(`${q}\uf8ff`)
-    .limit(15)
-    .get();
+  // Keyword search: prefix match on user's recordings only
+  const keywordResults: Array<{
+    recording_id: string;
+    text: string;
+    start_ms: number;
+    end_ms: number;
+  }> = [];
 
-  const keyword = segSnap.docs.map((d) => {
-    const data = d.data();
-    return {
-      recording_id: data.recordingId,
-      text: data.text,
-      start_ms: data.startMs,
-      end_ms: data.endMs,
-    };
-  });
+  // Query segments per recording (limited to first 10 recordings for perf)
+  for (const recId of recordingIds.slice(0, 10)) {
+    const segSnap = await db
+      .collection('recordings')
+      .doc(recId)
+      .collection('transcript_segments')
+      .orderBy('text')
+      .startAt(q)
+      .endAt(`${q}\uf8ff`)
+      .limit(5)
+      .get();
 
-  return NextResponse.json({ semantic, keyword });
+    for (const d of segSnap.docs) {
+      const data = d.data();
+      keywordResults.push({
+        recording_id: data.recordingId ?? recId,
+        text: data.text,
+        start_ms: data.startMs,
+        end_ms: data.endMs,
+      });
+    }
+    if (keywordResults.length >= 15) break;
+  }
+
+  return NextResponse.json({ semantic, keyword: keywordResults.slice(0, 15) });
 }

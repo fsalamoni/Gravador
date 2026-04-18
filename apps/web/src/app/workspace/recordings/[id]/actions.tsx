@@ -5,39 +5,37 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { useState } from 'react';
 
 interface ActionItem {
-  id?: string;
+  id: string;
   text: string;
   assignee: string | null;
   dueDate: string | null;
-  done?: boolean;
+  done: boolean;
 }
 
 export function ActionsView({
-  payload,
+  items: initialItems,
   recordingId,
 }: {
-  payload: unknown;
+  items: ActionItem[];
   recordingId: string;
 }) {
-  const initial = (payload as ActionItem[] | undefined) ?? [];
-  const [items, setItems] = useState<ActionItem[]>(initial);
+  const [items, setItems] = useState<ActionItem[]>(initialItems);
 
   if (items.length === 0) {
     return <p className="text-mute">Nenhuma ação detectada (ou ainda em processamento).</p>;
   }
 
   const toggle = async (idx: number) => {
+    const prev = [...items];
     const next = [...items];
     const curr = next[idx]!;
     next[idx] = { ...curr, done: !curr.done };
     setItems(next);
-    if (curr.id) {
-      try {
-        const itemRef = doc(db, 'recordings', recordingId, 'action_items', curr.id);
-        await updateDoc(itemRef, { done: next[idx]!.done });
-      } catch {
-        setItems(items); // revert optimistic update
-      }
+    try {
+      const itemRef = doc(db, 'recordings', recordingId, 'action_items', curr.id);
+      await updateDoc(itemRef, { done: next[idx]!.done });
+    } catch {
+      setItems(prev); // revert optimistic update
     }
   };
 

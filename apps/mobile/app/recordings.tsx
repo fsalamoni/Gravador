@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Pressable, Text, View } from 'react-native';
-import { db } from '../src/lib/firebase';
+import { auth, db } from '../src/lib/firebase';
 import { t } from '../src/lib/i18n';
 
 export default function RecordingsScreen() {
@@ -12,8 +12,11 @@ export default function RecordingsScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ['recordings'],
     queryFn: async () => {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return [];
       const q = query(
         collection(db, 'recordings'),
+        where('createdBy', '==', userId),
         where('deletedAt', '==', null),
         orderBy('capturedAt', 'desc'),
         limit(100),
