@@ -14,11 +14,11 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type ThemeId, THEMES, useTheme } from './theme-provider';
 import { ModelCatalogModal } from './model-catalog-modal';
 import { AgentModelModal } from './agent-model-modal';
-import { type ModelSpec, getModelsForProvider, getModelById, formatTokens, formatCost, avgRating } from '@/lib/model-registry';
+import { type ModelSpec, getModelsForProvider, getModelById, formatTokens, formatCost, avgRating, estimateRatingsFromApi } from '@/lib/model-registry';
 
 // ── Types ──
 
@@ -38,6 +38,16 @@ interface AISettings {
   byokKeys?: Record<string, string>;
   agentModels?: Record<string, AgentModelConfig>;
   selectedModels?: string[];
+}
+
+/** Shape of OpenRouter API model response */
+interface ApiCatalogModel {
+  modelId: string;
+  name: string;
+  description: string;
+  contextLength: number;
+  pricing: { prompt: number; completion: number };
+  qualityScores: { overall?: number; reasoning?: number; coding?: number; instruction?: number } | null;
 }
 
 // ── Tabs ──
@@ -85,6 +95,10 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   const [catalogModalProvider, setCatalogModalProvider] = useState<string | null>(null);
   const [agentModalKey, setAgentModalKey] = useState<string | null>(null);
 
+  // OpenRouter API models (loaded on demand)
+  const [openRouterApiModels, setOpenRouterApiModels] = useState<ModelSpec[]>([]);
+  const [orLoading, setOrLoading] = useState(false);
+
   // Personal catalog as Set for O(1) lookups
   const selectedModelIds = new Set(settings.selectedModels ?? []);
 
@@ -101,6 +115,34 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       })
       .catch(() => {});
   }, []);
+
+  // Fetch OpenRouter full catalog from API when user visits providers/agents
+  useEffect(() => {
+    if ((tab === 'providers' || tab === 'agents') && openRouterApiModels.length === 0 && !orLoading) {
+      setOrLoading(true);
+      fetch('/api/models?provider=openrouter')
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.models) {
+            const specs: ModelSpec[] = data.models.map((m: ApiCatalogModel) => ({
+              id: m.modelId,
+              provider: 'openrouter',
+              name: m.name,
+              description: m.description || '',
+              contextTokens: m.contextLength || 0,
+              pricing: {
+                input: m.pricing.prompt * 1_000_000,
+                output: m.pricing.completion * 1_000_000,
+              },
+              ratings: estimateRatingsFromApi(m.qualityScores, m.pricing.prompt * 1_000_000),
+            }));
+            setOpenRouterApiModels(specs);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setOrLoading(false));
+    }
+  }, [tab, openRouterApiModels.length, orLoading]);
 
   const save = useCallback(
     async (newSettings: AISettings) => {
@@ -136,6 +178,22 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
     },
     [settings, save],
   );
+
+  /** Resolve models for a provider — OpenRouter uses API, others use static registry */
+  const getProviderModels = useCallback(
+    (provider: string): ModelSpec[] => {
+      if (provider === 'openrouter' && openRouterApiModels.length > 0) return openRouterApiModels;
+      return getModelsForProvider(provider);
+    },
+    [openRouterApiModels],
+  );
+
+  /** All personal catalog models for the current provider (for agent selection) */
+  const agentCatalogModels = useMemo(() => {
+    const ids = new Set(settings.selectedModels ?? []);
+    if (ids.size === 0) return [];
+    return getProviderModels(selectedProvider).filter((m) => ids.has(m.id));
+  }, [getProviderModels, selectedProvider, settings.selectedModels]);
 
   return (
     <div className="space-y-5">
@@ -200,6 +258,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           showKey={showKey}
           setShowKey={setShowKey}
           selectedModelIds={selectedModelIds}
+          getProviderModels={getProviderModels}
           onSave={save}
           onProviderChange={(provider) => {
             const newSettings = { ...settings, chatProvider: provider };
@@ -229,8 +288,9 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       {/* Model Catalog Modal */}
       {catalogModalProvider && (
         <ModelCatalogModal
-          provider={catalogModalProvider}
           providerLabel={PROVIDERS.find((p) => p.id === catalogModalProvider)?.label ?? catalogModalProvider}
+          models={getProviderModels(catalogModalProvider)}
+          loading={catalogModalProvider === 'openrouter' && orLoading}
           selectedIds={selectedModelIds}
           onToggle={toggleCatalogModel}
           onClose={() => setCatalogModalProvider(null)}
@@ -246,13 +306,12 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           <AgentModelModal
             agentLabel={agent.label}
             agentDescription={agent.description}
-            provider={selectedProvider}
-            catalogIds={selectedModelIds}
+            models={agentCatalogModels}
             currentModelId={currentModel}
-            onSelect={(modelId) => {
+            onSelect={(model) => {
               const newAgentModels = { ...settings.agentModels };
-              if (modelId) {
-                newAgentModels[agentModalKey] = { provider: selectedProvider, model: modelId };
+              if (model) {
+                newAgentModels[agentModalKey] = { provider: model.provider, model: model.id };
               } else {
                 delete newAgentModels[agentModalKey];
               }
@@ -296,6 +355,7 @@ function ProvidersTab({
   showKey,
   setShowKey,
   selectedModelIds,
+  getProviderModels,
   onSave,
   onProviderChange,
   onKeyChange,
@@ -307,6 +367,7 @@ function ProvidersTab({
   showKey: boolean;
   setShowKey: (v: boolean) => void;
   selectedModelIds: Set<string>;
+  getProviderModels: (provider: string) => ModelSpec[];
   onSave: (s: AISettings) => Promise<void>;
   onProviderChange: (p: AIProvider) => void;
   onKeyChange: (key: string) => void;
@@ -314,7 +375,7 @@ function ProvidersTab({
   onOpenCatalog: (provider: string) => void;
 }) {
   const currentKey = settings.byokKeys?.[selectedProvider] ?? '';
-  const providerModels = getModelsForProvider(selectedProvider);
+  const providerModels = getProviderModels(selectedProvider);
   const catalogCount = providerModels.filter((m) => selectedModelIds.has(m.id)).length;
 
   return (
@@ -332,7 +393,7 @@ function ProvidersTab({
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {PROVIDERS.map((p) => {
-            const pModels = getModelsForProvider(p.id);
+            const pModels = getProviderModels(p.id);
             const pSelected = pModels.filter((m) => selectedModelIds.has(m.id)).length;
             return (
               <button

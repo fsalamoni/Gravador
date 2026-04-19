@@ -128,3 +128,42 @@ The `ChatView` component loads history on mount and auto-persists new messages a
 
 - **JSON** — Complete recording object with transcript, segments, all AI outputs, action items
 - **Markdown** — Formatted document with summary, action items (checkboxes), chapters, transcript with timestamps, quotes, flashcards
+
+## Admin Dashboard
+
+`/workspace/admin` provides a workspace-level analytics dashboard:
+
+- **API**: `GET /api/admin/stats` — Aggregates recording counts, durations, AI pipeline outputs, and member counts from Firestore.
+- **KPIs**: Total recordings, ready/failed/processing counts, total audio hours, member count.
+- **Charts**: 7-day recording activity bar chart, pipeline outputs breakdown by kind.
+- **Security panel**: Summary of active security measures (rate limiting, CSP, CSRF, encrypted keys).
+
+## Soft Delete / Trash
+
+Recordings support soft-delete via the `deletedAt` timestamp field:
+
+- **Soft delete**: `POST /api/recordings/trash { recordingId }` — Sets `deletedAt` to server timestamp.
+- **List trash**: `GET /api/recordings/trash` — Returns recordings where `deletedAt != null`.
+- **Restore**: `PUT /api/recordings/trash { recordingId }` — Clears `deletedAt` back to `null`.
+- **Permanent delete**: `DELETE /api/recordings/trash { recordingId }` — Deletes recording and all subcollections (transcripts, segments, ai_outputs, action_items, embeddings). Only allowed for already-trashed recordings.
+- **UI**: `/workspace/recordings/trash` — Card-based trash page with restore and permanent delete buttons.
+
+All listing queries (`listUserRecordings`, search, health check) filter by `deletedAt == null` to exclude trashed recordings.
+
+## Worker Reliability
+
+The AI pipeline worker (`process-recording.ts`) implements:
+
+- **Exponential backoff**: Each pipeline call is wrapped in `withRetry()` — up to 3 retries with `BASE_DELAY * 2^attempt + jitter` delays.
+- **Per-pipeline status**: After fan-out completes, `pipelineResults` (e.g. `{ summary: 'ok', mindmap: 'failed' }`) is stored on the recording document.
+- **Graceful degradation**: `Promise.allSettled` ensures one failing pipeline doesn't block others. Only successful outputs are persisted.
+
+## Model Catalog
+
+The Settings → Provedores tab supports a dynamic model catalog:
+
+- **OpenRouter**: `GET /api/models?provider=openrouter` fetches 300+ models from the OpenRouter API, cached in Firestore `model_catalog` collection (6-hour TTL).
+- **Other providers**: Static model definitions from `model-registry.ts`.
+- **Quality ratings**: Each model has 4 scores (Extração/Síntese/Raciocínio/Redação, 0–100). For OpenRouter models, ratings are estimated from API `qualityScores` or pricing tier.
+- **Personal catalog**: Users check models from the full catalog modal → stored as `selectedModels[]` in workspace settings.
+- **Agent assignment**: Per-agent model selection modal shows only models from the personal catalog.

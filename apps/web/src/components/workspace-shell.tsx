@@ -6,6 +6,7 @@ import {
   ChevronRight,
   FolderKanban,
   Home,
+  LayoutDashboard,
   LogOut,
   Search,
   Settings,
@@ -27,6 +28,7 @@ const NAV_KEYS = [
   { href: '/workspace/search', labelKey: 'search', descKey: 'searchDesc', icon: Search },
   { href: '/workspace/integrations', labelKey: 'integrations', descKey: 'integrationsDesc', icon: Sparkles },
   { href: '/workspace/settings', labelKey: 'settings', descKey: 'settingsDesc', icon: Settings },
+  { href: '/workspace/admin', labelKey: 'admin', descKey: 'adminDesc', icon: LayoutDashboard },
 ] as const;
 
 function getInitials(email: string | null | undefined, uid: string) {
@@ -48,6 +50,7 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
     '/workspace/search': tNav('search'),
     '/workspace/integrations': tNav('integrations'),
     '/workspace/settings': tNav('settings'),
+    '/workspace/admin': 'Dashboard',
   };
 
   return (

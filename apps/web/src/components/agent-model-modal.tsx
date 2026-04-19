@@ -7,7 +7,6 @@ import {
   avgRating,
   formatCost,
   formatTokens,
-  MODEL_REGISTRY,
 } from '@/lib/model-registry';
 
 type SortKey = 'name' | 'extraction' | 'synthesis' | 'reasoning' | 'writing' | 'avg' | 'context' | 'input' | 'output';
@@ -16,19 +15,13 @@ type SortDir = 'asc' | 'desc';
 interface Props {
   agentLabel: string;
   agentDescription: string;
-  provider: string;
-  /** Model IDs in the user's personal catalog for this provider */
-  catalogIds: Set<string>;
+  models: ModelSpec[];
   currentModelId: string | undefined;
-  onSelect: (modelId: string | undefined) => void;
+  onSelect: (model: ModelSpec | undefined) => void;
   onClose: () => void;
 }
 
-export function AgentModelModal({ agentLabel, agentDescription, provider, catalogIds, currentModelId, onSelect, onClose }: Props) {
-  const models = useMemo(
-    () => MODEL_REGISTRY.filter((m) => m.provider === provider && catalogIds.has(m.id)),
-    [provider, catalogIds],
-  );
+export function AgentModelModal({ agentLabel, agentDescription, models, currentModelId, onSelect, onClose }: Props) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('avg');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -131,7 +124,7 @@ export function AgentModelModal({ agentLabel, agentDescription, provider, catalo
               <tbody>
                 {/* Default row */}
                 <tr
-                  onClick={() => { onSelect(undefined); onClose(); }}
+                  onClick={() => { onSelect(undefined); }}
                   className={`cursor-pointer border-b border-border/50 transition ${
                     !currentModelId ? 'bg-accent/8 hover:bg-accent/12' : 'hover:bg-surfaceAlt/50'
                   }`}
@@ -153,7 +146,7 @@ export function AgentModelModal({ agentLabel, agentDescription, provider, catalo
                   return (
                     <tr
                       key={m.id}
-                      onClick={() => { onSelect(m.id); onClose(); }}
+                      onClick={() => { onSelect(m); }}
                       className={`cursor-pointer border-b border-border/50 transition ${
                         selected ? 'bg-accent/8 hover:bg-accent/12' : 'hover:bg-surfaceAlt/50'
                       }`}

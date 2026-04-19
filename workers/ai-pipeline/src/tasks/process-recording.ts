@@ -15,6 +15,28 @@ import { shortId } from '@gravador/core';
 import { getAdminStorage, getDb } from '@gravador/db';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 
+// ── Retry helper with exponential backoff ──
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1_000;
+
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * 2 ** attempt + Math.random() * 500;
+        console.warn(`[retry] ${label} attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms`, err);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 /**
  * Orchestrates the full AI pipeline for a single recording:
  *   1. Transcribe (Whisper v3 via Groq by default)
@@ -53,11 +75,13 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     });
     if (!audioUrl) throw new Error('failed to sign audio URL');
 
-    const tx = await transcribe({
-      audioUrl,
-      locale: payload.locale ?? recording.locale ?? 'auto',
-      provider: workspaceAI.transcribeProvider,
-    });
+    const tx = await withRetry('transcribe', () =>
+      transcribe({
+        audioUrl,
+        locale: payload.locale ?? recording.locale ?? 'auto',
+        provider: workspaceAI.transcribeProvider,
+      }),
+    );
     const segments = await persistTranscript(db, recordingId, tx);
     console.log('[pipeline] transcribed', { segments: segments.length });
 
@@ -75,59 +99,80 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     });
 
     const [summary, actions, mindmap, chapters, quotes, sentiment, flashcards] = await Promise.allSettled([
-      runSummary({
+      withRetry('summary', () => runSummary({
         segments,
         fullText: tx.fullText,
         locale,
         provider: resolve('summarize').provider,
         model: resolve('summarize').model,
         keys: workspaceAI.keys,
-      }),
-      runActionItems({
+      })),
+      withRetry('actionItems', () => runActionItems({
         segments,
         locale,
         provider: resolve('actionItems').provider,
         model: resolve('actionItems').model,
         keys: workspaceAI.keys,
-      }),
-      runMindmap({
+      })),
+      withRetry('mindmap', () => runMindmap({
         fullText: tx.fullText,
         locale,
         provider: resolve('mindmap').provider,
         model: resolve('mindmap').model,
         keys: workspaceAI.keys,
-      }),
-      runChapters({
+      })),
+      withRetry('chapters', () => runChapters({
         segments,
         locale,
         provider: resolve('chapters').provider,
         model: resolve('chapters').model,
         keys: workspaceAI.keys,
-      }),
-      runQuotes({
+      })),
+      withRetry('quotes', () => runQuotes({
         segments,
         locale,
         provider: resolve('quotes').provider,
         model: resolve('quotes').model,
         keys: workspaceAI.keys,
-      }),
-      runSentiment({
+      })),
+      withRetry('sentiment', () => runSentiment({
         fullText: tx.fullText,
         locale,
         provider: resolve('sentiment').provider,
         model: resolve('sentiment').model,
         keys: workspaceAI.keys,
-      }),
-      runFlashcards({
+      })),
+      withRetry('flashcards', () => runFlashcards({
         fullText: tx.fullText,
         locale,
         provider: resolve('flashcards').provider,
         model: resolve('flashcards').model,
         keys: workspaceAI.keys,
-      }),
+      })),
     ]);
 
     const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
+
+    // Track per-pipeline status
+    const pipelineResults: Record<string, 'ok' | 'failed'> = {};
+    const pipelineEntries: Array<[string, PromiseSettledResult<unknown>]> = [
+      ['summary', summary],
+      ['action_items', actions],
+      ['mindmap', mindmap],
+      ['chapters', chapters],
+      ['quotes', quotes],
+      ['sentiment', sentiment],
+      ['flashcards', flashcards],
+    ];
+
+    for (const [kind, result] of pipelineEntries) {
+      if (result.status === 'fulfilled') {
+        pipelineResults[kind] = 'ok';
+      } else {
+        pipelineResults[kind] = 'failed';
+        console.error(`[pipeline] ${kind} failed after retries:`, result.reason);
+      }
+    }
 
     if (summary.status === 'fulfilled')
       await insertOutput(outputsCollection, recordingId, 'summary', summary.value, locale);
@@ -174,11 +219,13 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     }
 
     await setStatus(db, recordingId, 'embedding');
-    const chunks = await chunkAndEmbed(segments, {
-      provider: workspaceAI.embeddingProvider,
-      model: workspaceAI.embeddingModel,
-      keys: workspaceAI.keys,
-    });
+    const chunks = await withRetry('embedding', () =>
+      chunkAndEmbed(segments, {
+        provider: workspaceAI.embeddingProvider,
+        model: workspaceAI.embeddingModel,
+        keys: workspaceAI.keys,
+      }),
+    );
     if (chunks.length) {
       const embCollection = db.collection('recordings').doc(recordingId).collection('embeddings');
       await commitInBatches(
@@ -202,8 +249,12 @@ export async function processRecording(payload: { recordingId: string; locale?: 
       );
     }
 
-    await setStatus(db, recordingId, 'ready');
-    return { recordingId, segments: segments.length, chunks: chunks.length };
+    await db.collection('recordings').doc(recordingId).update({
+      status: 'ready',
+      pipelineResults,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { recordingId, segments: segments.length, chunks: chunks.length, pipelineResults };
   } catch (err) {
     // Mark recording as failed so it doesn't stay stuck
     await setStatus(db, recordingId, 'failed').catch(() => {});

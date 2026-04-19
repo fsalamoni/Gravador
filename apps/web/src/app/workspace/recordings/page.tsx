@@ -1,7 +1,7 @@
 import { getSessionUser } from '@/lib/firebase-server';
 import { listUserRecordings } from '@/lib/server-recordings';
 import { formatDurationMs } from '@gravador/core';
-import { ArrowLeft, ArrowUpRight, Clock3 } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Clock3, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -36,6 +36,13 @@ export default async function RecordingsListPage() {
               Navegue por sessões recentes, revise o material bruto e entre direto no detalhe quando
               a reunião já pede decisão.
             </p>
+            <Link
+              href="/workspace/recordings/trash"
+              className="mt-3 inline-flex items-center gap-2 text-sm text-mute transition hover:text-danger"
+            >
+              <Trash2 className="h-4 w-4" />
+              Lixeira
+            </Link>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-[24px] border border-border bg-bg/55 p-4">

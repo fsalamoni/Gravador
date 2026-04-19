@@ -1,28 +1,27 @@
 'use client';
 
-import { Check, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Loader2, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   type ModelSpec,
   avgRating,
   formatCost,
   formatTokens,
-  getModelsForProvider,
 } from '@/lib/model-registry';
 
 type SortKey = 'name' | 'extraction' | 'synthesis' | 'reasoning' | 'writing' | 'avg' | 'context' | 'input' | 'output';
 type SortDir = 'asc' | 'desc';
 
 interface Props {
-  provider: string;
   providerLabel: string;
+  models: ModelSpec[];
+  loading?: boolean;
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onClose: () => void;
 }
 
-export function ModelCatalogModal({ provider, providerLabel, selectedIds, onToggle, onClose }: Props) {
-  const allModels = useMemo(() => getModelsForProvider(provider), [provider]);
+export function ModelCatalogModal({ providerLabel, models: allModels, loading, selectedIds, onToggle, onClose }: Props) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('avg');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -106,6 +105,12 @@ export function ModelCatalogModal({ provider, providerLabel, selectedIds, onTogg
 
         {/* Table */}
         <div className="flex-1 overflow-auto">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-mute">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Carregando catálogo do provedor…
+            </div>
+          ) : (
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg/95 backdrop-blur-sm">
               <tr className="border-b border-border">
@@ -163,6 +168,7 @@ export function ModelCatalogModal({ provider, providerLabel, selectedIds, onTogg
               )}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Footer */}

@@ -84,3 +84,30 @@ export function formatCost(n: number): string {
   if (n < 0.01) return '<$0.01';
   return `$${n.toFixed(2)}`;
 }
+
+/**
+ * Estimate quality ratings from OpenRouter API quality scores + pricing.
+ * Maps: extraction ≈ instruction, synthesis ≈ overall, reasoning, writing ≈ avg(overall+instruction).
+ */
+export function estimateRatingsFromApi(
+  qualityScores: { overall?: number; reasoning?: number; coding?: number; instruction?: number } | null,
+  pricingInputPerM: number,
+): { extraction: number; synthesis: number; reasoning: number; writing: number } {
+  if (qualityScores && qualityScores.overall != null) {
+    const overall = qualityScores.overall;
+    const reasoning = qualityScores.reasoning ?? overall;
+    const instruction = qualityScores.instruction ?? overall;
+    return {
+      extraction: Math.round(instruction * 0.8 + overall * 0.2),
+      synthesis: Math.round(overall),
+      reasoning: Math.round(reasoning),
+      writing: Math.round((overall + instruction) / 2),
+    };
+  }
+  // Estimate from price tier
+  if (pricingInputPerM >= 10) return { extraction: 88, synthesis: 90, reasoning: 92, writing: 89 };
+  if (pricingInputPerM >= 3) return { extraction: 85, synthesis: 86, reasoning: 87, writing: 85 };
+  if (pricingInputPerM >= 1) return { extraction: 80, synthesis: 80, reasoning: 80, writing: 80 };
+  if (pricingInputPerM >= 0.1) return { extraction: 72, synthesis: 70, reasoning: 70, writing: 70 };
+  return { extraction: 65, synthesis: 63, reasoning: 60, writing: 62 };
+}

@@ -281,6 +281,7 @@
       "searchDesc": "Semantic and keyword search",
       "integrationsDesc": "Connected services",
       "settingsDesc": "Account and preferences",
+      "adminDesc": "Usage analytics and admin",
       "pipeline": "Pipeline",
       "mobileCapture": "Capture on mobile",
       "aiProcessing": "AI processing",
