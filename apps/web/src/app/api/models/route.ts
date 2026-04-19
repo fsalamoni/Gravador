@@ -70,30 +70,40 @@ export async function GET(req: Request) {
     }
   }
 
-  const modelsSnap = await db
-    .collection('model_catalog')
-    .where('catalogProvider', '==', provider)
-    .where('available', '==', true)
-    .orderBy('name')
-    .get();
+  let models: Array<Record<string, unknown>> = [];
+  try {
+    const modelsSnap = await db
+      .collection('model_catalog')
+      .where('catalogProvider', '==', provider)
+      .where('available', '==', true)
+      .orderBy('name')
+      .get();
 
-  const models = modelsSnap.docs.map((doc) => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      modelId: d.modelId,
-      name: d.name,
-      description: d.description,
-      contextLength: d.contextLength,
-      maxCompletionTokens: d.maxCompletionTokens,
-      pricing: d.pricing,
-      inputModalities: d.inputModalities,
-      outputModalities: d.outputModalities,
-      supportedParameters: d.supportedParameters,
-      qualityScores: d.qualityScores ?? null,
-      expirationDate: d.expirationDate ?? null,
-    };
-  });
+    models = modelsSnap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        modelId: d.modelId,
+        name: d.name,
+        description: d.description,
+        contextLength: d.contextLength,
+        maxCompletionTokens: d.maxCompletionTokens,
+        pricing: d.pricing,
+        inputModalities: d.inputModalities,
+        outputModalities: d.outputModalities,
+        supportedParameters: d.supportedParameters,
+        qualityScores: d.qualityScores ?? null,
+        expirationDate: d.expirationDate ?? null,
+      };
+    });
+  } catch (err) {
+    console.error('[models] Firestore query failed (missing index?):', err);
+    // Return empty with error flag so UI can show offline models
+    return NextResponse.json(
+      { provider, count: 0, models: [], error: 'catalog_query_failed' },
+      { status: 200 },
+    );
+  }
 
   console.log(`[models] returning ${models.length} models for ${provider}`);
   return NextResponse.json({ provider, count: models.length, models });
@@ -102,7 +112,7 @@ export async function GET(req: Request) {
 async function refreshOpenRouterCatalog(db: FirebaseFirestore.Firestore, catalogProvider: string) {
   const res = await fetch('https://openrouter.ai/api/v1/models', {
     headers: { 'Content-Type': 'application/json' },
-    next: { revalidate: 0 },
+    signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`OpenRouter API returned ${res.status}`);
 

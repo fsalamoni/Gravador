@@ -25,6 +25,20 @@
         { "fieldPath": "recordingId", "order": "ASCENDING" },
         { "fieldPath": "embedding", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "model_catalog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "catalogProvider", "order": "ASCENDING" },
+        { "fieldPath": "available", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ai_outputs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [{ "fieldPath": "recordingId", "order": "ASCENDING" }]
     }
   ],
   "fieldOverrides": []

@@ -50,22 +50,27 @@ export async function GET() {
   }
 
   // AI outputs count
-  const outputsSnap = await db
-    .collectionGroup('ai_outputs')
-    .where('recordingId', '!=', '')
-    .select('kind', 'latencyMs')
-    .limit(1000)
-    .get();
-
   const pipelineCounts: Record<string, number> = {};
   let totalLatencyMs = 0;
   let outputCount = 0;
-  for (const doc of outputsSnap.docs) {
-    const d = doc.data();
-    const kind = d.kind as string;
-    pipelineCounts[kind] = (pipelineCounts[kind] ?? 0) + 1;
-    if (d.latencyMs) totalLatencyMs += d.latencyMs;
-    outputCount++;
+  try {
+    const outputsSnap = await db
+      .collectionGroup('ai_outputs')
+      .where('recordingId', '!=', '')
+      .select('kind', 'latencyMs')
+      .limit(1000)
+      .get();
+
+    for (const doc of outputsSnap.docs) {
+      const d = doc.data();
+      const kind = d.kind as string;
+      pipelineCounts[kind] = (pipelineCounts[kind] ?? 0) + 1;
+      if (d.latencyMs) totalLatencyMs += d.latencyMs;
+      outputCount++;
+    }
+  } catch (err) {
+    console.error('[admin/stats] collectionGroup ai_outputs query failed:', err);
+    // Continue with zero AI stats rather than 500
   }
 
   // Members count

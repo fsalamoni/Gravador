@@ -98,7 +98,10 @@ export function middleware(request: NextRequest) {
     // CSRF: verify Origin for mutation requests
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
       const origin = request.headers.get('origin');
-      const host = request.headers.get('host');
+      // Use x-forwarded-host (set by Firebase Hosting / Cloud Run proxy) as primary,
+      // fall back to Host header. This avoids false CSRF rejections when the proxy
+      // rewrites Host to the internal Cloud Run URL.
+      const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
       if (origin && host && !origin.includes(host)) {
         return addSecurityHeaders(NextResponse.json({ error: 'csrf_rejected' }, { status: 403 }));
       }
