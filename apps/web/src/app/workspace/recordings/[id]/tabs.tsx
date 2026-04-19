@@ -7,7 +7,10 @@ import { useState } from 'react';
 import { ActionsView } from './actions';
 import { ChaptersView } from './chapters';
 import { ChatView } from './chat';
+import { FlashcardsView } from './flashcards';
 import { MindmapView } from './mindmap';
+import { QuotesView } from './quotes';
+import { SentimentView } from './sentiment';
 import { SummaryView } from './summary';
 import { TranscriptView } from './transcript';
 
@@ -54,6 +57,9 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
             ['actions', t('actions')],
             ['mindmap', t('mindmap')],
             ['chapters', t('chapters')],
+            ['quotes', t('quotes')],
+            ['sentiment', t('sentiment')],
+            ['flashcards', t('flashcards')],
             ['chat', t('chat')],
           ] as const
         ).map(([key, label]) => (
@@ -90,6 +96,21 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
         <Tabs.Content value="chapters">
           <ErrorBoundary>
             <ChaptersView payload={byKind.get('chapters')} />
+          </ErrorBoundary>
+        </Tabs.Content>
+        <Tabs.Content value="quotes">
+          <ErrorBoundary>
+            <QuotesView payload={byKind.get('quotes')} />
+          </ErrorBoundary>
+        </Tabs.Content>
+        <Tabs.Content value="sentiment">
+          <ErrorBoundary>
+            <SentimentView payload={byKind.get('sentiment')} />
+          </ErrorBoundary>
+        </Tabs.Content>
+        <Tabs.Content value="flashcards">
+          <ErrorBoundary>
+            <FlashcardsView payload={byKind.get('flashcards')} />
           </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="chat">

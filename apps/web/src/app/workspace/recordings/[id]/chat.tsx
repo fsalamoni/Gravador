@@ -1,14 +1,60 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
+import type { Message } from 'ai';
 import { useTranslations } from 'next-intl';
+import { useCallback, useEffect, useRef } from 'react';
 
 export function ChatView({ recordingId }: { recordingId: string }) {
   const t = useTranslations('chat');
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const persisted = useRef(false);
+  const lastLen = useRef(0);
+
+  const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/chat',
     body: { recordingId },
   });
+
+  // Load history once on mount
+  useEffect(() => {
+    if (persisted.current) return;
+    persisted.current = true;
+    fetch(`/api/chat-history?recordingId=${encodeURIComponent(recordingId)}`)
+      .then((r) => r.json())
+      .then((data: { messages?: Array<{ id: string; role: string; content: string }> }) => {
+        if (data.messages?.length) {
+          setMessages(
+            data.messages.map((m) => ({ id: m.id, role: m.role as Message['role'], content: m.content })),
+          );
+          lastLen.current = data.messages.length;
+        }
+      })
+      .catch(() => {});
+  }, [recordingId, setMessages]);
+
+  // Persist new messages after assistant finishes
+  const persistNew = useCallback(
+    (msgs: Message[]) => {
+      if (msgs.length <= lastLen.current) return;
+      const newMsgs = msgs.slice(lastLen.current);
+      lastLen.current = msgs.length;
+      fetch('/api/chat-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recordingId,
+          messages: newMsgs.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      }).catch(() => {});
+    },
+    [recordingId],
+  );
+
+  useEffect(() => {
+    if (!isLoading && messages.length > lastLen.current) {
+      persistNew(messages);
+    }
+  }, [isLoading, messages, persistNew]);
 
   return (
     <div className="card flex h-[calc(100dvh-16rem)] min-h-[320px] max-h-[70vh] max-w-4xl flex-col p-4 sm:p-5">

@@ -124,6 +124,8 @@
       "chapters": "Chapters",
       "speakers": "Speakers",
       "quotes": "Quotes",
+      "sentiment": "Sentiment",
+      "flashcards": "Flashcards",
       "chat": "Chat with recording"
     },
     "actions": {

@@ -3,7 +3,10 @@ import {
   chunkAndEmbed,
   runActionItems,
   runChapters,
+  runFlashcards,
   runMindmap,
+  runQuotes,
+  runSentiment,
   runSummary,
   transcribe,
 } from '@gravador/ai';
@@ -71,7 +74,7 @@ export async function processRecording(payload: { recordingId: string; locale?: 
       model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
     });
 
-    const [summary, actions, mindmap, chapters] = await Promise.allSettled([
+    const [summary, actions, mindmap, chapters, quotes, sentiment, flashcards] = await Promise.allSettled([
       runSummary({
         segments,
         fullText: tx.fullText,
@@ -101,6 +104,27 @@ export async function processRecording(payload: { recordingId: string; locale?: 
         model: resolve('chapters').model,
         keys: workspaceAI.keys,
       }),
+      runQuotes({
+        segments,
+        locale,
+        provider: resolve('quotes').provider,
+        model: resolve('quotes').model,
+        keys: workspaceAI.keys,
+      }),
+      runSentiment({
+        fullText: tx.fullText,
+        locale,
+        provider: resolve('sentiment').provider,
+        model: resolve('sentiment').model,
+        keys: workspaceAI.keys,
+      }),
+      runFlashcards({
+        fullText: tx.fullText,
+        locale,
+        provider: resolve('flashcards').provider,
+        model: resolve('flashcards').model,
+        keys: workspaceAI.keys,
+      }),
     ]);
 
     const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
@@ -113,6 +137,12 @@ export async function processRecording(payload: { recordingId: string; locale?: 
       await insertOutput(outputsCollection, recordingId, 'mindmap', mindmap.value, locale);
     if (chapters.status === 'fulfilled')
       await insertOutput(outputsCollection, recordingId, 'chapters', chapters.value, locale);
+    if (quotes.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'quotes', quotes.value, locale);
+    if (sentiment.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'sentiment', sentiment.value, locale);
+    if (flashcards.status === 'fulfilled')
+      await insertOutput(outputsCollection, recordingId, 'flashcards', flashcards.value, locale);
 
     if (actions.status === 'fulfilled') {
       const actionItemsCollection = db
