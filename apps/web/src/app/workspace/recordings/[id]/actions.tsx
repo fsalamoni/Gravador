@@ -51,6 +51,7 @@ export function ActionsView({
             type="checkbox"
             checked={!!a.done}
             onChange={() => toggle(i)}
+            aria-label={`Mark "${a.text.slice(0, 50)}" as ${a.done ? 'not done' : 'done'}`}
             className="mt-1 h-4 w-4 accent-accent"
           />
           <div className="flex-1">

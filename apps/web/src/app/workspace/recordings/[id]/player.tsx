@@ -16,9 +16,9 @@ export function Player({ src }: { src: string }) {
     if (!containerRef.current || !src) return;
     const ws = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: '#4a372a',
+      waveColor: 'rgb(var(--color-mute) / 0.4)',
       progressColor: 'rgb(var(--color-accent))',
-      cursorColor: '#ffc48f',
+      cursorColor: 'rgb(var(--color-accentSoft))',
       barWidth: 3,
       barGap: 2,
       barRadius: 999,
@@ -65,6 +65,7 @@ export function Player({ src }: { src: string }) {
           onClick={() => wsRef.current?.playPause()}
           className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-onAccent transition hover:bg-accentSoft disabled:opacity-60"
           disabled={!src}
+          aria-label={playing ? 'Pause audio' : 'Play audio'}
         >
           {playing ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
         </button>

@@ -19,7 +19,7 @@ export function MindmapView({ payload }: { payload: unknown }) {
   }
 
   return (
-    <div className="card h-[600px] overflow-hidden p-0">
+    <div className="card h-[min(600px,70vh)] overflow-hidden p-0">
       <ReactFlow nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.3 }}>
         <Background color="rgb(var(--color-border))" gap={24} />
         <Controls showInteractive={false} />
@@ -66,7 +66,7 @@ function toFlow(root: MindNode | undefined): { nodes: Node[]; edges: Edge[] } {
         id: `${n.id}-${child.id}`,
         source: n.id,
         target: child.id,
-        style: { stroke: '#6d5445', strokeWidth: 1.4 },
+        style: { stroke: 'rgb(var(--color-border))', strokeWidth: 1.4 },
       });
       cursor += leaves * layoutRowHeight;
     }

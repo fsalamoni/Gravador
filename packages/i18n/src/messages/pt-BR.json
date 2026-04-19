@@ -229,5 +229,66 @@
       "keysEncrypted": "Chaves de API cifradas em repouso, nunca expostas ao frontend após salvamento.",
       "healthCheck": "Infra de produção validada com health check real."
     }
+  },
+  "workspace": {
+    "overview": "Visão geral",
+    "recentRecordings": "Gravações recentes",
+    "viewAll": "Ver todas",
+    "recentItems": "Itens recentes",
+    "audioInWindow": "Áudio nesta janela",
+    "readyForAI": "Prontas para IA",
+    "noRecordingsYet": "Sem gravações ainda",
+    "pipelineVisible": "Pipeline visível",
+    "captureOnMobile": "Capture no mobile",
+    "recordings": {
+      "title": "Biblioteca de gravações",
+      "items": "Itens",
+      "inLibrary": "Na biblioteca atual",
+      "hoursAccumulated": "De áudio acumulado",
+      "empty": "Nenhuma gravação ainda"
+    },
+    "recording": {
+      "back": "Voltar para gravações",
+      "detail": "Detalhe da gravação",
+      "status": "Status atual",
+      "duration": "Duração",
+      "aiOutputs": "Outputs vinculados",
+      "transcriptPending": "A transcrição aparecerá aqui quando o processamento terminar",
+      "summaryPending": "Resumo em processamento…",
+      "noActions": "Nenhuma ação detectada (ou ainda em processamento)",
+      "actionOwner": "Owner",
+      "actionDue": "Due",
+      "chaptersPending": "Capítulos em processamento…",
+      "mindmapPending": "Mapa mental em processamento…",
+      "speaker": "Falante",
+      "noAudio": "O áudio ainda não está disponível para reprodução",
+      "askQuestion": "Faça uma pergunta sobre esta gravação"
+    },
+    "search": {
+      "title": "Search layer",
+      "placeholder": "Buscar no acervo...",
+      "semantic": "Semântica",
+      "keyword": "Palavras-chave",
+      "noResults": "Nenhum resultado",
+      "button": "Buscar",
+      "naturalLanguage": "Pergunte em linguagem natural…"
+    },
+    "shell": {
+      "overviewDesc": "Dashboard e estatísticas",
+      "recordingsDesc": "Biblioteca de gravações",
+      "searchDesc": "Busca semântica e por palavras-chave",
+      "integrationsDesc": "Serviços conectados",
+      "settingsDesc": "Conta e preferências",
+      "pipeline": "Pipeline",
+      "mobileCapture": "Capture no mobile",
+      "aiProcessing": "Processamento IA",
+      "workspaceDelivery": "Entrega no workspace",
+      "activeSession": "Sessão ativa",
+      "signOut": "Sair"
+    },
+    "share": {
+      "expired": "Este link expirou ou foi revogado",
+      "publicNotice": "Compartilhamento público — conteúdo é restrito ao que o criador permitiu"
+    }
   }
 }

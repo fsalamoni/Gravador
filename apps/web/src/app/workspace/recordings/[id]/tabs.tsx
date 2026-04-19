@@ -1,5 +1,6 @@
 'use client';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -42,7 +43,10 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
 
   return (
     <Tabs.Root value={tab} onValueChange={setTab}>
-      <Tabs.List className="flex flex-wrap gap-2 rounded-[24px] border border-border bg-bg/55 p-2">
+      <Tabs.List
+        className="flex flex-wrap gap-2 rounded-[24px] border border-border bg-bg/55 p-2"
+        aria-label="Recording content tabs"
+      >
         {(
           [
             ['transcript', t('transcript')],
@@ -64,22 +68,34 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
       </Tabs.List>
       <div className="mt-6">
         <Tabs.Content value="transcript">
-          <TranscriptView segments={segments} />
+          <ErrorBoundary>
+            <TranscriptView segments={segments} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="summary">
-          <SummaryView payload={byKind.get('summary')} />
+          <ErrorBoundary>
+            <SummaryView payload={byKind.get('summary')} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="actions">
-          <ActionsView items={actionItems} recordingId={recordingId} />
+          <ErrorBoundary>
+            <ActionsView items={actionItems} recordingId={recordingId} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="mindmap">
-          <MindmapView payload={byKind.get('mindmap')} />
+          <ErrorBoundary>
+            <MindmapView payload={byKind.get('mindmap')} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="chapters">
-          <ChaptersView payload={byKind.get('chapters')} />
+          <ErrorBoundary>
+            <ChaptersView payload={byKind.get('chapters')} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="chat">
-          <ChatView recordingId={recordingId} />
+          <ErrorBoundary>
+            <ChatView recordingId={recordingId} />
+          </ErrorBoundary>
         </Tabs.Content>
       </div>
     </Tabs.Root>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
 import {
   AudioWaveform,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 type WorkspaceShellProps = {
   children: React.ReactNode;
@@ -19,12 +21,12 @@ type WorkspaceShellProps = {
   uid: string;
 };
 
-const navItems = [
-  { href: '/workspace', label: 'Visão geral', icon: Home },
-  { href: '/workspace/recordings', label: 'Gravações', icon: AudioWaveform },
-  { href: '/workspace/search', label: 'Busca', icon: Search },
-  { href: '/workspace/integrations', label: 'Integrações', icon: Sparkles },
-  { href: '/workspace/settings', label: 'Configurações', icon: Settings },
+const NAV_KEYS = [
+  { href: '/workspace', labelKey: 'overview', descKey: 'overviewDesc', icon: Home },
+  { href: '/workspace/recordings', labelKey: 'recordings', descKey: 'recordingsDesc', icon: AudioWaveform },
+  { href: '/workspace/search', labelKey: 'search', descKey: 'searchDesc', icon: Search },
+  { href: '/workspace/integrations', labelKey: 'integrations', descKey: 'integrationsDesc', icon: Sparkles },
+  { href: '/workspace/settings', labelKey: 'settings', descKey: 'settingsDesc', icon: Settings },
 ] as const;
 
 function getInitials(email: string | null | undefined, uid: string) {
@@ -35,6 +37,18 @@ function getInitials(email: string | null | undefined, uid: string) {
 export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  useGlobalShortcuts();
+  const tNav = useTranslations('nav');
+  const tShell = useTranslations('workspace.shell');
+  const tWs = useTranslations('workspace');
+
+  const navLabels: Record<string, string> = {
+    '/workspace': tWs('overview'),
+    '/workspace/recordings': tNav('recordings'),
+    '/workspace/search': tNav('search'),
+    '/workspace/integrations': tNav('integrations'),
+    '/workspace/settings': tNav('settings'),
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
@@ -55,7 +69,7 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
 
           <div className="lg:hidden">
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {navItems.map((item) => {
+              {NAV_KEYS.map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
                 return (
@@ -69,15 +83,15 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
                     }`}
                   >
                     <Icon className="h-4 w-4" />
-                    {item.label}
+                    {navLabels[item.href]}
                   </Link>
                 );
               })}
             </div>
           </div>
 
-          <nav className="hidden flex-1 flex-col gap-2 lg:flex">
-            {navItems.map((item) => {
+          <nav className="hidden flex-1 flex-col gap-2 lg:flex" aria-label="Main navigation">
+            {NAV_KEYS.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
               return (
@@ -98,17 +112,9 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium">{item.label}</div>
+                    <div className="font-medium">{navLabels[item.href]}</div>
                     <div className={`text-xs ${isActive ? 'text-onAccent/70' : 'text-mute'}`}>
-                      {item.href === '/workspace'
-                        ? 'Painel, status e atividade'
-                        : item.href === '/workspace/recordings'
-                          ? 'Biblioteca e detalhe do material'
-                          : item.href === '/workspace/search'
-                            ? 'Busca semântica e histórico'
-                            : item.href === '/workspace/integrations'
-                              ? 'Conexões e automações'
-                              : 'Conta, idioma e preferências'}
+                      {tShell(item.descKey)}
                     </div>
                   </div>
                   <ChevronRight
@@ -122,22 +128,22 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
           <div className="space-y-4">
             <div className="rounded-[24px] border border-border bg-surfaceAlt/65 p-4">
               <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-mute">
-                <span>Pipeline</span>
+                <span>{tShell('pipeline')}</span>
                 <Sparkles className="h-4 w-4 text-accent" />
               </div>
               <div className="mt-4 space-y-3 text-sm text-mute">
                 <div className="flex items-center justify-between rounded-2xl bg-bg/50 px-3 py-2 text-text">
-                  <span>Capture no mobile</span>
+                  <span>{tShell('mobileCapture')}</span>
                   <span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">
                     Live
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-bg/50 px-3 py-2">
-                  <span>Processamento IA</span>
+                  <span>{tShell('aiProcessing')}</span>
                   <span className="text-ok">Ready</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-bg/50 px-3 py-2">
-                  <span>Entrega no workspace</span>
+                  <span>{tShell('workspaceDelivery')}</span>
                   <span className="text-accentSoft">Stable</span>
                 </div>
               </div>
@@ -149,7 +155,7 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
                   {getInitials(email, uid)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.24em] text-mute">Sessão ativa</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-mute">{tShell('activeSession')}</p>
                   <p className="truncate font-medium text-text">{email ?? uid}</p>
                 </div>
               </div>
@@ -165,9 +171,10 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
                   router.refresh();
                 }}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-danger/40 bg-danger/10 px-3 py-3 text-sm font-medium text-danger transition hover:bg-danger/20"
+                aria-label="Sign out of your account"
               >
                 <LogOut className="h-4 w-4" />
-                Sair
+                {tShell('signOut')}
               </button>
             </div>
           </div>

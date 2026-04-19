@@ -229,5 +229,66 @@
       "keysEncrypted": "API keys encrypted at rest, never exposed to frontend after saving.",
       "healthCheck": "Production infrastructure validated with real health check."
     }
+  },
+  "workspace": {
+    "overview": "Overview",
+    "recentRecordings": "Recent recordings",
+    "viewAll": "View all",
+    "recentItems": "Recent items",
+    "audioInWindow": "Audio in this window",
+    "readyForAI": "Ready for AI",
+    "noRecordingsYet": "No recordings yet",
+    "pipelineVisible": "Pipeline visible",
+    "captureOnMobile": "Capture on mobile",
+    "recordings": {
+      "title": "Recordings library",
+      "items": "Items",
+      "inLibrary": "In current library",
+      "hoursAccumulated": "Of audio accumulated",
+      "empty": "No recordings yet"
+    },
+    "recording": {
+      "back": "Back to recordings",
+      "detail": "Recording detail",
+      "status": "Current status",
+      "duration": "Duration",
+      "aiOutputs": "Linked outputs",
+      "transcriptPending": "The transcript will appear here when processing finishes",
+      "summaryPending": "Summary processing…",
+      "noActions": "No actions detected (or still processing)",
+      "actionOwner": "Owner",
+      "actionDue": "Due",
+      "chaptersPending": "Chapters processing…",
+      "mindmapPending": "Mind map processing…",
+      "speaker": "Speaker",
+      "noAudio": "Audio is not available for playback yet",
+      "askQuestion": "Ask a question about this recording"
+    },
+    "search": {
+      "title": "Search layer",
+      "placeholder": "Search collection…",
+      "semantic": "Semantic",
+      "keyword": "Keyword",
+      "noResults": "No results",
+      "button": "Search",
+      "naturalLanguage": "Ask in natural language…"
+    },
+    "shell": {
+      "overviewDesc": "Dashboard and stats",
+      "recordingsDesc": "Recording library",
+      "searchDesc": "Semantic and keyword search",
+      "integrationsDesc": "Connected services",
+      "settingsDesc": "Account and preferences",
+      "pipeline": "Pipeline",
+      "mobileCapture": "Capture on mobile",
+      "aiProcessing": "AI processing",
+      "workspaceDelivery": "Workspace delivery",
+      "activeSession": "Active session",
+      "signOut": "Sign out"
+    },
+    "share": {
+      "expired": "This link has expired or was revoked",
+      "publicNotice": "Public sharing — content is restricted to what the creator allowed"
+    }
   }
 }

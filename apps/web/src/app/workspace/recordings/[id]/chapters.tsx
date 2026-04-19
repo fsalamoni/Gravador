@@ -31,6 +31,7 @@ export function ChaptersView({ payload }: { payload: unknown }) {
                 c.startMs,
               )
             }
+            aria-label={`Jump to chapter: ${c.title}`}
             className="group w-full text-left"
           >
             <div className="mb-3 flex items-start justify-between gap-4">

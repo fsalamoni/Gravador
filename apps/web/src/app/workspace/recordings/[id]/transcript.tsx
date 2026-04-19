@@ -30,6 +30,7 @@ export function TranscriptView({ segments }: { segments: Segment[] }) {
               s.start_ms,
             )
           }
+          aria-label={`Jump to ${formatDurationMs(s.start_ms)}`}
           className="group block w-full rounded-[24px] border border-border bg-bg/55 p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surfaceAlt/80"
         >
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-mute">

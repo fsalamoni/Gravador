@@ -62,6 +62,7 @@ export default function SearchPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Pergunte em linguagem natural…"
+              aria-label="Search recordings"
               className="w-full bg-transparent text-text outline-none placeholder:text-mute"
             />
           </div>
