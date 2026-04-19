@@ -37,6 +37,7 @@ interface AISettings {
   embeddingModel?: string;
   byokKeys?: Record<string, string>;
   agentModels?: Record<string, AgentModelConfig>;
+  agentPrompts?: Record<string, string>;
   selectedModels?: string[];
 }
 
@@ -575,6 +576,39 @@ function AgentsTab({
   onOpenAgentModal: (agentKey: string) => void;
 }) {
   const agentModels = settings.agentModels ?? {};
+  const agentPrompts = settings.agentPrompts ?? {};
+  const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+  const [promptDrafts, setPromptDrafts] = useState<Record<string, string>>(agentPrompts);
+  const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
+  const [reprocessing, setReprocessing] = useState(false);
+
+  const togglePrompt = (key: string) =>
+    setExpandedPrompts((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const savePrompt = async (key: string) => {
+    setSavingPrompt(key);
+    const next = { ...agentPrompts, [key]: promptDrafts[key] ?? '' };
+    await onSave({ ...settings, agentPrompts: next });
+    setSavingPrompt(null);
+  };
+
+  const handleReprocessAll = async () => {
+    if (!confirm('Reprocessar todas as gravações com os pipelines de IA? Isso pode demorar.')) return;
+    setReprocessing(true);
+    try {
+      const resp = await fetch('/api/recordings/reprocess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordingIds: ['__all__'] }),
+      });
+      if (!resp.ok) throw new Error('Falha ao reprocessar');
+      alert('Reprocessamento enfileirado com sucesso!');
+    } catch {
+      alert('Erro ao reprocessar. Tente novamente.');
+    } finally {
+      setReprocessing(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -589,11 +623,30 @@ function AgentsTab({
         </p>
       </div>
 
+      {/* Transcription Provider */}
+      <div className="card p-5">
+        <h3 className="font-semibold text-text">Provedor de Transcrição</h3>
+        <p className="mt-1 text-sm text-mute">
+          Escolha o serviço usado para transcrição de áudio (speech-to-text).
+        </p>
+        <select
+          value={settings.transcribeProvider ?? 'groq'}
+          onChange={(e) => onSave({ ...settings, transcribeProvider: e.target.value })}
+          className="mt-3 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+        >
+          <option value="groq">Groq Whisper (rápido, gratuito)</option>
+          <option value="openai">OpenAI Whisper (referência)</option>
+          <option value="local">Local / Self-hosted</option>
+        </select>
+      </div>
+
       {AGENTS.map((agent) => {
         const current = agentModels[agent.key];
         const currentModelId = current?.model;
         const modelSpec = currentModelId ? findModelById(currentModelId) : undefined;
         const isInCatalog = currentModelId ? selectedModelIds.has(currentModelId) : true;
+        const isExpanded = expandedPrompts[agent.key] ?? false;
+        const draft = promptDrafts[agent.key] ?? '';
 
         return (
           <div key={agent.key} className="card p-5">
@@ -639,9 +692,54 @@ function AgentsTab({
                 )}
               </button>
             </div>
+
+            {/* Custom prompt section */}
+            <button
+              type="button"
+              onClick={() => togglePrompt(agent.key)}
+              className="mt-3 flex items-center gap-2 text-xs font-medium text-accent hover:underline"
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition ${isExpanded ? 'rotate-180' : ''}`} />
+              {isExpanded ? 'Ocultar prompt customizado' : 'Prompt customizado'}
+            </button>
+            {isExpanded && (
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setPromptDrafts((prev) => ({ ...prev, [agent.key]: e.target.value }))}
+                  placeholder={`Instruções adicionais para o agente "${agent.label}"…`}
+                  rows={4}
+                  className="w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none placeholder:text-mute/50 focus:border-accent/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => savePrompt(agent.key)}
+                  disabled={savingPrompt === agent.key}
+                  className="rounded-[14px] bg-accent px-4 py-2 text-xs font-medium text-onAccent transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingPrompt === agent.key ? 'Salvando…' : 'Salvar prompt'}
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
+
+      {/* Batch reprocess */}
+      <div className="card p-5">
+        <h3 className="font-semibold text-text">Reprocessamento em Lote</h3>
+        <p className="mt-1 text-sm text-mute">
+          Reprocessar todas as gravações com os pipelines de IA usando os modelos e prompts atuais.
+        </p>
+        <button
+          type="button"
+          onClick={handleReprocessAll}
+          disabled={reprocessing}
+          className="mt-3 rounded-[18px] border border-accent/40 bg-accent/10 px-5 py-3 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:opacity-50"
+        >
+          {reprocessing ? 'Enfileirando…' : '🔄 Reprocessar todas as gravações'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -158,6 +158,42 @@ The AI pipeline worker (`process-recording.ts`) implements:
 - **Per-pipeline status**: After fan-out completes, `pipelineResults` (e.g. `{ summary: 'ok', mindmap: 'failed' }`) is stored on the recording document.
 - **Graceful degradation**: `Promise.allSettled` ensures one failing pipeline doesn't block others. Only successful outputs are persisted.
 
+## Command Palette (⌘K)
+
+A global fuzzy-search command palette accessible via `Cmd/Ctrl+K`:
+
+- **Static commands**: Navigation (home, recordings, search, integrations, settings, admin, trash) + configuration shortcuts.
+- **Live recording search**: Queries `/api/recordings/search?q=...` when input has 2+ characters, showing results grouped under "Gravações".
+- **Keyboard navigation**: Arrow keys, Enter to select, Escape to close. Grouped by category with visual indicators.
+- **Implementation**: `CommandPalette` component rendered inside `workspace-shell.tsx`, replaces old `use-global-shortcuts` Cmd+K → search redirect.
+
+## Multi-Agent Settings (Phase 3.3)
+
+Each AI pipeline agent can be independently configured:
+
+- **Custom prompts**: Per-agent textarea in Settings → Agentes for additional system instructions. Stored as `agentPrompts: Record<string, string>` in workspace settings.
+- **Transcription provider**: Dropdown to select Groq Whisper (fast/free), OpenAI Whisper (reference), or Local/self-hosted.
+- **Batch reprocessing**: Button in Agentes tab + bulk action in recordings grid. Calls `POST /api/recordings/reprocess` to re-queue selected recordings through AI pipelines.
+
+## Recording Management (Phase 4.1)
+
+Enhanced recording library with organizational and bulk features:
+
+- **Tags**: Array field on recordings. `PUT/POST /api/recordings/tags` for set/merge operations. Tags displayed as colored pills on recording cards.
+- **Sort controls**: Client-side sorting by date, title, duration, or status with ascending/descending toggle.
+- **Tag filtering**: Click a tag pill in the controls bar to filter the grid.
+- **Bulk selection**: Checkboxes on each card, select-all toggle, bulk actions bar (add tag, reprocess AI).
+- **Implementation**: Server component fetches, serializes to client `RecordingsGrid` component for interactive features.
+
+## Enhanced Search (Phase 4.4)
+
+Search page improvements:
+
+- **Status filters**: Filter results by recording status (all, completed, processing, pending).
+- **Result counts**: Total and per-category (semantic/keyword) result counts displayed after search.
+- **Similarity scores**: Semantic results show a percentage match badge when similarity data is available.
+- **Filter toggle panel**: Collapsible filter section with visual indicator when filters are active.
+
 ## Model Catalog
 
 The Settings → Provedores tab supports a dynamic model catalog:

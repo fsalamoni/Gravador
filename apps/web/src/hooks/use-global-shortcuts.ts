@@ -1,25 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 /**
- * Global keyboard shortcuts:
- * - Cmd/Ctrl+K → /workspace/search
- * - Escape → close (fires custom event)
+ * Global keyboard shortcuts — now handled by CommandPalette.
+ * This hook is kept as a no-op for backward compatibility.
  */
 export function useGlobalShortcuts() {
-  const router = useRouter();
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      // Cmd/Ctrl + K → search
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        router.push('/workspace/search');
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router]);
+  // Cmd+K is now handled by CommandPalette component
 }

@@ -4,6 +4,7 @@ import { formatDurationMs } from '@gravador/core';
 import { ArrowLeft, ArrowUpRight, Clock3, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { RecordingsGrid } from './recordings-grid';
 
 export default async function RecordingsListPage() {
   const user = await getSessionUser();
@@ -14,10 +15,21 @@ export default async function RecordingsListPage() {
     durationMs: number;
     status: string;
     capturedAt: { toDate: () => Date };
+    tags?: string[];
   }>;
   const totalHours = (
     recordings.reduce((sum, recording) => sum + recording.durationMs, 0) / 3600000
   ).toFixed(1);
+
+  // Serialize for client component
+  const serialized = recordings.map((r) => ({
+    id: r.id,
+    title: r.title ?? null,
+    durationMs: r.durationMs,
+    status: r.status,
+    capturedAt: r.capturedAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+    tags: r.tags ?? [],
+  }));
 
   return (
     <div className="space-y-5">
@@ -59,59 +71,7 @@ export default async function RecordingsListPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        {recordings.map((recording) => (
-          <Link
-            key={recording.id}
-            href={`/workspace/recordings/${recording.id}`}
-            className="card group p-6 transition hover:border-accent/70"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-[0.2em] text-mute">
-                {recording.status}
-              </span>
-              <ArrowUpRight className="h-4 w-4 text-mute transition group-hover:text-accent" />
-            </div>
-            <h2 className="mt-5 text-2xl font-semibold text-text">
-              {recording.title ?? recording.capturedAt.toDate().toLocaleString()}
-            </h2>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs text-mute">
-              <span className="rounded-full border border-border px-3 py-1">
-                {formatDurationMs(recording.durationMs)}
-              </span>
-              <span className="rounded-full border border-border px-3 py-1">
-                {recording.capturedAt.toDate().toLocaleString()}
-              </span>
-            </div>
-            <div className="mt-6 flex h-20 items-end gap-1.5">
-              {[
-                ['bar-1', 16],
-                ['bar-2', 24],
-                ['bar-3', 42],
-                ['bar-4', 64],
-                ['bar-5', 58],
-                ['bar-6', 36],
-                ['bar-7', 44],
-                ['bar-8', 62],
-                ['bar-9', 30],
-                ['bar-10', 18],
-                ['bar-11', 34],
-                ['bar-12', 26],
-              ].map(([barId, height]) => (
-                <span
-                  key={`${recording.id}-${barId}`}
-                  className="flex-1 rounded-full bg-accent/70"
-                  style={{ height }}
-                />
-              ))}
-            </div>
-          </Link>
-        ))}
-
-        {recordings.length === 0 ? (
-          <div className="card px-6 py-12 text-center text-mute">Nenhuma gravação ainda.</div>
-        ) : null}
-      </section>
+      <RecordingsGrid recordings={serialized} />
     </div>
   );
 }

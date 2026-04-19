@@ -66,6 +66,8 @@ export async function PUT(req: Request) {
     'embeddingModel',
     'byokKeys',
     'agentModels',
+    'agentPrompts',
+    'selectedModels',
   ];
   const sanitized: Record<string, unknown> = {};
   for (const key of allowed) {

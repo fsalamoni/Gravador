@@ -1,6 +1,7 @@
 'use client';
 
 import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
+import { CommandPalette } from '@/components/command-palette';
 import {
   AudioWaveform,
   ChevronRight,
@@ -212,6 +213,8 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
           <main className="min-w-0">{children}</main>
         </div>
       </div>
+
+      <CommandPalette />
     </div>
   );
 }

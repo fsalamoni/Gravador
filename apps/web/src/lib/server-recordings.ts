@@ -12,6 +12,7 @@ export type ServerRecording = {
   status: string;
   capturedAt?: TimestampLike;
   deletedAt?: TimestampLike | null;
+  tags?: string[];
 };
 
 function isMissingIndexError(error: unknown) {
