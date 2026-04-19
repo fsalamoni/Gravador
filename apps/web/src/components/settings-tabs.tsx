@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  BookOpen,
   Bot,
   Check,
   ChevronDown,
@@ -9,13 +10,15 @@ import {
   EyeOff,
   Loader2,
   Palette,
-  Search,
   ShieldCheck,
   Sparkles,
   UserRound,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type ThemeId, THEMES, useTheme } from './theme-provider';
+import { ModelCatalogModal } from './model-catalog-modal';
+import { AgentModelModal } from './agent-model-modal';
+import { type ModelSpec, getModelsForProvider, getModelById, formatTokens, formatCost, avgRating } from '@/lib/model-registry';
 
 // ── Types ──
 
@@ -34,21 +37,7 @@ interface AISettings {
   embeddingModel?: string;
   byokKeys?: Record<string, string>;
   agentModels?: Record<string, AgentModelConfig>;
-}
-
-interface CatalogModel {
-  id: string;
-  modelId: string;
-  name: string;
-  description: string;
-  contextLength: number;
-  maxCompletionTokens: number;
-  pricing: { prompt: number; completion: number; request: number; image: number };
-  inputModalities: string[];
-  outputModalities: string[];
-  supportedParameters: string[];
-  qualityScores: { overall?: number; reasoning?: number; coding?: number; instruction?: number } | null;
-  expirationDate: string | null;
+  selectedModels?: string[];
 }
 
 // ── Tabs ──
@@ -87,14 +76,17 @@ const AGENTS: { key: string; label: string; description: string }[] = [
 export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   const [tab, setTab] = useState<Tab>('account');
   const [settings, setSettings] = useState<AISettings>({});
-  const [catalog, setCatalog] = useState<CatalogModel[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [catalogSearch, setCatalogSearch] = useState('');
   const { theme: currentTheme, setTheme: applyTheme } = useTheme();
-  const [catalogSort, setCatalogSort] = useState<'name' | 'context' | 'price'>('name');
+
+  // Modal states
+  const [catalogModalProvider, setCatalogModalProvider] = useState<string | null>(null);
+  const [agentModalKey, setAgentModalKey] = useState<string | null>(null);
+
+  // Personal catalog as Set for O(1) lookups
+  const selectedModelIds = new Set(settings.selectedModels ?? []);
 
   // Load settings on mount
   useEffect(() => {
@@ -102,7 +94,6 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       .then((r) => r.json())
       .then((data) => {
         if (data.aiSettings) setSettings(data.aiSettings);
-        // Sync theme from server if stored and different from local
         if (data.theme && THEMES.includes(data.theme as ThemeId)) {
           const stored = localStorage.getItem('gravador-theme');
           if (!stored) applyTheme(data.theme as ThemeId);
@@ -110,21 +101,6 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       })
       .catch(() => {});
   }, []);
-
-  // Load catalog when switching to providers/agents tab
-  useEffect(() => {
-    if ((tab === 'providers' || tab === 'agents') && catalog.length === 0 && !catalogLoading) {
-      setCatalogLoading(true);
-      const provider = settings.chatProvider || 'openrouter';
-      fetch(`/api/models?provider=${provider}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.models) setCatalog(data.models);
-        })
-        .catch(() => {})
-        .finally(() => setCatalogLoading(false));
-    }
-  }, [tab, catalog.length, catalogLoading, settings.chatProvider]);
 
   const save = useCallback(
     async (newSettings: AISettings) => {
@@ -150,24 +126,16 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
 
   const selectedProvider = (settings.chatProvider as AIProvider) || 'openrouter';
 
-  const filteredCatalog = useMemo(() => {
-    let list = catalog;
-    if (catalogSearch) {
-      const q = catalogSearch.toLowerCase();
-      list = list.filter(
-        (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.modelId.toLowerCase().includes(q) ||
-          m.description.toLowerCase().includes(q),
-      );
-    }
-    list = [...list].sort((a, b) => {
-      if (catalogSort === 'name') return a.name.localeCompare(b.name);
-      if (catalogSort === 'context') return b.contextLength - a.contextLength;
-      return a.pricing.prompt - b.pricing.prompt;
-    });
-    return list;
-  }, [catalog, catalogSearch, catalogSort]);
+  const toggleCatalogModel = useCallback(
+    (modelId: string) => {
+      const current = new Set(settings.selectedModels ?? []);
+      if (current.has(modelId)) current.delete(modelId);
+      else current.add(modelId);
+      const newSettings = { ...settings, selectedModels: [...current] };
+      save(newSettings);
+    },
+    [settings, save],
+  );
 
   return (
     <div className="space-y-5">
@@ -231,21 +199,11 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           selectedProvider={selectedProvider}
           showKey={showKey}
           setShowKey={setShowKey}
-          catalog={filteredCatalog}
-          catalogLoading={catalogLoading}
-          catalogSearch={catalogSearch}
-          setCatalogSearch={setCatalogSearch}
-          catalogSort={catalogSort}
-          setCatalogSort={setCatalogSort}
-          totalModels={catalog.length}
+          selectedModelIds={selectedModelIds}
           onSave={save}
           onProviderChange={(provider) => {
             const newSettings = { ...settings, chatProvider: provider };
             save(newSettings);
-            // Reload catalog for the new provider
-            if (provider === 'openrouter') {
-              setCatalog([]);
-            }
           }}
           onKeyChange={(key) => {
             const newSettings = {
@@ -255,17 +213,55 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
             setSettings(newSettings);
           }}
           onKeySave={() => save(settings)}
+          onOpenCatalog={(provider) => setCatalogModalProvider(provider)}
         />
       )}
       {tab === 'agents' && (
         <AgentsTab
           settings={settings}
-          catalog={catalog}
-          catalogLoading={catalogLoading}
+          selectedModelIds={selectedModelIds}
           onSave={save}
+          onOpenAgentModal={(key) => setAgentModalKey(key)}
         />
       )}
       {tab === 'security' && <SecurityTab />}
+
+      {/* Model Catalog Modal */}
+      {catalogModalProvider && (
+        <ModelCatalogModal
+          provider={catalogModalProvider}
+          providerLabel={PROVIDERS.find((p) => p.id === catalogModalProvider)?.label ?? catalogModalProvider}
+          selectedIds={selectedModelIds}
+          onToggle={toggleCatalogModel}
+          onClose={() => setCatalogModalProvider(null)}
+        />
+      )}
+
+      {/* Agent Model Selection Modal */}
+      {agentModalKey && (() => {
+        const agent = AGENTS.find((a) => a.key === agentModalKey);
+        if (!agent) return null;
+        const currentModel = settings.agentModels?.[agentModalKey]?.model;
+        return (
+          <AgentModelModal
+            agentLabel={agent.label}
+            agentDescription={agent.description}
+            provider={selectedProvider}
+            catalogIds={selectedModelIds}
+            currentModelId={currentModel}
+            onSelect={(modelId) => {
+              const newAgentModels = { ...settings.agentModels };
+              if (modelId) {
+                newAgentModels[agentModalKey] = { provider: selectedProvider, model: modelId };
+              } else {
+                delete newAgentModels[agentModalKey];
+              }
+              save({ ...settings, agentModels: newAgentModels });
+            }}
+            onClose={() => setAgentModalKey(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -299,35 +295,27 @@ function ProvidersTab({
   selectedProvider,
   showKey,
   setShowKey,
-  catalog,
-  catalogLoading,
-  catalogSearch,
-  setCatalogSearch,
-  catalogSort,
-  setCatalogSort,
-  totalModels,
+  selectedModelIds,
   onSave,
   onProviderChange,
   onKeyChange,
   onKeySave,
+  onOpenCatalog,
 }: {
   settings: AISettings;
   selectedProvider: AIProvider;
   showKey: boolean;
   setShowKey: (v: boolean) => void;
-  catalog: CatalogModel[];
-  catalogLoading: boolean;
-  catalogSearch: string;
-  setCatalogSearch: (v: string) => void;
-  catalogSort: 'name' | 'context' | 'price';
-  setCatalogSort: (v: 'name' | 'context' | 'price') => void;
-  totalModels: number;
+  selectedModelIds: Set<string>;
   onSave: (s: AISettings) => Promise<void>;
   onProviderChange: (p: AIProvider) => void;
   onKeyChange: (key: string) => void;
   onKeySave: () => void;
+  onOpenCatalog: (provider: string) => void;
 }) {
   const currentKey = settings.byokKeys?.[selectedProvider] ?? '';
+  const providerModels = getModelsForProvider(selectedProvider);
+  const catalogCount = providerModels.filter((m) => selectedModelIds.has(m.id)).length;
 
   return (
     <div className="space-y-4">
@@ -343,23 +331,30 @@ function ProvidersTab({
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {PROVIDERS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => onProviderChange(p.id)}
-              className={`rounded-[22px] border p-4 text-left transition ${
-                selectedProvider === p.id
-                  ? 'border-accent bg-accent/10'
-                  : 'border-border bg-bg/55 hover:border-accent/40'
-              }`}
-            >
-              <div className={`font-semibold ${selectedProvider === p.id ? 'text-accent' : 'text-text'}`}>
-                {p.label}
-              </div>
-              <div className="mt-1 text-xs leading-5 text-mute">{p.description}</div>
-            </button>
-          ))}
+          {PROVIDERS.map((p) => {
+            const pModels = getModelsForProvider(p.id);
+            const pSelected = pModels.filter((m) => selectedModelIds.has(m.id)).length;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onProviderChange(p.id)}
+                className={`rounded-[22px] border p-4 text-left transition ${
+                  selectedProvider === p.id
+                    ? 'border-accent bg-accent/10'
+                    : 'border-border bg-bg/55 hover:border-accent/40'
+                }`}
+              >
+                <div className={`font-semibold ${selectedProvider === p.id ? 'text-accent' : 'text-text'}`}>
+                  {p.label}
+                </div>
+                <div className="mt-1 text-xs leading-5 text-mute">{p.description}</div>
+                <div className="mt-2 text-xs text-mute">
+                  {pModels.length} modelos • <span className="text-accent">{pSelected} no catálogo</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* API Key input */}
@@ -395,144 +390,85 @@ function ProvidersTab({
         )}
       </div>
 
-      {/* Model Catalog */}
-      {selectedProvider === 'openrouter' && (
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-text">Catálogo de Modelos</h2>
-              <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent">
-                {totalModels} modelos
-              </span>
-            </div>
-          </div>
-
-          {/* Search and sort */}
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
-              <input
-                type="text"
-                value={catalogSearch}
-                onChange={(e) => setCatalogSearch(e.target.value)}
-                placeholder="Buscar modelos…"
-                className="w-full rounded-[18px] border border-border bg-bg/70 py-2.5 pl-9 pr-4 text-sm text-text placeholder:text-mute/50 focus:border-accent focus:outline-none"
-              />
-            </div>
-            <div className="relative">
-              <select
-                value={catalogSort}
-                onChange={(e) => setCatalogSort(e.target.value as typeof catalogSort)}
-                className="appearance-none rounded-[18px] border border-border bg-bg/70 py-2.5 pl-4 pr-9 text-sm text-text focus:border-accent focus:outline-none"
-              >
-                <option value="name">Nome</option>
-                <option value="context">Contexto ↓</option>
-                <option value="price">Preço ↑</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
-            </div>
-          </div>
-
-          {/* Model list */}
-          {catalogLoading ? (
-            <div className="mt-6 flex items-center justify-center gap-2 py-8 text-mute">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Carregando catálogo…
-            </div>
-          ) : (
-            <div className="mt-4 max-h-[600px] space-y-2 overflow-y-auto pr-1">
-              {catalog.length === 0 ? (
-                <div className="py-8 text-center text-mute">
-                  Nenhum modelo encontrado. Verifique a API key do provedor.
-                </div>
-              ) : (
-                catalog.map((m) => (
-                  <ModelCard
-                    key={m.id}
-                    model={m}
-                    isSelected={settings.chatModel === m.modelId}
-                    onSelect={() => {
-                      onSave({ ...settings, chatModel: m.modelId });
-                    }}
-                  />
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Model Card ──
-
-function ModelCard({
-  model,
-  isSelected,
-  onSelect,
-}: {
-  model: CatalogModel;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  const promptCost = model.pricing.prompt * 1_000_000;
-  const completionCost = model.pricing.completion * 1_000_000;
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`w-full rounded-[20px] border p-4 text-left transition ${
-        isSelected
-          ? 'border-accent bg-accent/10'
-          : 'border-border bg-bg/40 hover:border-accent/40'
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className={`font-semibold ${isSelected ? 'text-accent' : 'text-text'}`}>
-              {model.name}
+      {/* Personal Model Catalog */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BookOpen className="h-5 w-5 text-accent" />
+            <h2 className="text-xl font-semibold text-text">Catálogo Pessoal</h2>
+            <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent">
+              {catalogCount} de {providerModels.length}
             </span>
-            {isSelected && <Check className="h-4 w-4 text-accent" />}
           </div>
-          <div className="mt-0.5 truncate font-mono text-xs text-mute">{model.modelId}</div>
+          <button
+            type="button"
+            onClick={() => onOpenCatalog(selectedProvider)}
+            className="rounded-[18px] bg-accent px-5 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft"
+          >
+            Gerenciar Catálogo
+          </button>
         </div>
-      </div>
+        <p className="mt-3 text-sm leading-7 text-mute">
+          Selecione os modelos que deseja usar. Apenas modelos do catálogo pessoal aparecem na seleção de agentes.
+        </p>
 
-      <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <span className="rounded-full border border-border px-2.5 py-1 text-mute">
-          {formatContext(model.contextLength)} ctx
-        </span>
-        <span className="rounded-full border border-border px-2.5 py-1 text-mute">
-          ${promptCost.toFixed(2)}/M in
-        </span>
-        <span className="rounded-full border border-border px-2.5 py-1 text-mute">
-          ${completionCost.toFixed(2)}/M out
-        </span>
-        {model.qualityScores?.overall != null && (
-          <span className="rounded-full bg-accent/15 px-2.5 py-1 font-medium text-accent">
-            {model.qualityScores.overall}/100
-          </span>
-        )}
-        {model.qualityScores?.reasoning != null && (
-          <span className="rounded-full border border-border px-2.5 py-1 text-mute">
-            Raciocínio {model.qualityScores.reasoning}
-          </span>
-        )}
-        {model.qualityScores?.coding != null && (
-          <span className="rounded-full border border-border px-2.5 py-1 text-mute">
-            Código {model.qualityScores.coding}
-          </span>
-        )}
-        {model.expirationDate && (
-          <span className="rounded-full bg-danger/15 px-2.5 py-1 text-danger">
-            Descontinuado
-          </span>
+        {catalogCount === 0 ? (
+          <div className="mt-4 rounded-[20px] border border-dashed border-border px-6 py-8 text-center text-mute">
+            Nenhum modelo selecionado. Clique em <strong>Gerenciar Catálogo</strong> para adicionar modelos.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {providerModels
+              .filter((m) => selectedModelIds.has(m.id))
+              .sort((a, b) => avgRating(b) - avgRating(a))
+              .map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex items-center justify-between rounded-[20px] border p-4 transition ${
+                    settings.chatModel === m.id
+                      ? 'border-accent bg-accent/10'
+                      : 'border-border bg-bg/40 hover:border-accent/40'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${settings.chatModel === m.id ? 'text-accent' : 'text-text'}`}>
+                        {m.name}
+                      </span>
+                      {settings.chatModel === m.id && <Check className="h-4 w-4 text-accent" />}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent">
+                        Média {avgRating(m)}
+                      </span>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-mute">
+                        {formatTokens(m.contextTokens)} ctx
+                      </span>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-mute">
+                        {formatCost(m.pricing.input)}/M in
+                      </span>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-mute">
+                        {formatCost(m.pricing.output)}/M out
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onSave({ ...settings, chatModel: m.id })}
+                    className={`ml-4 rounded-[14px] px-4 py-2 text-xs font-semibold transition ${
+                      settings.chatModel === m.id
+                        ? 'bg-accent text-onAccent'
+                        : 'border border-border text-mute hover:border-accent hover:text-accent'
+                    }`}
+                  >
+                    {settings.chatModel === m.id ? 'Padrão ✓' : 'Usar como padrão'}
+                  </button>
+                </div>
+              ))}
+          </div>
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -540,29 +476,16 @@ function ModelCard({
 
 function AgentsTab({
   settings,
-  catalog,
-  catalogLoading,
+  selectedModelIds,
   onSave,
+  onOpenAgentModal,
 }: {
   settings: AISettings;
-  catalog: CatalogModel[];
-  catalogLoading: boolean;
+  selectedModelIds: Set<string>;
   onSave: (s: AISettings) => Promise<void>;
+  onOpenAgentModal: (agentKey: string) => void;
 }) {
   const agentModels = settings.agentModels ?? {};
-
-  const setAgentModel = (agentKey: string, modelId: string | undefined) => {
-    const newAgentModels = { ...agentModels };
-    if (modelId) {
-      newAgentModels[agentKey] = {
-        provider: settings.chatProvider || 'openrouter',
-        model: modelId,
-      };
-    } else {
-      delete newAgentModels[agentKey];
-    }
-    onSave({ ...settings, agentModels: newAgentModels });
-  };
 
   return (
     <div className="space-y-4">
@@ -572,62 +495,60 @@ function AgentsTab({
           <h2 className="text-2xl font-semibold text-text">Modelos por Agente</h2>
         </div>
         <p className="mt-3 leading-7 text-mute">
-          Cada agente/pipeline pode usar um modelo diferente. Se nenhum modelo for escolhido, o
-          agente usa o modelo padrão do workspace.
+          Cada agente/pipeline pode usar um modelo diferente. Clique para escolher do catálogo pessoal.
+          Se nenhum modelo for escolhido, o agente usa o modelo padrão do workspace.
         </p>
       </div>
 
       {AGENTS.map((agent) => {
         const current = agentModels[agent.key];
-        const currentModel = current?.model;
-        const modelInCatalog = catalog.find((m) => m.modelId === currentModel);
-        const isUnavailable = currentModel && !modelInCatalog && catalog.length > 0;
+        const currentModelId = current?.model;
+        const modelSpec = currentModelId ? getModelById(currentModelId) : undefined;
+        const isInCatalog = currentModelId ? selectedModelIds.has(currentModelId) : true;
 
         return (
           <div key={agent.key} className="card p-5">
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-text">{agent.label}</h3>
                 <p className="mt-1 text-sm text-mute">{agent.description}</p>
               </div>
-              {isUnavailable && (
+              {currentModelId && !isInCatalog && (
                 <div className="flex items-center gap-1.5 rounded-full bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  Modelo indisponível
+                  Fora do catálogo
                 </div>
               )}
             </div>
 
-            <div className="mt-3">
-              {catalogLoading ? (
-                <div className="flex items-center gap-2 text-sm text-mute">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando modelos…
-                </div>
-              ) : (
-                <div className="relative">
-                  <select
-                    value={currentModel ?? ''}
-                    onChange={(e) => setAgentModel(agent.key, e.target.value || undefined)}
-                    className="w-full appearance-none rounded-[18px] border border-border bg-bg/70 px-4 py-3 pr-9 text-sm text-text focus:border-accent focus:outline-none"
-                  >
-                    <option value="">Padrão do workspace</option>
-                    {catalog.map((m) => (
-                      <option key={m.id} value={m.modelId}>
-                        {m.name} — {formatContext(m.contextLength)} ctx, ${(m.pricing.prompt * 1_000_000).toFixed(2)}/M in
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
-                </div>
-              )}
-
-              {isUnavailable && (
-                <p className="mt-2 text-sm text-danger">
-                  O modelo <span className="font-mono">{currentModel}</span> não está mais
-                  disponível no catálogo. Selecione outro modelo.
-                </p>
-              )}
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onOpenAgentModal(agent.key)}
+                className="flex-1 rounded-[18px] border border-border bg-bg/70 px-4 py-3 text-left text-sm transition hover:border-accent/40"
+              >
+                {modelSpec ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="font-medium text-text">{modelSpec.name}</span>
+                      <span className="ml-2 text-xs text-mute">
+                        Média {avgRating(modelSpec)} • {formatTokens(modelSpec.contextTokens)} ctx • {formatCost(modelSpec.pricing.input)}/M in
+                      </span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-mute" />
+                  </div>
+                ) : currentModelId ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-xs text-mute">{currentModelId}</span>
+                    <ChevronDown className="h-4 w-4 text-mute" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-mute">Padrão do workspace</span>
+                    <ChevronDown className="h-4 w-4 text-mute" />
+                  </div>
+                )}
+              </button>
             </div>
           </div>
         );
@@ -785,10 +706,4 @@ function Field({ label, value }: { label: string; value: string }) {
       <div className="mt-2 break-all font-mono text-sm text-text">{value}</div>
     </div>
   );
-}
-
-function formatContext(tokens: number): string {
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
-  return String(tokens);
 }
