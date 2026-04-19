@@ -28,8 +28,8 @@ export default function PrivacyPage() {
             <p>O Gravador coleta e processa os seguintes dados:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
-                <strong className="text-text">Dados de conta:</strong> e-mail, nome e foto de
-                perfil do Google, configurados durante autenticação.
+                <strong className="text-text">Dados de conta:</strong> e-mail, nome e foto de perfil
+                do Google, configurados durante autenticação.
               </li>
               <li>
                 <strong className="text-text">Áudio:</strong> gravações enviadas pelo aplicativo

@@ -24,7 +24,11 @@ export function ChatView({ recordingId }: { recordingId: string }) {
       .then((data: { messages?: Array<{ id: string; role: string; content: string }> }) => {
         if (data.messages?.length) {
           setMessages(
-            data.messages.map((m) => ({ id: m.id, role: m.role as Message['role'], content: m.content })),
+            data.messages.map((m) => ({
+              id: m.id,
+              role: m.role as Message['role'],
+              content: m.content,
+            })),
           );
           lastLen.current = data.messages.length;
         }
@@ -58,7 +62,11 @@ export function ChatView({ recordingId }: { recordingId: string }) {
 
   return (
     <div className="card flex h-[calc(100dvh-16rem)] min-h-[320px] max-h-[70vh] max-w-4xl flex-col p-4 sm:p-5">
-      <div className="flex-1 space-y-4 overflow-y-auto pr-2" aria-live="polite" aria-relevant="additions">
+      <div
+        className="flex-1 space-y-4 overflow-y-auto pr-2"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         {messages.length === 0 && (
           <div className="rounded-[24px] border border-dashed border-border bg-bg/35 px-5 py-8 text-center text-sm text-mute">
             Faça uma pergunta sobre esta gravação.

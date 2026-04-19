@@ -17,7 +17,6 @@ export function Waveform({ meters, barCount = 48, color = '#f38a37' }: WaveformP
     <View className="flex-row items-end h-28 gap-[3px]">
       {bars.map((v, i) => (
         <View
-          // biome-ignore lint/suspicious/noArrayIndexKey: waveform bars are positional, not identity-based
           key={i}
           style={{
             flex: 1,

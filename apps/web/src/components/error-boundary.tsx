@@ -34,7 +34,9 @@ export class ErrorBoundary extends Component<Props, State> {
           className="rounded-[24px] border border-danger/40 bg-danger/10 px-6 py-8 text-center"
           role="alert"
         >
-          <p className="text-sm font-medium text-danger">Algo deu errado ao carregar este conteúdo.</p>
+          <p className="text-sm font-medium text-danger">
+            Algo deu errado ao carregar este conteúdo.
+          </p>
           <button
             type="button"
             onClick={() => this.setState({ hasError: false, error: null })}

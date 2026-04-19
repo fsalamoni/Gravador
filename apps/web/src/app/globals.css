@@ -120,9 +120,9 @@
     --color-ok: 74 222 128;
     --color-onAccent: 14 17 20;
     --glow1: rgba(96, 165, 250, 0.16);
-    --glow2: rgba(147, 197, 253, 0.10);
+    --glow2: rgba(147, 197, 253, 0.1);
     --selection-bg: rgba(96, 165, 250, 0.32);
-    --accent-shadow: rgba(96, 165, 250, 0.30);
+    --accent-shadow: rgba(96, 165, 250, 0.3);
   }
 
   /* ── Vulcão (dark / crimson red) ── */

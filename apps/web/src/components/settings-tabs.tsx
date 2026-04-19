@@ -1,5 +1,15 @@
 'use client';
 
+import { formatHealthCheckMessage, runModelHealthCheck } from '@/lib/model-health-check';
+import {
+  type ModelSpec,
+  avgRating,
+  estimateRatingsFromApi,
+  formatCost,
+  formatTokens,
+  getModelById,
+  getModelsForProvider,
+} from '@/lib/model-registry';
 import {
   AlertTriangle,
   BookOpen,
@@ -8,6 +18,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  HeartPulse,
   Loader2,
   Palette,
   ShieldCheck,
@@ -15,10 +26,9 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { type ThemeId, THEMES, useTheme } from './theme-provider';
-import { ModelCatalogModal } from './model-catalog-modal';
 import { AgentModelModal } from './agent-model-modal';
-import { type ModelSpec, getModelsForProvider, getModelById, formatTokens, formatCost, avgRating, estimateRatingsFromApi } from '@/lib/model-registry';
+import { ModelCatalogModal } from './model-catalog-modal';
+import { THEMES, type ThemeId, useTheme } from './theme-provider';
 
 // ── Types ──
 
@@ -48,7 +58,12 @@ interface ApiCatalogModel {
   description: string;
   contextLength: number;
   pricing: { prompt: number; completion: number };
-  qualityScores: { overall?: number; reasoning?: number; coding?: number; instruction?: number } | null;
+  qualityScores: {
+    overall?: number;
+    reasoning?: number;
+    coding?: number;
+    instruction?: number;
+  } | null;
 }
 
 // ── Tabs ──
@@ -64,7 +79,11 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 const PROVIDERS: { id: AIProvider; label: string; description: string }[] = [
-  { id: 'openrouter', label: 'OpenRouter', description: 'Gateway universal — 300+ modelos, uma API key' },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    description: 'Gateway universal — 300+ modelos, uma API key',
+  },
   { id: 'openai', label: 'OpenAI', description: 'GPT-4.1, GPT-4.1-mini, Whisper, embeddings' },
   { id: 'anthropic', label: 'Anthropic', description: 'Claude Sonnet 4.6, Claude Opus 4.7' },
   { id: 'google', label: 'Google', description: 'Gemini 2.5 Pro, Gemini 2.5 Flash' },
@@ -116,11 +135,16 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [applyTheme]);
 
   // Fetch OpenRouter full catalog from API when user visits providers/agents
   useEffect(() => {
-    if ((tab === 'providers' || tab === 'agents') && openRouterApiModels.length === 0 && !orLoading && !orError) {
+    if (
+      (tab === 'providers' || tab === 'agents') &&
+      openRouterApiModels.length === 0 &&
+      !orLoading &&
+      !orError
+    ) {
       setOrLoading(true);
       setOrError(null);
       fetch('/api/models?provider=openrouter')
@@ -160,27 +184,24 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
     setOpenRouterApiModels([]);
   }, []);
 
-  const save = useCallback(
-    async (newSettings: AISettings) => {
-      setSaving(true);
-      setSaved(false);
-      try {
-        const res = await fetch('/api/settings', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ aiSettings: newSettings }),
-        });
-        if (res.ok) {
-          setSettings(newSettings);
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-        }
-      } finally {
-        setSaving(false);
+  const save = useCallback(async (newSettings: AISettings) => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiSettings: newSettings }),
+      });
+      if (res.ok) {
+        setSettings(newSettings);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
       }
-    },
-    [],
-  );
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   const selectedProvider = (settings.chatProvider as AIProvider) || 'openrouter';
 
@@ -313,7 +334,9 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       {/* Model Catalog Modal */}
       {catalogModalProvider && (
         <ModelCatalogModal
-          providerLabel={PROVIDERS.find((p) => p.id === catalogModalProvider)?.label ?? catalogModalProvider}
+          providerLabel={
+            PROVIDERS.find((p) => p.id === catalogModalProvider)?.label ?? catalogModalProvider
+          }
           models={getProviderModels(catalogModalProvider)}
           loading={catalogModalProvider === 'openrouter' && orLoading}
           error={catalogModalProvider === 'openrouter' ? orError : null}
@@ -325,29 +348,30 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       )}
 
       {/* Agent Model Selection Modal */}
-      {agentModalKey && (() => {
-        const agent = AGENTS.find((a) => a.key === agentModalKey);
-        if (!agent) return null;
-        const currentModel = settings.agentModels?.[agentModalKey]?.model;
-        return (
-          <AgentModelModal
-            agentLabel={agent.label}
-            agentDescription={agent.description}
-            models={agentCatalogModels}
-            currentModelId={currentModel}
-            onSelect={(model) => {
-              const newAgentModels = { ...settings.agentModels };
-              if (model) {
-                newAgentModels[agentModalKey] = { provider: model.provider, model: model.id };
-              } else {
-                delete newAgentModels[agentModalKey];
-              }
-              save({ ...settings, agentModels: newAgentModels });
-            }}
-            onClose={() => setAgentModalKey(null)}
-          />
-        );
-      })()}
+      {agentModalKey &&
+        (() => {
+          const agent = AGENTS.find((a) => a.key === agentModalKey);
+          if (!agent) return null;
+          const currentModel = settings.agentModels?.[agentModalKey]?.model;
+          return (
+            <AgentModelModal
+              agentLabel={agent.label}
+              agentDescription={agent.description}
+              models={agentCatalogModels}
+              currentModelId={currentModel}
+              onSelect={(model) => {
+                const newAgentModels = { ...settings.agentModels };
+                if (model) {
+                  newAgentModels[agentModalKey] = { provider: model.provider, model: model.id };
+                } else {
+                  delete newAgentModels[agentModalKey];
+                }
+                save({ ...settings, agentModels: newAgentModels });
+              }}
+              onClose={() => setAgentModalKey(null)}
+            />
+          );
+        })()}
     </div>
   );
 }
@@ -433,12 +457,15 @@ function ProvidersTab({
                     : 'border-border bg-bg/55 hover:border-accent/40'
                 }`}
               >
-                <div className={`font-semibold ${selectedProvider === p.id ? 'text-accent' : 'text-text'}`}>
+                <div
+                  className={`font-semibold ${selectedProvider === p.id ? 'text-accent' : 'text-text'}`}
+                >
                   {p.label}
                 </div>
                 <div className="mt-1 text-xs leading-5 text-mute">{p.description}</div>
                 <div className="mt-2 text-xs text-mute">
-                  {pModels.length} modelos • <span className="text-accent">{pSelected} no catálogo</span>
+                  {pModels.length} modelos •{' '}
+                  <span className="text-accent">{pSelected} no catálogo</span>
                 </div>
               </button>
             );
@@ -448,10 +475,16 @@ function ProvidersTab({
         {/* API Key input */}
         {selectedProvider !== 'ollama' && (
           <div className="mt-5">
-            <label className="text-xs uppercase tracking-[0.24em] text-mute">API Key</label>
+            <label
+              htmlFor="api-key-input"
+              className="text-xs uppercase tracking-[0.24em] text-mute"
+            >
+              API Key
+            </label>
             <div className="mt-2 flex gap-2">
               <div className="relative flex-1">
                 <input
+                  id="api-key-input"
                   type={showKey ? 'text' : 'password'}
                   value={currentKey}
                   onChange={(e) => onKeyChange(e.target.value)}
@@ -497,12 +530,14 @@ function ProvidersTab({
           </button>
         </div>
         <p className="mt-3 text-sm leading-7 text-mute">
-          Selecione os modelos que deseja usar. Apenas modelos do catálogo pessoal aparecem na seleção de agentes.
+          Selecione os modelos que deseja usar. Apenas modelos do catálogo pessoal aparecem na
+          seleção de agentes.
         </p>
 
         {catalogCount === 0 ? (
           <div className="mt-4 rounded-[20px] border border-dashed border-border px-6 py-8 text-center text-mute">
-            Nenhum modelo selecionado. Clique em <strong>Gerenciar Catálogo</strong> para adicionar modelos.
+            Nenhum modelo selecionado. Clique em <strong>Gerenciar Catálogo</strong> para adicionar
+            modelos.
           </div>
         ) : (
           <div className="mt-4 space-y-2">
@@ -520,7 +555,9 @@ function ProvidersTab({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={`font-semibold ${settings.chatModel === m.id ? 'text-accent' : 'text-text'}`}>
+                      <span
+                        className={`font-semibold ${settings.chatModel === m.id ? 'text-accent' : 'text-text'}`}
+                      >
                         {m.name}
                       </span>
                       {settings.chatModel === m.id && <Check className="h-4 w-4 text-accent" />}
@@ -581,6 +618,7 @@ function AgentsTab({
   const [promptDrafts, setPromptDrafts] = useState<Record<string, string>>(agentPrompts);
   const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
   const [reprocessing, setReprocessing] = useState(false);
+  const [healthChecking, setHealthChecking] = useState(false);
 
   const togglePrompt = (key: string) =>
     setExpandedPrompts((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -593,7 +631,8 @@ function AgentsTab({
   };
 
   const handleReprocessAll = async () => {
-    if (!confirm('Reprocessar todas as gravações com os pipelines de IA? Isso pode demorar.')) return;
+    if (!confirm('Reprocessar todas as gravações com os pipelines de IA? Isso pode demorar.'))
+      return;
     setReprocessing(true);
     try {
       const resp = await fetch('/api/recordings/reprocess', {
@@ -610,6 +649,40 @@ function AgentsTab({
     }
   };
 
+  const handleHealthCheck = async () => {
+    setHealthChecking(true);
+    try {
+      const selected = settings.selectedModels ?? [];
+      const agents: Record<string, string> = {};
+      for (const [key, cfg] of Object.entries(agentModels)) {
+        if (cfg?.model) agents[key] = cfg.model;
+      }
+      const result = await runModelHealthCheck(selected, agents, true);
+      const msg = formatHealthCheckMessage(result);
+      if (msg) {
+        // Remove unavailable models from catalog and clear agent configs
+        const removedSet = new Set(result.removedModels);
+        const nextSelected = selected.filter((id) => !removedSet.has(id));
+        const nextAgentModels = { ...agentModels };
+        for (const agentKey of result.clearedAgents) {
+          delete nextAgentModels[agentKey];
+        }
+        await onSave({
+          ...settings,
+          selectedModels: nextSelected,
+          agentModels: nextAgentModels,
+        });
+        alert(`${msg.title}\n\n${msg.message}`);
+      } else {
+        alert('Todos os modelos do catálogo estão disponíveis!');
+      }
+    } catch {
+      alert('Erro ao verificar modelos. Tente novamente.');
+    } finally {
+      setHealthChecking(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="card p-6">
@@ -618,8 +691,8 @@ function AgentsTab({
           <h2 className="text-2xl font-semibold text-text">Modelos por Agente</h2>
         </div>
         <p className="mt-3 leading-7 text-mute">
-          Cada agente/pipeline pode usar um modelo diferente. Clique para escolher do catálogo pessoal.
-          Se nenhum modelo for escolhido, o agente usa o modelo padrão do workspace.
+          Cada agente/pipeline pode usar um modelo diferente. Clique para escolher do catálogo
+          pessoal. Se nenhum modelo for escolhido, o agente usa o modelo padrão do workspace.
         </p>
       </div>
 
@@ -674,7 +747,8 @@ function AgentsTab({
                     <div>
                       <span className="font-medium text-text">{modelSpec.name}</span>
                       <span className="ml-2 text-xs text-mute">
-                        Média {avgRating(modelSpec)} • {formatTokens(modelSpec.contextTokens)} ctx • {formatCost(modelSpec.pricing.input)}/M in
+                        Média {avgRating(modelSpec)} • {formatTokens(modelSpec.contextTokens)} ctx •{' '}
+                        {formatCost(modelSpec.pricing.input)}/M in
                       </span>
                     </div>
                     <ChevronDown className="h-4 w-4 text-mute" />
@@ -706,7 +780,9 @@ function AgentsTab({
               <div className="mt-2 space-y-2">
                 <textarea
                   value={draft}
-                  onChange={(e) => setPromptDrafts((prev) => ({ ...prev, [agent.key]: e.target.value }))}
+                  onChange={(e) =>
+                    setPromptDrafts((prev) => ({ ...prev, [agent.key]: e.target.value }))
+                  }
                   placeholder={`Instruções adicionais para o agente "${agent.label}"…`}
                   rows={4}
                   className="w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none placeholder:text-mute/50 focus:border-accent/50"
@@ -740,21 +816,92 @@ function AgentsTab({
           {reprocessing ? 'Enfileirando…' : '🔄 Reprocessar todas as gravações'}
         </button>
       </div>
+
+      {/* Model health check */}
+      <div className="card p-5">
+        <div className="flex items-center gap-3">
+          <HeartPulse className="h-5 w-5 text-ok" />
+          <h3 className="font-semibold text-text">Health Check de Modelos</h3>
+        </div>
+        <p className="mt-1 text-sm text-mute">
+          Verifica se os modelos OpenRouter do seu catálogo pessoal ainda estão disponíveis. Remove
+          automaticamente modelos indisponíveis e limpa configurações de agentes afetados.
+        </p>
+        <button
+          type="button"
+          onClick={handleHealthCheck}
+          disabled={healthChecking}
+          className="mt-3 rounded-[18px] border border-ok/40 bg-ok/10 px-5 py-3 text-sm font-medium text-ok transition hover:bg-ok/20 disabled:opacity-50"
+        >
+          {healthChecking ? 'Verificando…' : '🩺 Verificar disponibilidade'}
+        </button>
+      </div>
     </div>
   );
 }
 
 // ── Appearance Tab ──
 
-const THEME_META: Record<ThemeId, { label: string; emoji: string; accent: string; bg: string; surface: string }> = {
-  terra: { label: 'Terra', emoji: '🌄', accent: 'rgb(243,138,55)', bg: 'rgb(18,13,10)', surface: 'rgb(29,21,17)' },
-  oceano: { label: 'Oceano', emoji: '🌊', accent: 'rgb(56,189,248)', bg: 'rgb(10,16,23)', surface: 'rgb(17,27,39)' },
-  floresta: { label: 'Floresta', emoji: '🌿', accent: 'rgb(52,211,153)', bg: 'rgb(10,18,14)', surface: 'rgb(17,29,22)' },
-  noite: { label: 'Noite', emoji: '🌙', accent: 'rgb(167,139,250)', bg: 'rgb(15,11,23)', surface: 'rgb(26,21,37)' },
-  aurora: { label: 'Aurora', emoji: '🌸', accent: 'rgb(244,114,182)', bg: 'rgb(21,10,18)', surface: 'rgb(33,21,32)' },
-  artico: { label: 'Ártico', emoji: '❄️', accent: 'rgb(96,165,250)', bg: 'rgb(14,17,20)', surface: 'rgb(23,28,34)' },
-  vulcao: { label: 'Vulcão', emoji: '🌋', accent: 'rgb(248,113,113)', bg: 'rgb(21,10,10)', surface: 'rgb(33,20,20)' },
-  solaris: { label: 'Solaris', emoji: '☀️', accent: 'rgb(251,191,36)', bg: 'rgb(20,17,10)', surface: 'rgb(31,26,17)' },
+const THEME_META: Record<
+  ThemeId,
+  { label: string; emoji: string; accent: string; bg: string; surface: string }
+> = {
+  terra: {
+    label: 'Terra',
+    emoji: '🌄',
+    accent: 'rgb(243,138,55)',
+    bg: 'rgb(18,13,10)',
+    surface: 'rgb(29,21,17)',
+  },
+  oceano: {
+    label: 'Oceano',
+    emoji: '🌊',
+    accent: 'rgb(56,189,248)',
+    bg: 'rgb(10,16,23)',
+    surface: 'rgb(17,27,39)',
+  },
+  floresta: {
+    label: 'Floresta',
+    emoji: '🌿',
+    accent: 'rgb(52,211,153)',
+    bg: 'rgb(10,18,14)',
+    surface: 'rgb(17,29,22)',
+  },
+  noite: {
+    label: 'Noite',
+    emoji: '🌙',
+    accent: 'rgb(167,139,250)',
+    bg: 'rgb(15,11,23)',
+    surface: 'rgb(26,21,37)',
+  },
+  aurora: {
+    label: 'Aurora',
+    emoji: '🌸',
+    accent: 'rgb(244,114,182)',
+    bg: 'rgb(21,10,18)',
+    surface: 'rgb(33,21,32)',
+  },
+  artico: {
+    label: 'Ártico',
+    emoji: '❄️',
+    accent: 'rgb(96,165,250)',
+    bg: 'rgb(14,17,20)',
+    surface: 'rgb(23,28,34)',
+  },
+  vulcao: {
+    label: 'Vulcão',
+    emoji: '🌋',
+    accent: 'rgb(248,113,113)',
+    bg: 'rgb(21,10,10)',
+    surface: 'rgb(33,20,20)',
+  },
+  solaris: {
+    label: 'Solaris',
+    emoji: '☀️',
+    accent: 'rgb(251,191,36)',
+    bg: 'rgb(20,17,10)',
+    surface: 'rgb(31,26,17)',
+  },
 };
 
 function AppearanceTab() {
@@ -798,7 +945,10 @@ function AppearanceTab() {
                   {meta.emoji}
                 </div>
                 <div>
-                  <div className="font-semibold" style={{ color: isActive ? meta.accent : '#e5e5e5' }}>
+                  <div
+                    className="font-semibold"
+                    style={{ color: isActive ? meta.accent : '#e5e5e5' }}
+                  >
                     {meta.label}
                   </div>
                   <div className="mt-0.5 text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -816,7 +966,10 @@ function AppearanceTab() {
               <div className="mt-3 flex gap-1.5">
                 <div className="h-6 flex-1 rounded-lg" style={{ backgroundColor: meta.surface }} />
                 <div className="h-6 w-10 rounded-lg" style={{ backgroundColor: meta.accent }} />
-                <div className="h-6 w-6 rounded-lg" style={{ backgroundColor: meta.accent, opacity: 0.3 }} />
+                <div
+                  className="h-6 w-6 rounded-lg"
+                  style={{ backgroundColor: meta.accent, opacity: 0.3 }}
+                />
               </div>
             </button>
           );
@@ -845,9 +998,7 @@ function AppearanceTab() {
           <span className="rounded-full border border-border px-3 py-1.5 text-xs text-mute">
             Border
           </span>
-          <span className="rounded-full bg-ok/15 px-3 py-1.5 text-xs font-medium text-ok">
-            OK
-          </span>
+          <span className="rounded-full bg-ok/15 px-3 py-1.5 text-xs font-medium text-ok">OK</span>
           <span className="rounded-full bg-danger/15 px-3 py-1.5 text-xs font-medium text-danger">
             Danger
           </span>

@@ -74,7 +74,11 @@ export default async function PublicSharePage({
       .limit(1)
       .get();
     if (!outSnap.empty) {
-      summary = outSnap.docs[0]!.data().payload as { tldr?: string; bullets?: string[]; full?: string };
+      summary = outSnap.docs[0]!.data().payload as {
+        tldr?: string;
+        bullets?: string[];
+        full?: string;
+      };
     }
   }
 
@@ -97,7 +101,9 @@ export default async function PublicSharePage({
           )}
           {summary.bullets && summary.bullets.length > 0 && (
             <div className="rounded-[24px] border border-border bg-surface p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">Key points</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
+                Key points
+              </h2>
               <ul className="mt-2 list-disc pl-5 space-y-1 text-text">
                 {summary.bullets.map((b, i) => (
                   <li key={i}>{b}</li>
@@ -110,7 +116,9 @@ export default async function PublicSharePage({
 
       {transcript && (
         <section className="rounded-[24px] border border-border bg-surface p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-accent mb-3">Transcript</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-accent mb-3">
+            Transcript
+          </h2>
           <div className="whitespace-pre-wrap text-sm leading-relaxed text-text/90">
             {transcript.full_text}
           </div>

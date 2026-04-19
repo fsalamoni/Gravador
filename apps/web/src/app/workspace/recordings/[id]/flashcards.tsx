@@ -35,15 +35,15 @@ export function FlashcardsView({ payload }: { payload: unknown }) {
           key={i}
           type="button"
           onClick={() => toggle(i)}
-          aria-label={flipped.has(i) ? `Answer: ${c.a.slice(0, 50)}` : `Question: ${c.q.slice(0, 50)}`}
+          aria-label={
+            flipped.has(i) ? `Answer: ${c.a.slice(0, 50)}` : `Question: ${c.q.slice(0, 50)}`
+          }
           className="group relative min-h-[140px] rounded-[24px] border border-border bg-bg/55 p-5 text-left transition hover:border-accent/40 hover:bg-surfaceAlt/80"
         >
           <span className="absolute right-4 top-4 rounded-full bg-surfaceAlt px-2 py-0.5 text-[10px] uppercase tracking-widest text-mute">
             {flipped.has(i) ? 'A' : 'Q'}
           </span>
-          <p className="mt-2 leading-relaxed text-text">
-            {flipped.has(i) ? c.a : c.q}
-          </p>
+          <p className="mt-2 leading-relaxed text-text">{flipped.has(i) ? c.a : c.q}</p>
           <p className="mt-3 text-xs text-mute">Click to flip</p>
         </button>
       ))}

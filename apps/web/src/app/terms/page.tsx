@@ -101,8 +101,8 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-text">8. Código Aberto</h2>
             <p>
-              O Gravador é software de código aberto, licenciado sob a AGPL-3.0. O código-fonte
-              está disponível em{' '}
+              O Gravador é software de código aberto, licenciado sob a AGPL-3.0. O código-fonte está
+              disponível em{' '}
               <a
                 href="https://github.com/fsalamoni/gravador"
                 target="_blank"

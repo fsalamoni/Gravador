@@ -29,7 +29,10 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
       lastError = err;
       if (attempt < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * 2 ** attempt + Math.random() * 500;
-        console.warn(`[retry] ${label} attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms`, err);
+        console.warn(
+          `[retry] ${label} attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms`,
+          err,
+        );
         await new Promise((r) => setTimeout(r, delay));
       }
     }
@@ -98,58 +101,73 @@ export async function processRecording(payload: { recordingId: string; locale?: 
       model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
     });
 
-    const [summary, actions, mindmap, chapters, quotes, sentiment, flashcards] = await Promise.allSettled([
-      withRetry('summary', () => runSummary({
-        segments,
-        fullText: tx.fullText,
-        locale,
-        provider: resolve('summarize').provider,
-        model: resolve('summarize').model,
-        keys: workspaceAI.keys,
-      })),
-      withRetry('actionItems', () => runActionItems({
-        segments,
-        locale,
-        provider: resolve('actionItems').provider,
-        model: resolve('actionItems').model,
-        keys: workspaceAI.keys,
-      })),
-      withRetry('mindmap', () => runMindmap({
-        fullText: tx.fullText,
-        locale,
-        provider: resolve('mindmap').provider,
-        model: resolve('mindmap').model,
-        keys: workspaceAI.keys,
-      })),
-      withRetry('chapters', () => runChapters({
-        segments,
-        locale,
-        provider: resolve('chapters').provider,
-        model: resolve('chapters').model,
-        keys: workspaceAI.keys,
-      })),
-      withRetry('quotes', () => runQuotes({
-        segments,
-        locale,
-        provider: resolve('quotes').provider,
-        model: resolve('quotes').model,
-        keys: workspaceAI.keys,
-      })),
-      withRetry('sentiment', () => runSentiment({
-        fullText: tx.fullText,
-        locale,
-        provider: resolve('sentiment').provider,
-        model: resolve('sentiment').model,
-        keys: workspaceAI.keys,
-      })),
-      withRetry('flashcards', () => runFlashcards({
-        fullText: tx.fullText,
-        locale,
-        provider: resolve('flashcards').provider,
-        model: resolve('flashcards').model,
-        keys: workspaceAI.keys,
-      })),
-    ]);
+    const [summary, actions, mindmap, chapters, quotes, sentiment, flashcards] =
+      await Promise.allSettled([
+        withRetry('summary', () =>
+          runSummary({
+            segments,
+            fullText: tx.fullText,
+            locale,
+            provider: resolve('summarize').provider,
+            model: resolve('summarize').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+        withRetry('actionItems', () =>
+          runActionItems({
+            segments,
+            locale,
+            provider: resolve('actionItems').provider,
+            model: resolve('actionItems').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+        withRetry('mindmap', () =>
+          runMindmap({
+            fullText: tx.fullText,
+            locale,
+            provider: resolve('mindmap').provider,
+            model: resolve('mindmap').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+        withRetry('chapters', () =>
+          runChapters({
+            segments,
+            locale,
+            provider: resolve('chapters').provider,
+            model: resolve('chapters').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+        withRetry('quotes', () =>
+          runQuotes({
+            segments,
+            locale,
+            provider: resolve('quotes').provider,
+            model: resolve('quotes').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+        withRetry('sentiment', () =>
+          runSentiment({
+            fullText: tx.fullText,
+            locale,
+            provider: resolve('sentiment').provider,
+            model: resolve('sentiment').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+        withRetry('flashcards', () =>
+          runFlashcards({
+            fullText: tx.fullText,
+            locale,
+            provider: resolve('flashcards').provider,
+            model: resolve('flashcards').model,
+            keys: workspaceAI.keys,
+          }),
+        ),
+      ]);
 
     const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
 

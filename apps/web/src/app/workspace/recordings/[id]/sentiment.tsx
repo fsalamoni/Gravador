@@ -37,7 +37,9 @@ export function SentimentView({ payload }: { payload: unknown }) {
     <div className="max-w-4xl space-y-6">
       {/* Overall */}
       <div className="card p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-mute">Overall Sentiment</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-mute">
+          Overall Sentiment
+        </h3>
         <div className="mt-4 flex items-center gap-4">
           <div className="h-3 flex-1 overflow-hidden rounded-full bg-surfaceAlt">
             <div
@@ -49,7 +51,8 @@ export function SentimentView({ payload }: { payload: unknown }) {
             {sentimentLabel(data.overall)}
           </span>
           <span className="font-mono text-sm text-mute">
-            {data.overall > 0 ? '+' : ''}{data.overall.toFixed(2)}
+            {data.overall > 0 ? '+' : ''}
+            {data.overall.toFixed(2)}
           </span>
         </div>
       </div>
@@ -68,7 +71,8 @@ export function SentimentView({ payload }: { payload: unknown }) {
                 />
               </div>
               <span className={`w-16 text-right font-mono text-xs ${sentimentColor(val)}`}>
-                {val > 0 ? '+' : ''}{val.toFixed(2)}
+                {val > 0 ? '+' : ''}
+                {val.toFixed(2)}
               </span>
             </div>
           ))}

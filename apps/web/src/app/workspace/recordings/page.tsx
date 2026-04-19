@@ -1,7 +1,6 @@
 import { getSessionUser } from '@/lib/firebase-server';
 import { listUserRecordings } from '@/lib/server-recordings';
-import { formatDurationMs } from '@gravador/core';
-import { ArrowLeft, ArrowUpRight, Clock3, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock3, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { RecordingsGrid } from './recordings-grid';

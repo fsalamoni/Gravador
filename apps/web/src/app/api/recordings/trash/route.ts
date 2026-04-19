@@ -27,7 +27,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  await ref.update({ deletedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  await ref.update({
+    deletedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   return NextResponse.json({ ok: true });
 }
 
@@ -118,7 +121,13 @@ export async function DELETE(req: Request) {
   }
 
   // Delete subcollections
-  const subcollections = ['transcripts', 'transcript_segments', 'ai_outputs', 'action_items', 'embeddings'];
+  const subcollections = [
+    'transcripts',
+    'transcript_segments',
+    'ai_outputs',
+    'action_items',
+    'embeddings',
+  ];
   for (const sub of subcollections) {
     const subSnap = await ref.collection(sub).get();
     if (!subSnap.empty) {

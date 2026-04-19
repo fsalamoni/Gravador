@@ -77,7 +77,7 @@ export function AdminDashboard() {
 
   const r = stats.recordings;
   const ai = stats.aiPipelines;
-  const totalHours = Math.round(r.totalDurationMs / 3_600_000 * 10) / 10;
+  const totalHours = Math.round((r.totalDurationMs / 3_600_000) * 10) / 10;
 
   // Build last 7 days chart data
   const today = new Date();
@@ -130,7 +130,10 @@ export function AdminDashboard() {
           </div>
           <div className="mt-4 text-4xl font-bold text-text">{ai.totalOutputs}</div>
           <p className="mt-1 text-sm text-mute">
-            outputs gerados • Latência média: {ai.avgLatencyMs > 1000 ? `${(ai.avgLatencyMs / 1000).toFixed(1)}s` : `${ai.avgLatencyMs}ms`}
+            outputs gerados • Latência média:{' '}
+            {ai.avgLatencyMs > 1000
+              ? `${(ai.avgLatencyMs / 1000).toFixed(1)}s`
+              : `${ai.avgLatencyMs}ms`}
           </p>
         </div>
       </div>
@@ -235,14 +238,22 @@ function KpiCard({
   return (
     <div className="card p-5">
       <div className="flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-          danger ? 'bg-danger/15 text-danger' : accent ? 'bg-accent/15 text-accent' : 'bg-surfaceAlt text-mute'
-        }`}>
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+            danger
+              ? 'bg-danger/15 text-danger'
+              : accent
+                ? 'bg-accent/15 text-accent'
+                : 'bg-surfaceAlt text-mute'
+          }`}
+        >
           <Icon className="h-5 w-5" />
         </div>
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-mute">{label}</div>
-          <div className={`mt-1 text-2xl font-bold ${danger ? 'text-danger' : 'text-text'}`}>{value}</div>
+          <div className={`mt-1 text-2xl font-bold ${danger ? 'text-danger' : 'text-text'}`}>
+            {value}
+          </div>
         </div>
       </div>
     </div>

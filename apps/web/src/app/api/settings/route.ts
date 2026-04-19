@@ -40,12 +40,24 @@ export async function PUT(req: Request) {
 
   // Handle theme update
   if (body.theme && typeof body.theme === 'string') {
-    const validThemes = ['terra', 'oceano', 'floresta', 'noite', 'aurora', 'artico', 'vulcao', 'solaris'];
+    const validThemes = [
+      'terra',
+      'oceano',
+      'floresta',
+      'noite',
+      'aurora',
+      'artico',
+      'vulcao',
+      'solaris',
+    ];
     if (validThemes.includes(body.theme)) {
       const db = getServerDb();
       const ws = await getUserWorkspace(db, user.uid);
       if (ws) {
-        await db.collection('workspaces').doc(ws.id).update({ theme: body.theme, updatedAt: FieldValue.serverTimestamp() });
+        await db
+          .collection('workspaces')
+          .doc(ws.id)
+          .update({ theme: body.theme, updatedAt: FieldValue.serverTimestamp() });
       }
       if (!body.aiSettings) {
         return NextResponse.json({ workspaceId: ws?.id, theme: body.theme });

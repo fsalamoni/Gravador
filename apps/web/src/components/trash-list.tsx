@@ -87,7 +87,8 @@ export function TrashList() {
                 </span>
               </div>
               <h2 className="mt-4 text-xl font-semibold text-text">
-                {item.title ?? (item.capturedAt ? new Date(item.capturedAt).toLocaleString() : item.id)}
+                {item.title ??
+                  (item.capturedAt ? new Date(item.capturedAt).toLocaleString() : item.id)}
               </h2>
               <div className="mt-3 flex gap-2 text-xs text-mute">
                 <span className="rounded-full border border-border px-3 py-1">

@@ -1,7 +1,7 @@
 'use client';
 
-import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
 import { CommandPalette } from '@/components/command-palette';
+import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
 import {
   AudioWaveform,
   ChevronRight,
@@ -13,9 +13,9 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
 
 type WorkspaceShellProps = {
   children: React.ReactNode;
@@ -25,9 +25,19 @@ type WorkspaceShellProps = {
 
 const NAV_KEYS = [
   { href: '/workspace', labelKey: 'overview', descKey: 'overviewDesc', icon: Home },
-  { href: '/workspace/recordings', labelKey: 'recordings', descKey: 'recordingsDesc', icon: AudioWaveform },
+  {
+    href: '/workspace/recordings',
+    labelKey: 'recordings',
+    descKey: 'recordingsDesc',
+    icon: AudioWaveform,
+  },
   { href: '/workspace/search', labelKey: 'search', descKey: 'searchDesc', icon: Search },
-  { href: '/workspace/integrations', labelKey: 'integrations', descKey: 'integrationsDesc', icon: Sparkles },
+  {
+    href: '/workspace/integrations',
+    labelKey: 'integrations',
+    descKey: 'integrationsDesc',
+    icon: Sparkles,
+  },
   { href: '/workspace/settings', labelKey: 'settings', descKey: 'settingsDesc', icon: Settings },
   { href: '/workspace/admin', labelKey: 'admin', descKey: 'adminDesc', icon: LayoutDashboard },
 ] as const;
@@ -159,7 +169,9 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
                   {getInitials(email, uid)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.24em] text-mute">{tShell('activeSession')}</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-mute">
+                    {tShell('activeSession')}
+                  </p>
                   <p className="truncate font-medium text-text">{email ?? uid}</p>
                 </div>
               </div>

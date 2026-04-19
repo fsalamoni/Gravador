@@ -48,7 +48,7 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
 
   // Filter + sort
   const sorted = useMemo(() => {
-    let list = filterTag ? recordings.filter((r) => r.tags.includes(filterTag)) : [...recordings];
+    const list = filterTag ? recordings.filter((r) => r.tags.includes(filterTag)) : [...recordings];
     list.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -134,12 +134,14 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
       <section className="card flex flex-wrap items-center gap-3 px-5 py-4">
         {/* Sort buttons */}
         <span className="text-xs font-medium uppercase tracking-[0.2em] text-mute">Ordenar:</span>
-        {([
-          ['date', 'Data', Calendar],
-          ['title', 'Título', ArrowDownAZ],
-          ['duration', 'Duração', Clock3],
-          ['status', 'Status', ArrowUpDown],
-        ] as const).map(([field, label, Icon]) => (
+        {(
+          [
+            ['date', 'Data', Calendar],
+            ['title', 'Título', ArrowDownAZ],
+            ['duration', 'Duração', Clock3],
+            ['status', 'Status', ArrowUpDown],
+          ] as const
+        ).map(([field, label, Icon]) => (
           <button
             key={field}
             type="button"
@@ -159,7 +161,9 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
         {/* Tag filter */}
         {allTags.length > 0 && (
           <>
-            <span className="ml-2 text-xs font-medium uppercase tracking-[0.2em] text-mute">Tag:</span>
+            <span className="ml-2 text-xs font-medium uppercase tracking-[0.2em] text-mute">
+              Tag:
+            </span>
             {allTags.map((tag) => (
               <button
                 key={tag}
@@ -260,10 +264,7 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
                   )}
                 </button>
 
-                <Link
-                  href={`/workspace/recordings/${recording.id}`}
-                  className="block"
-                >
+                <Link href={`/workspace/recordings/${recording.id}`} className="block">
                   <div className="flex items-center justify-between gap-4">
                     <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-[0.2em] text-mute">
                       {recording.status}

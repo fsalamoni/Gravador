@@ -1,6 +1,9 @@
 'use client';
 
-export function Skeleton({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+export function Skeleton({
+  className = '',
+  style,
+}: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={`animate-pulse rounded-[24px] bg-surface/80 ${className}`}

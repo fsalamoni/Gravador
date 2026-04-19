@@ -99,10 +99,7 @@ export async function GET(req: Request) {
   return NextResponse.json({ provider, count: models.length, models });
 }
 
-async function refreshOpenRouterCatalog(
-  db: FirebaseFirestore.Firestore,
-  catalogProvider: string,
-) {
+async function refreshOpenRouterCatalog(db: FirebaseFirestore.Firestore, catalogProvider: string) {
   const res = await fetch('https://openrouter.ai/api/v1/models', {
     headers: { 'Content-Type': 'application/json' },
     next: { revalidate: 0 },
@@ -185,10 +182,10 @@ async function refreshOpenRouterCatalog(
   if (opCount > 0) await batch.commit();
 
   // Update metadata
-  await db.collection('model_catalog_meta').doc(catalogProvider).set(
-    { lastFetchedAt: now, modelCount: models.length },
-    { merge: true },
-  );
+  await db
+    .collection('model_catalog_meta')
+    .doc(catalogProvider)
+    .set({ lastFetchedAt: now, modelCount: models.length }, { merge: true });
 
   console.log(`[models] refreshed ${catalogProvider} catalog: ${models.length} models`);
 }

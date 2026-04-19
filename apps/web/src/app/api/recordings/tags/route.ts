@@ -18,7 +18,9 @@ export async function PUT(req: Request) {
   }
 
   // Sanitize tags: lowercase, trim, unique, max 20 per recording
-  const tags = [...new Set(body.tags.map((t: string) => String(t).trim().toLowerCase()).filter(Boolean))].slice(0, 20);
+  const tags = [
+    ...new Set(body.tags.map((t: string) => String(t).trim().toLowerCase()).filter(Boolean)),
+  ].slice(0, 20);
 
   const db = getServerDb();
 

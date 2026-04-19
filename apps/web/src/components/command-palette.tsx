@@ -34,13 +34,37 @@ interface CommandItem {
 
 const STATIC_COMMANDS: Omit<CommandItem, 'action'>[] = [
   { id: 'nav-home', group: 'Navegação', label: 'Visão Geral', icon: Home },
-  { id: 'nav-recordings', group: 'Navegação', label: 'Gravações', sublabel: 'Biblioteca de gravações', icon: AudioWaveform },
-  { id: 'nav-search', group: 'Navegação', label: 'Busca Semântica', sublabel: 'Buscar no acervo', icon: Search },
+  {
+    id: 'nav-recordings',
+    group: 'Navegação',
+    label: 'Gravações',
+    sublabel: 'Biblioteca de gravações',
+    icon: AudioWaveform,
+  },
+  {
+    id: 'nav-search',
+    group: 'Navegação',
+    label: 'Busca Semântica',
+    sublabel: 'Buscar no acervo',
+    icon: Search,
+  },
   { id: 'nav-integrations', group: 'Navegação', label: 'Integrações', icon: Sparkles },
-  { id: 'nav-settings', group: 'Navegação', label: 'Configurações', sublabel: 'Provedores, modelos, agentes', icon: Settings },
+  {
+    id: 'nav-settings',
+    group: 'Navegação',
+    label: 'Configurações',
+    sublabel: 'Provedores, modelos, agentes',
+    icon: Settings,
+  },
   { id: 'nav-admin', group: 'Navegação', label: 'Dashboard Admin', icon: LayoutDashboard },
   { id: 'nav-trash', group: 'Navegação', label: 'Lixeira', icon: Trash2 },
-  { id: 'nav-agents', group: 'Configuração', label: 'Configurar Agentes', sublabel: 'Modelos por pipeline', icon: Bot },
+  {
+    id: 'nav-agents',
+    group: 'Configuração',
+    label: 'Configurar Agentes',
+    sublabel: 'Modelos por pipeline',
+    icon: Bot,
+  },
 ];
 
 const ROUTES: Record<string, string> = {
@@ -181,7 +205,10 @@ export function CommandPalette() {
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setActive(0); }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Buscar páginas, gravações, comandos…"
             className="flex-1 bg-transparent text-text outline-none placeholder:text-mute/50"

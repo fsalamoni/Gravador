@@ -99,7 +99,9 @@ export default function SearchPage() {
         {/* Filters panel */}
         {showFilters && (
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[20px] border border-border bg-surfaceAlt/40 px-5 py-4">
-            <span className="text-xs font-medium uppercase tracking-[0.2em] text-mute">Status:</span>
+            <span className="text-xs font-medium uppercase tracking-[0.2em] text-mute">
+              Status:
+            </span>
             {(['all', 'completed', 'processing', 'pending'] as const).map((s) => (
               <button
                 key={s}
@@ -130,7 +132,8 @@ export default function SearchPage() {
       {/* Results count */}
       {hasSearched && !loading && (
         <div className="px-1 text-sm text-mute">
-          {totalResults} resultado(s) — {semantic.length} semântico(s), {keyword.length} por palavra-chave
+          {totalResults} resultado(s) — {semantic.length} semântico(s), {keyword.length} por
+          palavra-chave
         </div>
       )}
 
@@ -138,7 +141,9 @@ export default function SearchPage() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm uppercase tracking-[0.28em] text-mute">Semântica</h2>
-            {hasSearched && <span className="text-xs text-mute">{semantic.length} resultado(s)</span>}
+            {hasSearched && (
+              <span className="text-xs text-mute">{semantic.length} resultado(s)</span>
+            )}
           </div>
           <div className="mt-5">
             <ResultList items={semantic} />
@@ -147,7 +152,9 @@ export default function SearchPage() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm uppercase tracking-[0.28em] text-mute">Palavras-chave</h2>
-            {hasSearched && <span className="text-xs text-mute">{keyword.length} resultado(s)</span>}
+            {hasSearched && (
+              <span className="text-xs text-mute">{keyword.length} resultado(s)</span>
+            )}
           </div>
           <div className="mt-5">
             <ResultList items={keyword} />

@@ -60,7 +60,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
       "img-src 'self' data: blob: https://*.googleusercontent.com https://*.googleapis.com",
       "font-src 'self'",
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com https://openrouter.ai https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com",
-      "frame-src https://*.firebaseapp.com https://accounts.google.com",
+      'frame-src https://*.firebaseapp.com https://accounts.google.com',
       "object-src 'none'",
       "base-uri 'self'",
     ].join('; '),
@@ -100,9 +100,7 @@ export function middleware(request: NextRequest) {
       const origin = request.headers.get('origin');
       const host = request.headers.get('host');
       if (origin && host && !origin.includes(host)) {
-        return addSecurityHeaders(
-          NextResponse.json({ error: 'csrf_rejected' }, { status: 403 }),
-        );
+        return addSecurityHeaders(NextResponse.json({ error: 'csrf_rejected' }, { status: 403 }));
       }
     }
   }

@@ -40,14 +40,21 @@ export async function GET(req: Request) {
   // Fetch all data in parallel
   const [transcriptSnap, segmentsSnap, outputsSnap, actionsSnap] = await Promise.all([
     db.collection('recordings').doc(recordingId).collection('transcripts').limit(1).get(),
-    db.collection('recordings').doc(recordingId).collection('transcript_segments').orderBy('startMs').get(),
+    db
+      .collection('recordings')
+      .doc(recordingId)
+      .collection('transcript_segments')
+      .orderBy('startMs')
+      .get(),
     db.collection('recordings').doc(recordingId).collection('ai_outputs').get(),
     db.collection('recordings').doc(recordingId).collection('action_items').get(),
   ]);
 
   const transcript = transcriptSnap.empty ? null : transcriptSnap.docs[0]!.data();
   const segments = segmentsSnap.docs.map((d) => d.data());
-  const outputs = Object.fromEntries(outputsSnap.docs.map((d) => [d.data().kind, d.data().payload]));
+  const outputs = Object.fromEntries(
+    outputsSnap.docs.map((d) => [d.data().kind, d.data().payload]),
+  );
   const actionItems = actionsSnap.docs.map((d) => d.data());
 
   const title = rec.title ?? rec.capturedAt?.toDate?.()?.toISOString?.() ?? recordingId;
@@ -97,12 +104,14 @@ function buildMarkdown(
   lines.push(`\n**Duration:** ${formatDurationMs(durationMs)}\n`);
 
   // Summary
-  const summary = outputs.summary as { tldr?: string; bullets?: string[]; longform?: string } | undefined;
+  const summary = outputs.summary as
+    | { tldr?: string; bullets?: string[]; longform?: string }
+    | undefined;
   if (summary) {
-    lines.push(`## Summary\n`);
+    lines.push('## Summary\n');
     if (summary.tldr) lines.push(`**TL;DR:** ${summary.tldr}\n`);
     if (summary.bullets?.length) {
-      lines.push(`### Key Points\n`);
+      lines.push('### Key Points\n');
       for (const b of summary.bullets) lines.push(`- ${b}`);
       lines.push('');
     }
@@ -111,7 +120,7 @@ function buildMarkdown(
 
   // Action Items
   if (actionItems.length > 0) {
-    lines.push(`## Action Items\n`);
+    lines.push('## Action Items\n');
     for (const a of actionItems) {
       const done = (a as { done?: boolean }).done ? 'x' : ' ';
       const text = (a as { text: string }).text;
@@ -122,9 +131,11 @@ function buildMarkdown(
   }
 
   // Chapters
-  const chapters = outputs.chapters as Array<{ title: string; startMs: number; endMs: number; summary: string }> | undefined;
+  const chapters = outputs.chapters as
+    | Array<{ title: string; startMs: number; endMs: number; summary: string }>
+    | undefined;
   if (chapters?.length) {
-    lines.push(`## Chapters\n`);
+    lines.push('## Chapters\n');
     for (const c of chapters) {
       lines.push(`### ${c.title} (${formatDurationMs(c.startMs)} – ${formatDurationMs(c.endMs)})`);
       lines.push(`${c.summary}\n`);
@@ -133,21 +144,21 @@ function buildMarkdown(
 
   // Transcript
   if (segments.length > 0) {
-    lines.push(`## Transcript\n`);
+    lines.push('## Transcript\n');
     for (const s of segments) {
       const seg = s as { startMs: number; speakerId?: string; text: string };
       const speaker = seg.speakerId ? `**${seg.speakerId}**` : '';
       lines.push(`[${formatDurationMs(seg.startMs)}] ${speaker} ${seg.text}\n`);
     }
   } else if (transcript) {
-    lines.push(`## Transcript\n`);
+    lines.push('## Transcript\n');
     lines.push(`${(transcript as { full_text: string }).full_text}\n`);
   }
 
   // Quotes
   const quotes = outputs.quotes as Array<{ text: string; reason: string }> | undefined;
   if (quotes?.length) {
-    lines.push(`## Notable Quotes\n`);
+    lines.push('## Notable Quotes\n');
     for (const q of quotes) {
       lines.push(`> ${q.text}`);
       lines.push(`> *${q.reason}*\n`);
@@ -157,7 +168,7 @@ function buildMarkdown(
   // Flashcards
   const cards = outputs.flashcards as Array<{ q: string; a: string }> | undefined;
   if (cards?.length) {
-    lines.push(`## Flashcards\n`);
+    lines.push('## Flashcards\n');
     for (const c of cards) {
       lines.push(`**Q:** ${c.q}`);
       lines.push(`**A:** ${c.a}\n`);
