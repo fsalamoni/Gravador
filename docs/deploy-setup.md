@@ -212,6 +212,23 @@ firebase apps:sdkconfig ANDROID 1:143237037612:android:31789e1c4b51e86f031b89 --
 4. Copy the `oauth_client` entry with `client_type: 1` into `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` for the matching build environment.
 5. The repo currently uses `143237037612-likp7uaelm375jjk2pfg4tpi19r0c91a.apps.googleusercontent.com` for EAS-managed Android builds.
 
+### EAS Build Operational Notes
+
+- EAS CLI must always run from `apps/mobile/` (not monorepo root). `pnpm --dir` does not change the child process cwd.
+- Export `EXPO_TOKEN` and `EAS_PROJECT_ID` in every `eas-cli` invocation — the CLI does not read `.eas/state.json` in non-interactive mode.
+- EAS project: `@salomone/gravador`, project ID `8165ca3d-ee27-4eef-9417-9318f5464d12`.
+- EAS keystore SHA1: `D1:DA:8D:E8:C1:A5:35:82:91:5A:EA:1D:DB:51:F8:E5:39:2C:F3:5C` (registered in Firebase Android app).
+- Android Client ID for EAS builds: `143237037612-likp7uaelm375jjk2pfg4tpi19r0c91a.apps.googleusercontent.com` (set as `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` in EAS preview and production profiles).
+- `.npmrc` includes `node-linker=hoisted` + `shamefully-hoist=true` (required for Metro in pnpm monorepo).
+- `apps/mobile/eas.json` preview profile pins `node: 22.14.0` and `pnpm: 10.9.0`.
+- `app.config.ts` was replaced by `app.config.js` (EAS worker does not transpile TS config).
+- `@expo/config-plugins@9.0.17` is a devDep (required by local quick-settings-tile plugin).
+- `expo-localization` is listed in plugins in `app.config.js`.
+- `google-services.json` is committed and tracked (required for EAS Android builds).
+- If Google Play App Signing is enabled for production AAB, its SHA1 must also be registered in Firebase.
+- Latest successful EAS build: `bebf2a6a-30ab-4794-a559-9a9e4ea07bb9` (preview APK, Android).
+- Current `ANDROID_PREVIEW_URL` on Cloud Run: `https://expo.dev/accounts/salomone/projects/gravador/builds/bebf2a6a-30ab-4794-a559-9a9e4ea07bb9`.
+
 ---
 
 ## 6. CI/CD Workflows
