@@ -14,7 +14,7 @@
     "clean": "rm -rf .turbo"
   },
   "dependencies": {
-    "@gravador/core": "workspace:*"
+    "@gravador/core": "file:../core"
   },
   "devDependencies": {
     "typescript": "5.7.2"

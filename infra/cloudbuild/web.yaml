@@ -1,0 +1,33 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - infra/docker/Dockerfile.web
+      - -t
+      - ${_IMAGE_URI}:${BUILD_ID}
+      - -t
+      - ${_IMAGE_URI}:latest
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${_NEXT_PUBLIC_FIREBASE_APP_ID}
+      - --build-arg
+      - NEXT_PUBLIC_FIRESTORE_DATABASE_ID=${_NEXT_PUBLIC_FIRESTORE_DATABASE_ID}
+      - --build-arg
+      - NEXT_PUBLIC_APP_URL=${_NEXT_PUBLIC_APP_URL}
+      - .
+images:
+  - ${_IMAGE_URI}:${BUILD_ID}
+  - ${_IMAGE_URI}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,0 +1,6 @@
+* @fsalamoni
+
+apps/web/** @fsalamoni
+apps/mobile/** @fsalamoni
+.github/workflows/** @fsalamoni
+docs/** @fsalamoni

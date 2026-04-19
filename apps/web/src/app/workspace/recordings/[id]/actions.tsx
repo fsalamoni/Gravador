@@ -22,7 +22,11 @@ export function ActionsView({
   const [items, setItems] = useState<ActionItem[]>(initialItems);
 
   if (items.length === 0) {
-    return <p className="text-mute">Nenhuma ação detectada (ou ainda em processamento).</p>;
+    return (
+      <div className="rounded-[28px] border border-dashed border-border bg-[#100c09]/45 px-6 py-10 text-center text-mute">
+        Nenhuma ação detectada (ou ainda em processamento).
+      </div>
+    );
   }
 
   const toggle = async (idx: number) => {
@@ -40,21 +44,31 @@ export function ActionsView({
   };
 
   return (
-    <ul className="space-y-3 max-w-3xl">
+    <ul className="max-w-4xl space-y-3">
       {items.map((a, i) => (
-        <li key={a.id ?? i} className="card p-4 flex gap-3 items-start">
+        <li key={a.id ?? i} className="card flex items-start gap-4 p-5">
           <input
             type="checkbox"
             checked={!!a.done}
             onChange={() => toggle(i)}
-            className="mt-1 h-4 w-4 accent-[#7c5cff]"
+            className="mt-1 h-4 w-4 accent-[#f38a37]"
           />
           <div className="flex-1">
-            <div className={a.done ? 'line-through text-mute' : ''}>{a.text}</div>
+            <div className={a.done ? 'leading-7 text-mute line-through' : 'leading-7 text-text'}>
+              {a.text}
+            </div>
             {(a.assignee || a.dueDate) && (
-              <div className="mt-1 text-xs text-mute flex gap-3">
-                {a.assignee ? <span>👤 {a.assignee}</span> : null}
-                {a.dueDate ? <span>📅 {a.dueDate}</span> : null}
+              <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-mute">
+                {a.assignee ? (
+                  <span className="rounded-full border border-border px-3 py-1">
+                    Owner {a.assignee}
+                  </span>
+                ) : null}
+                {a.dueDate ? (
+                  <span className="rounded-full border border-border px-3 py-1">
+                    Due {a.dueDate}
+                  </span>
+                ) : null}
               </div>
             )}
           </div>

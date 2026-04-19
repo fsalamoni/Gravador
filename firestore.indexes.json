@@ -25,16 +25,6 @@
         { "fieldPath": "recordingId", "order": "ASCENDING" },
         { "fieldPath": "embedding", "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "transcript_segments",
-      "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "startMs", "order": "ASCENDING" }]
-    },
-    {
-      "collectionGroup": "action_items",
-      "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "createdAt", "order": "ASCENDING" }]
     }
   ],
   "fieldOverrides": []

@@ -11,16 +11,20 @@ export function ChatView({ recordingId }: { recordingId: string }) {
   });
 
   return (
-    <div className="max-w-3xl flex flex-col h-[60vh]">
-      <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+    <div className="card flex h-[60vh] max-w-4xl flex-col p-4 sm:p-5">
+      <div className="flex-1 space-y-4 overflow-y-auto pr-2">
         {messages.length === 0 && (
-          <p className="text-mute">Faça uma pergunta sobre esta gravação.</p>
+          <div className="rounded-[24px] border border-dashed border-border bg-[#100c09]/35 px-5 py-8 text-center text-sm text-mute">
+            Faça uma pergunta sobre esta gravação.
+          </div>
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                m.role === 'user' ? 'bg-accent text-white' : 'card'
+              className={`max-w-[80%] rounded-[24px] px-4 py-3 ${
+                m.role === 'user'
+                  ? 'bg-accent text-[#120d0a]'
+                  : 'border border-border bg-[#100c09]/55 text-text'
               }`}
             >
               <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
@@ -30,16 +34,18 @@ export function ChatView({ recordingId }: { recordingId: string }) {
         {isLoading && <p className="text-mute text-sm">{t('thinking')}</p>}
       </div>
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-        <input
-          value={input}
-          onChange={handleInputChange}
-          placeholder={t('placeholder')}
-          className="flex-1 bg-surfaceAlt border border-border rounded-lg px-4 py-3 outline-none focus:border-accent"
-        />
+        <div className="flex flex-1 items-center rounded-[22px] border border-border bg-surfaceAlt/70 px-4">
+          <input
+            value={input}
+            onChange={handleInputChange}
+            placeholder={t('placeholder')}
+            className="w-full bg-transparent py-3 text-text outline-none placeholder:text-mute"
+          />
+        </div>
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="bg-accent text-white px-5 rounded-lg disabled:opacity-50"
+          className="rounded-[22px] bg-accent px-5 font-semibold text-[#120d0a] disabled:opacity-50"
         >
           →
         </button>

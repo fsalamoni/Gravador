@@ -1,6 +1,19 @@
-import type { ExpoConfig } from 'expo/config';
+const defaultApiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'https://anotes.web.app';
+const defaultFirestoreDatabaseId = process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ?? 'anotes';
+const defaultGoogleWebClientId =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
+  '143237037612-a95vks10tuuaeeab9ekpk0kf4mng06r2.apps.googleusercontent.com';
+const defaultGoogleIosClientId =
+  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ??
+  '143237037612-hc8jrc15e2ibh2vgg5d6uj4a0j7ejb4l.apps.googleusercontent.com';
+const defaultGoogleAndroidClientId =
+  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ??
+  (process.env.EAS_BUILD_PROFILE
+    ? undefined
+    : '143237037612-etj2lbdph46vk6u58taa7hm329fv99sm.apps.googleusercontent.com');
+const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? process.env.EAS_PROJECT_ID;
 
-const config: ExpoConfig = {
+const config = {
   name: 'Gravador',
   slug: 'gravador',
   scheme: 'gravador',
@@ -30,7 +43,7 @@ const config: ExpoConfig = {
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0b0e14',
+      backgroundColor: '#120d0a',
     },
     permissions: [
       'RECORD_AUDIO',
@@ -52,7 +65,7 @@ const config: ExpoConfig = {
     [
       'expo-notifications',
       {
-        color: '#7c5cff',
+        color: '#f38a37',
       },
     ],
     [
@@ -62,6 +75,7 @@ const config: ExpoConfig = {
       },
     ],
     'expo-local-authentication',
+    'expo-localization',
     './plugins/quick-settings-tile',
     'expo-share-intent',
   ],
@@ -76,10 +90,15 @@ const config: ExpoConfig = {
     firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-    apiUrl: process.env.EXPO_PUBLIC_API_URL,
+    googleAndroidClientId: defaultGoogleAndroidClientId,
+    googleIosClientId: defaultGoogleIosClientId,
+    googleWebClientId: defaultGoogleWebClientId,
+    firestoreDatabaseId: defaultFirestoreDatabaseId,
+    apiUrl: defaultApiUrl,
+    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
   runtimeVersion: { policy: 'appVersion' },
-  updates: { url: 'https://u.expo.dev/replace-me' },
+  ...(easProjectId ? { updates: { url: `https://u.expo.dev/${easProjectId}` } } : {}),
 };
 
-export default config;
+module.exports = config;

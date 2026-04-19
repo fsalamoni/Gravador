@@ -1,12 +1,38 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/signup', '/share', '/api/webhooks'];
+const PUBLIC_EXACT_PATHS = ['/'];
+const PUBLIC_PATH_PREFIXES = [
+  '/download',
+  '/docs',
+  '/login',
+  '/signup',
+  '/share',
+  '/api/health',
+  '/api/webhooks',
+];
+
+function getSafeRedirectPath(nextPath: string | null) {
+  if (!nextPath?.startsWith('/')) return '/workspace';
+  if (nextPath.startsWith('/login') || nextPath.startsWith('/signup')) return '/workspace';
+  return nextPath;
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const session = request.cookies.get('__session');
+
+  if (session?.value && (pathname === '/login' || pathname === '/signup')) {
+    const nextPath = request.nextUrl.searchParams.get('next');
+    const redirectPath = getSafeRedirectPath(nextPath);
+
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  }
 
   // Allow public paths through
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (
+    PUBLIC_EXACT_PATHS.includes(pathname) ||
+    PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  ) {
     return NextResponse.next();
   }
 
@@ -21,7 +47,6 @@ export function middleware(request: NextRequest) {
 
   // For workspace routes, check for session cookie
   if (pathname.startsWith('/workspace')) {
-    const session = request.cookies.get('__session');
     if (!session?.value) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('next', pathname);

@@ -3,6 +3,7 @@ import 'server-only';
 import {
   type App,
   type ServiceAccount,
+  applicationDefault,
   cert,
   getApp,
   getApps,
@@ -13,9 +14,22 @@ import { type Firestore, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { cookies } from 'next/headers';
 
-const FIRESTORE_DATABASE = 'anotes';
+const FIRESTORE_DATABASE_ID = process.env.FIRESTORE_DATABASE_ID ?? 'anotes';
 
 let _app: App | undefined;
+
+function getAdminAppOptions() {
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ??
+    process.env.GOOGLE_CLOUD_PROJECT ??
+    process.env.GCLOUD_PROJECT;
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+  return {
+    ...(projectId ? { projectId } : {}),
+    ...(storageBucket ? { storageBucket } : {}),
+  };
+}
 
 function getAdminApp(): App {
   if (_app) return _app;
@@ -24,10 +38,13 @@ function getAdminApp(): App {
     return _app;
   }
 
+  const appOptions = getAdminAppOptions();
   const keyJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (keyJson) {
     const serviceAccount = JSON.parse(keyJson) as ServiceAccount;
-    _app = initializeApp({ credential: cert(serviceAccount) });
+    _app = initializeApp({ ...appOptions, credential: cert(serviceAccount) });
+  } else if (Object.keys(appOptions).length > 0) {
+    _app = initializeApp({ ...appOptions, credential: applicationDefault() });
   } else {
     _app = initializeApp();
   }
@@ -35,7 +52,7 @@ function getAdminApp(): App {
 }
 
 export function getServerDb(): Firestore {
-  return getFirestore(getAdminApp(), FIRESTORE_DATABASE);
+  return getFirestore(getAdminApp(), FIRESTORE_DATABASE_ID);
 }
 
 export function getServerAuth() {

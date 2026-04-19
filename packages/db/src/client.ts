@@ -1,6 +1,7 @@
 import {
   type App,
   type ServiceAccount,
+  applicationDefault,
   cert,
   getApp,
   getApps,
@@ -10,9 +11,22 @@ import { getAuth } from 'firebase-admin/auth';
 import { type Firestore, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
-const FIRESTORE_DATABASE = 'anotes';
+const FIRESTORE_DATABASE_ID = process.env.FIRESTORE_DATABASE_ID ?? 'anotes';
 
 let _app: App | undefined;
+
+function getAdminAppOptions() {
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ??
+    process.env.GOOGLE_CLOUD_PROJECT ??
+    process.env.GCLOUD_PROJECT;
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+  return {
+    ...(projectId ? { projectId } : {}),
+    ...(storageBucket ? { storageBucket } : {}),
+  };
+}
 
 /**
  * Get or initialize the Firebase Admin app (singleton).
@@ -26,10 +40,13 @@ function getAdminApp(): App {
     return _app;
   }
 
+  const appOptions = getAdminAppOptions();
   const keyJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (keyJson) {
     const serviceAccount = JSON.parse(keyJson) as ServiceAccount;
-    _app = initializeApp({ credential: cert(serviceAccount) });
+    _app = initializeApp({ ...appOptions, credential: cert(serviceAccount) });
+  } else if (Object.keys(appOptions).length > 0) {
+    _app = initializeApp({ ...appOptions, credential: applicationDefault() });
   } else {
     // Falls back to GOOGLE_APPLICATION_CREDENTIALS or default credentials
     _app = initializeApp();
@@ -38,11 +55,11 @@ function getAdminApp(): App {
 }
 
 /**
- * Get the Firestore instance for the `anotes` named database.
+ * Get the Firestore instance for the dedicated `anotes` named database.
  * All Gravador data lives here, isolated from other apps in the project.
  */
 export function getDb(): Firestore {
-  return getFirestore(getAdminApp(), FIRESTORE_DATABASE);
+  return getFirestore(getAdminApp(), FIRESTORE_DATABASE_ID);
 }
 
 /**

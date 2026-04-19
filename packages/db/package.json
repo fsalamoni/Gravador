@@ -15,7 +15,7 @@
     "clean": "rm -rf .turbo"
   },
   "dependencies": {
-    "@gravador/core": "workspace:*",
+    "@gravador/core": "file:../core",
     "firebase-admin": "^13.8.0"
   },
   "devDependencies": {

@@ -19,16 +19,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
+const FIRESTORE_DATABASE_ID = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID ?? 'anotes';
+
 const isExistingApp = getApps().length > 0;
 const app = isExistingApp ? getApp() : initializeApp(firebaseConfig);
 
-// Use named database 'anotes' for isolation
+// Use the configured named database for isolation
 // initializeFirestore can only be called once; on HMR re-import, use getFirestore
 let db: Firestore;
 try {
-  db = isExistingApp ? getFirestore(app, 'anotes') : initializeFirestore(app, {}, 'anotes');
+  db = isExistingApp
+    ? getFirestore(app, FIRESTORE_DATABASE_ID)
+    : initializeFirestore(app, {}, FIRESTORE_DATABASE_ID);
 } catch {
-  db = getFirestore(app, 'anotes');
+  db = getFirestore(app, FIRESTORE_DATABASE_ID);
 }
 
 const auth: Auth = getAuth(app);

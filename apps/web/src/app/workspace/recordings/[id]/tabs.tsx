@@ -42,7 +42,7 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
 
   return (
     <Tabs.Root value={tab} onValueChange={setTab}>
-      <Tabs.List className="flex gap-1 border-b border-border">
+      <Tabs.List className="flex flex-wrap gap-2 rounded-[24px] border border-border bg-[#100c09]/55 p-2">
         {(
           [
             ['transcript', t('transcript')],
@@ -56,7 +56,7 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
           <Tabs.Trigger
             key={key}
             value={key}
-            className="px-4 py-2.5 text-sm text-mute data-[state=active]:text-text data-[state=active]:border-b-2 data-[state=active]:border-accent -mb-px"
+            className="rounded-full px-4 py-2.5 text-sm font-medium text-mute transition data-[state=active]:bg-accent data-[state=active]:text-[#120d0a]"
           >
             {label}
           </Tabs.Trigger>

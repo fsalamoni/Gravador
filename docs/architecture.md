@@ -10,14 +10,15 @@
 └────────┬─────────┘      └────────┬─────────┘
          │ Firebase JS SDK          │ Server Components + API routes
          ▼                          ▼
-┌──────────────────────────────────────────────┐
-│      Firebase (Firestore named DB "anotes")  │
+┌─────────────────────────────────────────────────────┐
+│   Firebase (dedicated Firestore DB "anotes")      │
 │  users · workspaces · recordings · transcripts │
 │  segments · ai_outputs · embeddings (vector) │
 │  shares · integrations · jobs · usage_events   │
 │  Storage: anotes/audio-raw, anotes/audio-proc  │
 │  Auth: Firebase Authentication                  │
-└────────┬────────────────────┬────────────────┘
+│  Isolation: no shared collections with psico   │
+└────────┬────────────────────┬────────────────────┘
          │ Webhook / job doc  │ findNearest vector search
          ▼                    │
 ┌──────────────────┐          │
@@ -56,3 +57,9 @@
 6. Worker runs the pipeline: transcribe → persist segments → fan-out AI outputs → embed with vectors.
 7. `recordings.status` transitions `queued → transcribing → summarizing → embedding → ready`.
 8. Web client reads via Server Components; chat uses `/api/chat` with Firestore vector search (findNearest).
+
+## Isolation contract
+
+- Gravador uses the named Firestore database `anotes`.
+- Gravador storage objects stay under the `anotes/` prefix.
+- Gravador indexes, rules, and runtime envs must not be reused from `psico` or `(default)`.

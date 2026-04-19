@@ -3,18 +3,82 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: dark;
+  }
+
   html,
   body {
-    background: #0b0e14;
-    color: #e6e8ef;
+    background: #120d0a;
+    color: #f7efe7;
   }
+
   body {
+    min-height: 100vh;
     font-feature-settings: "cv11";
+    background-image: radial-gradient(circle at top left, rgba(243, 138, 55, 0.18), transparent 34%),
+      radial-gradient(circle at 82% 18%, rgba(105, 211, 190, 0.12), transparent 24%),
+      linear-gradient(180deg, #120d0a 0%, #0b0806 100%);
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.2;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 92%);
+  }
+
+  * {
+    scrollbar-color: #463429 #120d0a;
+  }
+
+  ::selection {
+    background: rgba(243, 138, 55, 0.32);
+    color: #fff6ef;
   }
 }
 
 @layer utilities {
   .card {
-    @apply bg-surface border border-border rounded-xl;
+    @apply rounded-[28px] border border-border bg-surface shadow-studio;
+    backdrop-filter: blur(22px);
+  }
+
+  .display-title {
+    @apply font-display tracking-[-0.04em];
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center rounded-full border border-border bg-surfaceAlt/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-mute;
+  }
+
+  .ambient-shell {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .ambient-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-divider {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .soft-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(20px);
+    opacity: 0.6;
   }
 }

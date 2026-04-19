@@ -11,10 +11,10 @@ interface WaveformProps {
  * Minimal reactive waveform: takes raw dB meter samples and renders a bar row.
  * Mapping is logarithmic-friendly: dB ∈ [-60, 0] → height ∈ [0.06, 1].
  */
-export function Waveform({ meters, barCount = 48, color = '#7c5cff' }: WaveformProps) {
+export function Waveform({ meters, barCount = 48, color = '#f38a37' }: WaveformProps) {
   const bars = useMemo(() => downsample(meters, barCount), [meters, barCount]);
   return (
-    <View className="flex-row items-end h-24 gap-[3px]">
+    <View className="flex-row items-end h-28 gap-[3px]">
       {bars.map((v, i) => (
         <View
           // biome-ignore lint/suspicious/noArrayIndexKey: waveform bars are positional, not identity-based
@@ -23,8 +23,8 @@ export function Waveform({ meters, barCount = 48, color = '#7c5cff' }: WaveformP
             flex: 1,
             height: `${Math.max(6, v * 100)}%`,
             backgroundColor: color,
-            borderRadius: 2,
-            opacity: 0.6 + v * 0.4,
+            borderRadius: 999,
+            opacity: 0.52 + v * 0.48,
           }}
         />
       ))}

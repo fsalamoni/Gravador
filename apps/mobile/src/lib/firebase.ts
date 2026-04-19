@@ -28,6 +28,11 @@ const firebaseConfig = {
     process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+const firestoreDatabaseId =
+  (Constants.expoConfig?.extra?.firestoreDatabaseId as string | undefined) ??
+  process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ??
+  'anotes';
+
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   console.warn('[firebase] Missing EXPO_PUBLIC_FIREBASE_API_KEY / EXPO_PUBLIC_FIREBASE_PROJECT_ID');
 }
@@ -38,8 +43,7 @@ const auth: Auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-// Named database 'anotes' for isolation
-const db: Firestore = initializeFirestore(app, {}, 'anotes');
+const db: Firestore = initializeFirestore(app, {}, firestoreDatabaseId);
 
 const storage: FirebaseStorage = getStorage(app);
 

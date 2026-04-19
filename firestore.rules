@@ -1,7 +1,7 @@
 rules_version = '2';
 
 service cloud.firestore {
-  match /databases/anotes/documents {
+  match /databases/{database}/documents {
 
     // ── Helper functions ──
     function isAuth() {
@@ -12,19 +12,48 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
+    function isSelfWorkspace(wsId) {
+      return isAuth() && wsId == uid();
+    }
+
     function isWorkspaceMember(wsId) {
       return isAuth() &&
-        exists(/databases/anotes/documents/workspaces/$(wsId)/members/$(uid()));
+        (
+          isSelfWorkspace(wsId) ||
+          exists(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid()))
+        );
     }
 
     function isWorkspaceAdmin(wsId) {
       return isAuth() &&
-        get(/databases/anotes/documents/workspaces/$(wsId)/members/$(uid())).data.role in ['owner', 'admin'];
+        (
+          isSelfWorkspace(wsId) ||
+          get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid())).data.role in ['owner', 'admin']
+        );
     }
 
     function isWorkspaceOwner(wsId) {
       return isAuth() &&
-        get(/databases/anotes/documents/workspaces/$(wsId)/members/$(uid())).data.role == 'owner';
+        (
+          isSelfWorkspace(wsId) ||
+          get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid())).data.role == 'owner'
+        );
+    }
+
+    function isRecordingOwner(data) {
+      return isAuth() && data.createdBy == uid();
+    }
+
+    function canAccessRecordingData(data) {
+      return isRecordingOwner(data) || isWorkspaceMember(data.workspaceId);
+    }
+
+    function parentRecordingData(recId) {
+      return get(/databases/$(database)/documents/recordings/$(recId)).data;
+    }
+
+    function canAccessParentRecording(recId) {
+      return isAuth() && canAccessRecordingData(parentRecordingData(recId));
     }
 
     // ── Users ──
@@ -60,35 +89,38 @@ service cloud.firestore {
 
     // ── Recordings ──
     match /recordings/{recId} {
-      allow read: if isAuth() && isWorkspaceMember(resource.data.workspaceId);
-      allow create: if isAuth() && isWorkspaceMember(request.resource.data.workspaceId);
-      allow update: if isAuth() && isWorkspaceMember(resource.data.workspaceId)
-                    && request.resource.data.workspaceId == resource.data.workspaceId;
-      allow delete: if isAuth() && isWorkspaceAdmin(resource.data.workspaceId);
+      allow read: if canAccessRecordingData(resource.data);
+      allow create: if isAuth()
+                    && request.resource.data.createdBy == uid()
+                    && isWorkspaceMember(request.resource.data.workspaceId);
+      allow update: if canAccessRecordingData(resource.data)
+                    && request.resource.data.workspaceId == resource.data.workspaceId
+                    && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isRecordingOwner(resource.data) || isWorkspaceAdmin(resource.data.workspaceId);
 
       match /transcripts/{trId} {
-        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
+        allow read: if canAccessParentRecording(recId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /transcript_segments/{segId} {
-        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
+        allow read: if canAccessParentRecording(recId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /ai_outputs/{kind} {
-        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
+        allow read: if canAccessParentRecording(recId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /embeddings/{chunkId} {
-        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
+        allow read: if canAccessParentRecording(recId);
         allow write: if false; // server-only via admin SDK
       }
 
       match /action_items/{itemId} {
-        allow read: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
-        allow update: if isAuth() && isWorkspaceMember(get(/databases/anotes/documents/recordings/$(recId)).data.workspaceId);
+        allow read: if canAccessParentRecording(recId);
+        allow update: if canAccessParentRecording(recId);
         allow create, delete: if false; // server-only
       }
     }

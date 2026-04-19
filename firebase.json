@@ -1,11 +1,20 @@
 {
   "hosting": {
     "site": "anotes",
-    "source": "apps/web",
+    "public": "apps/web/public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "frameworksBackend": {
-      "region": "us-central1"
-    }
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "anotes-web",
+          "region": "us-central1",
+          "pinTag": true
+        }
+      }
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
   },
   "firestore": {
     "database": "anotes",
