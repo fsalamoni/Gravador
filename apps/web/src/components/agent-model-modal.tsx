@@ -1,11 +1,19 @@
 'use client';
 
-import { type ModelSpec, avgRating, formatCost, formatTokens } from '@/lib/model-registry';
+import {
+  type AgentFitKey,
+  type ModelSpec,
+  avgRating,
+  formatCost,
+  formatTokens,
+  inferFitScore,
+} from '@/lib/model-registry';
 import { Check, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 type SortKey =
   | 'name'
+  | 'fit'
   | 'extraction'
   | 'synthesis'
   | 'reasoning'
@@ -17,6 +25,7 @@ type SortKey =
 type SortDir = 'asc' | 'desc';
 
 interface Props {
+  agentKey?: AgentFitKey;
   agentLabel: string;
   agentDescription: string;
   models: ModelSpec[];
@@ -26,6 +35,7 @@ interface Props {
 }
 
 export function AgentModelModal({
+  agentKey,
   agentLabel,
   agentDescription,
   models,
@@ -34,7 +44,7 @@ export function AgentModelModal({
   onClose,
 }: Props) {
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('avg');
+  const [sortKey, setSortKey] = useState<SortKey>(agentKey ? 'fit' : 'avg');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const toggleSort = useCallback(
@@ -59,11 +69,18 @@ export function AgentModelModal({
           m.description.toLowerCase().includes(q),
       );
     }
+    // Filter out models with fit score < 4 when agentKey is available
+    if (agentKey) {
+      list = list.filter((m) => inferFitScore(m, agentKey) >= 4);
+    }
     return [...list].sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
       switch (sortKey) {
         case 'name':
           return dir * a.name.localeCompare(b.name);
+        case 'fit':
+          if (!agentKey) return dir * (avgRating(a) - avgRating(b));
+          return dir * (inferFitScore(a, agentKey) - inferFitScore(b, agentKey));
         case 'extraction':
           return dir * (a.ratings.extraction - b.ratings.extraction);
         case 'synthesis':
@@ -84,7 +101,7 @@ export function AgentModelModal({
           return 0;
       }
     });
-  }, [models, search, sortKey, sortDir]);
+  }, [models, search, sortKey, sortDir, agentKey]);
 
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortKey !== col) return <ChevronDown className="ml-0.5 inline h-3 w-3 opacity-30" />;
@@ -152,6 +169,11 @@ export function AgentModelModal({
                   <th className={thCls} onClick={() => toggleSort('name')}>
                     Modelo <SortIcon col="name" />
                   </th>
+                  {agentKey && (
+                    <th className={thCls} onClick={() => toggleSort('fit')}>
+                      Fit <SortIcon col="fit" />
+                    </th>
+                  )}
                   <th className={`${thCls} hidden sm:table-cell`} onClick={() => toggleSort('avg')}>
                     Média <SortIcon col="avg" />
                   </th>
@@ -244,6 +266,11 @@ export function AgentModelModal({
                         <div className="font-medium text-text">{m.name}</div>
                         <div className="mt-0.5 truncate text-xs text-mute">{m.description}</div>
                       </td>
+                      {agentKey && (
+                        <td className="px-3 py-2.5">
+                          <FitBadge score={inferFitScore(m, agentKey)} />
+                        </td>
+                      )}
                       <td className="hidden px-3 py-2.5 sm:table-cell">
                         <RatingBadge value={avgRating(m)} />
                       </td>
@@ -279,7 +306,8 @@ export function AgentModelModal({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           <p className="text-sm text-mute">
-            {models.length} modelos no catálogo
+            {filtered.length} modelos compatíveis
+            {agentKey && filtered.length < models.length && ` (${models.length - filtered.length} ocultos por baixa compatibilidade)`}
             {currentModelId &&
               ` • Selecionado: ${models.find((m) => m.id === currentModelId)?.name ?? currentModelId}`}
           </p>
@@ -307,6 +335,30 @@ function RatingBadge({ value }: { value: number }) {
       className={`inline-flex min-w-[36px] items-center justify-center rounded-md border px-1.5 py-0.5 text-xs font-bold ${color}`}
     >
       {value}
+    </span>
+  );
+}
+
+function FitBadge({ score }: { score: number }) {
+  let color = 'text-mute border-border';
+  let label = '';
+  if (score >= 8) {
+    color = 'text-ok border-ok/30 bg-ok/10';
+    label = 'Ideal';
+  } else if (score >= 6) {
+    color = 'text-accent border-accent/30 bg-accent/10';
+    label = 'Bom';
+  } else if (score >= 4) {
+    color = 'text-text border-border bg-surfaceAlt/50';
+    label = 'OK';
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold ${color}`}
+    >
+      {score}/10
+      {label && <span className="font-medium">{label}</span>}
     </span>
   );
 }

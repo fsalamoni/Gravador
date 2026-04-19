@@ -2,6 +2,7 @@
 
 import { formatHealthCheckMessage, runModelHealthCheck } from '@/lib/model-health-check';
 import {
+  type AgentFitKey,
   type ModelSpec,
   avgRating,
   estimateRatingsFromApi,
@@ -9,6 +10,7 @@ import {
   formatTokens,
   getModelById,
   getModelsForProvider,
+  inferFitScore,
 } from '@/lib/model-registry';
 import {
   AlertTriangle,
@@ -43,9 +45,11 @@ interface AISettings {
   chatProvider?: string;
   chatModel?: string;
   transcribeProvider?: string;
+  transcribeModel?: string;
   embeddingProvider?: string;
   embeddingModel?: string;
   byokKeys?: Record<string, string>;
+  ollamaUrl?: string;
   agentModels?: Record<string, AgentModelConfig>;
   agentPrompts?: Record<string, string>;
   selectedModels?: string[];
@@ -298,26 +302,28 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       </section>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`inline-flex min-w-fit items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
-                isActive
-                  ? 'border-accent bg-accent text-onAccent'
-                  : 'border-border bg-surfaceAlt/50 text-mute hover:text-text'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="card px-4 py-3 sm:px-5">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const isActive = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`inline-flex min-w-fit items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
+                  isActive
+                    ? 'border-accent bg-accent text-onAccent'
+                    : 'border-border bg-surfaceAlt/50 text-mute hover:text-text'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -345,6 +351,9 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           }}
           onKeySave={() => save(settings)}
           onOpenCatalog={(provider) => setCatalogModalProvider(provider)}
+          onOllamaUrlChange={(url) => {
+            setSettings((prev) => ({ ...prev, ollamaUrl: url }));
+          }}
         />
       )}
       {tab === 'agents' && (
@@ -382,6 +391,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           const currentModel = settings.agentModels?.[agentModalKey]?.model;
           return (
             <AgentModelModal
+              agentKey={agentModalKey as AgentFitKey}
               agentLabel={agent.label}
               agentDescription={agent.description}
               models={agentCatalogModels}
@@ -439,6 +449,7 @@ function ProvidersTab({
   onKeyChange,
   onKeySave,
   onOpenCatalog,
+  onOllamaUrlChange,
 }: {
   settings: AISettings;
   selectedProvider: AIProvider;
@@ -451,6 +462,7 @@ function ProvidersTab({
   onKeyChange: (key: string) => void;
   onKeySave: () => void;
   onOpenCatalog: (provider: string) => void;
+  onOllamaUrlChange: (url: string) => void;
 }) {
   const currentKey = settings.byokKeys?.[selectedProvider] ?? '';
   const providerModels = getProviderModels(selectedProvider);
@@ -500,7 +512,39 @@ function ProvidersTab({
         </div>
 
         {/* API Key input */}
-        {selectedProvider !== 'ollama' && (
+        {selectedProvider === 'ollama' ? (
+          <div className="mt-5">
+            <label
+              htmlFor="ollama-url-input"
+              className="text-xs uppercase tracking-[0.24em] text-mute"
+            >
+              URL do Servidor Ollama
+            </label>
+            <div className="mt-2 flex gap-2">
+              <input
+                id="ollama-url-input"
+                type="url"
+                value={settings.ollamaUrl ?? 'http://localhost:11434'}
+                onChange={(e) =>
+                  onOllamaUrlChange(e.target.value)
+                }
+                placeholder="http://localhost:11434"
+                className="flex-1 rounded-[18px] border border-border bg-bg/70 px-4 py-3 font-mono text-sm text-text placeholder:text-mute/50 focus:border-accent focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={onKeySave}
+                className="rounded-[18px] bg-accent px-5 py-3 text-sm font-semibold text-onAccent transition hover:bg-accentSoft"
+              >
+                Salvar
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-mute">
+              Certifique-se de que o Ollama está rodando e acessível nesse endereço. Modelos
+              disponíveis são detectados automaticamente via <code>/api/tags</code>.
+            </p>
+          </div>
+        ) : (
           <div className="mt-5">
             <label
               htmlFor="api-key-input"
@@ -727,17 +771,69 @@ function AgentsTab({
       <div className="card p-5">
         <h3 className="font-semibold text-text">Provedor de Transcrição</h3>
         <p className="mt-1 text-sm text-mute">
-          Escolha o serviço usado para transcrição de áudio (speech-to-text).
+          Escolha o provedor e modelo para transcrição de áudio (speech-to-text). Você paga pelo uso
+          normalmente na conta do seu provedor.
         </p>
-        <select
-          value={settings.transcribeProvider ?? 'groq'}
-          onChange={(e) => onSave({ ...settings, transcribeProvider: e.target.value })}
-          className="mt-3 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
-        >
-          <option value="groq">Groq Whisper (rápido, gratuito)</option>
-          <option value="openai">OpenAI Whisper (referência)</option>
-          <option value="local">Local / Self-hosted</option>
-        </select>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="transcribe-provider" className="text-xs uppercase tracking-[0.24em] text-mute">
+              Provedor
+            </label>
+            <select
+              id="transcribe-provider"
+              value={settings.transcribeProvider ?? 'groq'}
+              onChange={(e) => {
+                const provider = e.target.value;
+                const defaultModels: Record<string, string> = {
+                  groq: 'whisper-large-v3',
+                  openai: 'whisper-1',
+                  local: 'self-hosted',
+                };
+                onSave({
+                  ...settings,
+                  transcribeProvider: provider,
+                  transcribeModel: defaultModels[provider] ?? '',
+                });
+              }}
+              className="mt-1.5 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+            >
+              <option value="groq">Groq (Whisper v3 — rápido)</option>
+              <option value="openai">OpenAI (Whisper — referência)</option>
+              <option value="google">Google (Chirp / Speech-to-Text)</option>
+              <option value="local">Local / Self-hosted</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="transcribe-model" className="text-xs uppercase tracking-[0.24em] text-mute">
+              Modelo
+            </label>
+            <input
+              id="transcribe-model"
+              type="text"
+              value={settings.transcribeModel ?? ''}
+              onChange={(e) => {
+                onSave({ ...settings, transcribeModel: e.target.value });
+              }}
+              placeholder={
+                settings.transcribeProvider === 'openai'
+                  ? 'whisper-1'
+                  : settings.transcribeProvider === 'google'
+                    ? 'chirp'
+                    : settings.transcribeProvider === 'local'
+                      ? 'http://localhost:8080'
+                      : 'whisper-large-v3'
+              }
+              className="mt-1.5 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 font-mono text-sm text-text outline-none placeholder:text-mute/50 focus:border-accent/50"
+            />
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-mute">
+          {settings.transcribeProvider === 'groq' && 'Usa sua API key do Groq. Whisper v3 é gratuito no tier free.'}
+          {settings.transcribeProvider === 'openai' && 'Usa sua API key da OpenAI. Whisper-1 cobra $0.006/minuto.'}
+          {settings.transcribeProvider === 'google' && 'Usa sua API key do Google Cloud. Verifique preços no console.'}
+          {settings.transcribeProvider === 'local' && 'Aponte para seu servidor Whisper local (ex: whisper-server.py da infra Docker).'}
+          {!settings.transcribeProvider && 'Usa sua API key do Groq. Whisper v3 é gratuito no tier free.'}
+        </p>
       </div>
 
       {AGENTS.map((agent) => {

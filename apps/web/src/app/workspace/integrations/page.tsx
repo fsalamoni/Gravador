@@ -1,120 +1,115 @@
 'use client';
 
 import {
+  Calendar,
   Check,
   Cloud,
-  Copy,
-  Download,
   ExternalLink,
+  HardDrive,
   Link2,
   Loader2,
-  Sparkles,
-  Webhook,
+  MessageCircle,
+  Unplug,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 /* ── Types ─────────────────────────────────────────────────── */
 
-interface Recording {
+interface Integration {
   id: string;
-  title: string;
-  capturedAt: string;
-  status: string;
-}
-
-interface ConnectorItem {
   name: string;
-  slug: string;
   description: string;
-  action: 'export-json' | 'export-md' | 'copy-webhook' | 'open-link';
-  actionLabel: string;
-  linkTemplate?: string;
-}
-
-const CONNECTORS: ConnectorItem[] = [
-  {
-    name: 'Notion',
-    slug: 'notion',
-    description:
-      'Exporte seus resumos, itens de ação e transcrições como Markdown para colar no Notion.',
-    action: 'export-md',
-    actionLabel: 'Exportar Markdown',
-  },
-  {
-    name: 'Obsidian',
-    slug: 'obsidian',
-    description: 'Baixe notas .md prontas para arrastar ao seu vault Obsidian, com metadados YAML.',
-    action: 'export-md',
-    actionLabel: 'Baixar .md',
-  },
-  {
-    name: 'Google Drive',
-    slug: 'google-drive',
-    description: 'Exporte dados completos em JSON para importar no Google Drive ou Sheets.',
-    action: 'export-json',
-    actionLabel: 'Exportar JSON',
-  },
-  {
-    name: 'Dropbox',
-    slug: 'dropbox',
-    description: 'Baixe o pacote JSON completo e faça upload ao Dropbox.',
-    action: 'export-json',
-    actionLabel: 'Baixar JSON',
-  },
-  {
-    name: 'OneDrive',
-    slug: 'onedrive',
-    description: 'Exporte relatórios JSON para sincronizar com Microsoft 365.',
-    action: 'export-json',
-    actionLabel: 'Exportar JSON',
-  },
-  {
-    name: 'Webhook',
-    slug: 'webhook',
-    description: 'Copie a URL do endpoint de export para integrar com Zapier, Make ou n8n.',
-    action: 'copy-webhook',
-    actionLabel: 'Copiar URL',
-  },
-];
-
-/* ── Helper: icon per slug ─────────────────────────────────── */
-
-function ConnectorIcon({ slug }: { slug: string }) {
-  switch (slug) {
-    case 'notion':
-    case 'obsidian':
-      return <Sparkles className="h-5 w-5 text-accent" />;
-    case 'google-drive':
-      return <Cloud className="h-5 w-5 text-ok" />;
-    case 'webhook':
-      return <Webhook className="h-5 w-5 text-warn" />;
-    default:
-      return <Link2 className="h-5 w-5 text-accentSoft" />;
-  }
+  icon: React.ElementType;
+  iconColor: string;
+  status: 'disconnected' | 'connected' | 'connecting';
+  connectedAt?: string;
+  connectedEmail?: string;
 }
 
 /* ── Page component ────────────────────────────────────────── */
 
 export default function IntegrationsPage() {
-  const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedRecording, setSelectedRecording] = useState<string>('');
-  const [exporting, setExporting] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [integrations, setIntegrations] = useState<Integration[]>([
+    {
+      id: 'google-drive',
+      name: 'Google Drive',
+      description:
+        'Sincronize gravações, transcrições e relatórios de IA automaticamente com pastas do seu Google Drive.',
+      icon: Cloud,
+      iconColor: 'text-ok',
+      status: 'disconnected',
+    },
+    {
+      id: 'google-calendar',
+      name: 'Google Calendar',
+      description:
+        'Vincule gravações a eventos do calendário e receba resumos automaticamente nos seus compromissos.',
+      icon: Calendar,
+      iconColor: 'text-accent',
+      status: 'disconnected',
+    },
+    {
+      id: 'onedrive',
+      name: 'OneDrive',
+      description:
+        'Faça backup automático de transcrições e relatórios para o OneDrive pessoal ou corporativo (Microsoft 365).',
+      icon: HardDrive,
+      iconColor: 'text-[#0078d4]',
+      status: 'disconnected',
+    },
+    {
+      id: 'dropbox',
+      name: 'Dropbox',
+      description:
+        'Envie exportações em JSON ou Markdown para o Dropbox automaticamente após o processamento de cada gravação.',
+      icon: Link2,
+      iconColor: 'text-[#0061ff]',
+      status: 'disconnected',
+    },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp',
+      description:
+        'Receba notificações e resumos das gravações diretamente no seu WhatsApp via webhook configurável.',
+      icon: MessageCircle,
+      iconColor: 'text-[#25d366]',
+      status: 'disconnected',
+    },
+  ]);
+
   const [toast, setToast] = useState<string | null>(null);
 
-  // Fetch user's recordings for the export selector
+  // Load integration statuses from server
   useEffect(() => {
-    fetch('/api/recordings/search?q=&limit=50')
+    fetch('/api/integrations')
       .then((r) => r.json())
       .then((data) => {
-        const recs = (data.results ?? data.recordings ?? []) as Recording[];
-        setRecordings(recs);
-        if (recs[0]) setSelectedRecording(recs[0].id);
+        if (data.integrations) {
+          setIntegrations((prev) =>
+            prev.map((i) => {
+              const remote = (
+                data.integrations as Array<{
+                  id: string;
+                  status: string;
+                  connectedAt?: string;
+                  connectedEmail?: string;
+                }>
+              ).find((ri) => ri.id === i.id);
+              if (remote && remote.status === 'connected') {
+                return {
+                  ...i,
+                  status: 'connected' as const,
+                  connectedAt: remote.connectedAt,
+                  connectedEmail: remote.connectedEmail,
+                };
+              }
+              return i;
+            }),
+          );
+        }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   const showToast = useCallback((msg: string) => {
@@ -122,52 +117,81 @@ export default function IntegrationsPage() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  /* ── Export actions ──────────────────────────────────────── */
+  const handleConnect = useCallback(
+    async (integrationId: string) => {
+      setIntegrations((prev) =>
+        prev.map((i) => (i.id === integrationId ? { ...i, status: 'connecting' as const } : i)),
+      );
 
-  const handleExport = useCallback(
-    async (connector: ConnectorItem) => {
-      if (!selectedRecording) {
-        showToast('Selecione uma gravação primeiro.');
-        return;
-      }
-
-      if (connector.action === 'copy-webhook') {
-        const url = `${window.location.origin}/api/export?recordingId=${selectedRecording}&format=json`;
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        showToast('URL copiada para a área de transferência!');
-        setTimeout(() => setCopied(false), 2000);
-        return;
-      }
-
-      const format = connector.action === 'export-md' ? 'markdown' : 'json';
-      const ext = format === 'markdown' ? 'md' : 'json';
-
-      setExporting(connector.slug);
       try {
-        const res = await fetch(`/api/export?recordingId=${selectedRecording}&format=${format}`);
-        if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+        const res = await fetch('/api/integrations/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId }),
+        });
 
-        const blob = await res.blob();
-        const rec = recordings.find((r) => r.id === selectedRecording);
-        const filename = `${(rec?.title ?? 'gravacao').replace(/[^a-zA-Z0-9À-ÿ ]/g, '_')}.${ext}`;
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as {
+            error?: string;
+            message?: string;
+          } | null;
+          throw new Error(body?.message ?? `Falha ao conectar (HTTP ${res.status})`);
+        }
 
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(a.href);
+        const data = (await res.json()) as { redirectUrl?: string; status?: string };
 
-        showToast(`Exportado para ${connector.name}!`);
-      } catch {
-        showToast('Erro ao exportar. Tente novamente.');
-      } finally {
-        setExporting(null);
+        if (data.redirectUrl) {
+          // OAuth flow — redirect to provider
+          window.location.href = data.redirectUrl;
+          return;
+        }
+
+        // Direct connection (e.g. webhook-based)
+        setIntegrations((prev) =>
+          prev.map((i) =>
+            i.id === integrationId
+              ? {
+                  ...i,
+                  status: 'connected' as const,
+                  connectedAt: new Date().toISOString(),
+                }
+              : i,
+          ),
+        );
+        showToast(`${integrationId} conectado com sucesso!`);
+      } catch (err) {
+        setIntegrations((prev) =>
+          prev.map((i) =>
+            i.id === integrationId ? { ...i, status: 'disconnected' as const } : i,
+          ),
+        );
+        showToast(err instanceof Error ? err.message : 'Erro ao conectar. Tente novamente.');
       }
     },
-    [selectedRecording, recordings, showToast],
+    [showToast],
+  );
+
+  const handleDisconnect = useCallback(
+    async (integrationId: string) => {
+      try {
+        await fetch('/api/integrations/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId }),
+        });
+        setIntegrations((prev) =>
+          prev.map((i) =>
+            i.id === integrationId
+              ? { ...i, status: 'disconnected' as const, connectedAt: undefined, connectedEmail: undefined }
+              : i,
+          ),
+        );
+        showToast('Integração desconectada.');
+      } catch {
+        showToast('Erro ao desconectar.');
+      }
+    },
+    [showToast],
   );
 
   /* ── Render ──────────────────────────────────────────────── */
@@ -187,79 +211,92 @@ export default function IntegrationsPage() {
 
       {/* Header */}
       <section className="card px-6 py-7 sm:px-7">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <span className="eyebrow">Delivery layer</span>
-            <h1 className="display-title mt-5 text-5xl leading-[0.96]">Integrações e destinos</h1>
-            <p className="mt-4 max-w-3xl leading-8 text-mute">
-              Exporte gravações, transcrições e relatórios de IA para seus apps favoritos. Selecione
-              uma gravação e escolha o destino.
-            </p>
-          </div>
-          <div className="rounded-[24px] border border-border bg-bg/55 px-5 py-4 text-sm text-mute">
-            Conectores para backup, documentação e distribuição operacional.
-          </div>
+        <div>
+          <span className="eyebrow">Conectar serviços</span>
+          <h1 className="display-title mt-5 text-5xl leading-[0.96]">Integrações</h1>
+          <p className="mt-4 max-w-3xl leading-8 text-mute">
+            Conecte seus serviços favoritos para sincronizar gravações, transcrições e relatórios
+            automaticamente. Cada integração usa OAuth seguro para autorização.
+          </p>
         </div>
       </section>
 
-      {/* Recording selector */}
-      <section className="card px-6 py-5 sm:px-7">
-        <label htmlFor="rec-select" className="text-xs uppercase tracking-[0.24em] text-mute">
-          Gravação para exportar
-        </label>
-        <select
-          id="rec-select"
-          value={selectedRecording}
-          onChange={(e) => setSelectedRecording(e.target.value)}
-          disabled={loading}
-          className="mt-2 w-full rounded-[18px] border border-border bg-bg/70 px-4 py-3 text-sm text-text focus:border-accent focus:outline-none"
-        >
-          {loading && <option>Carregando gravações...</option>}
-          {!loading && recordings.length === 0 && <option>Nenhuma gravação encontrada</option>}
-          {recordings.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.title || r.id} —{' '}
-              {r.capturedAt ? new Date(r.capturedAt).toLocaleDateString('pt-BR') : ''}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      {/* Connector cards */}
+      {/* Integration cards */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {CONNECTORS.map((c) => (
-          <div key={c.slug} className="card p-6">
-            <div className="flex items-center justify-between gap-4">
-              <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-[0.2em] text-mute">
-                Connector
-              </span>
-              <ConnectorIcon slug={c.slug} />
-            </div>
-            <div className="mt-5 text-2xl font-semibold text-text">{c.name}</div>
-            <div className="mt-3 text-sm leading-7 text-mute">{c.description}</div>
-            <button
-              type="button"
-              disabled={exporting === c.slug || !selectedRecording}
-              onClick={() => handleExport(c)}
-              className="mt-6 flex items-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-4 py-2 text-sm font-semibold transition hover:bg-accent hover:text-onAccent disabled:opacity-50"
-            >
-              {exporting === c.slug ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : c.action === 'copy-webhook' ? (
-                copied ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )
-              ) : c.action === 'export-md' ? (
-                <Download className="h-4 w-4" />
-              ) : (
-                <ExternalLink className="h-4 w-4" />
+        {integrations.map((integration) => {
+          const Icon = integration.icon;
+          const isConnected = integration.status === 'connected';
+          const isConnecting = integration.status === 'connecting';
+
+          return (
+            <div key={integration.id} className="card p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                    isConnected ? 'bg-ok/15' : 'bg-surfaceAlt/70'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${isConnected ? 'text-ok' : integration.iconColor}`} />
+                </div>
+                {isConnected && (
+                  <span className="flex items-center gap-1.5 rounded-full bg-ok/15 px-3 py-1 text-xs font-medium text-ok">
+                    <Check className="h-3.5 w-3.5" />
+                    Conectado
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-4 text-xl font-semibold text-text">{integration.name}</div>
+              <div className="mt-2 text-sm leading-6 text-mute">{integration.description}</div>
+
+              {isConnected && integration.connectedEmail && (
+                <div className="mt-3 text-xs text-mute">
+                  Conta: <span className="text-text">{integration.connectedEmail}</span>
+                </div>
               )}
-              {c.actionLabel}
-            </button>
-          </div>
-        ))}
+              {isConnected && integration.connectedAt && (
+                <div className="mt-1 text-xs text-mute">
+                  Conectado em:{' '}
+                  <span className="text-text">
+                    {new Date(integration.connectedAt).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-5">
+                {isConnected ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDisconnect(integration.id)}
+                    className="flex items-center gap-2 rounded-full border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition hover:bg-danger/20"
+                  >
+                    <Unplug className="h-4 w-4" />
+                    Desconectar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isConnecting}
+                    onClick={() => handleConnect(integration.id)}
+                    className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-50"
+                  >
+                    {isConnecting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Conectando…
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-4 w-4" />
+                        Conectar
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </section>
     </div>
   );
