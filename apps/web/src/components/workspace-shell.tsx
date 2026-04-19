@@ -4,9 +4,6 @@ import { CommandPalette } from '@/components/command-palette';
 import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
 import {
   AudioWaveform,
-  ChevronRight,
-  FolderKanban,
-  Home,
   LayoutDashboard,
   LogOut,
   Search,
@@ -14,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -23,23 +21,13 @@ type WorkspaceShellProps = {
   uid: string;
 };
 
-const NAV_KEYS = [
-  { href: '/workspace', labelKey: 'overview', descKey: 'overviewDesc', icon: Home },
-  {
-    href: '/workspace/recordings',
-    labelKey: 'recordings',
-    descKey: 'recordingsDesc',
-    icon: AudioWaveform,
-  },
-  { href: '/workspace/search', labelKey: 'search', descKey: 'searchDesc', icon: Search },
-  {
-    href: '/workspace/integrations',
-    labelKey: 'integrations',
-    descKey: 'integrationsDesc',
-    icon: Sparkles,
-  },
-  { href: '/workspace/settings', labelKey: 'settings', descKey: 'settingsDesc', icon: Settings },
-  { href: '/workspace/admin', labelKey: 'admin', descKey: 'adminDesc', icon: LayoutDashboard },
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? '').split(',').filter(Boolean);
+
+const NAV_ITEMS = [
+  { href: '/workspace/recordings', labelKey: 'recordings', icon: AudioWaveform },
+  { href: '/workspace/search', labelKey: 'search', icon: Search },
+  { href: '/workspace/integrations', labelKey: 'integrations', icon: Sparkles },
+  { href: '/workspace/settings', labelKey: 'settings', icon: Settings },
 ] as const;
 
 function getInitials(email: string | null | undefined, uid: string) {
@@ -52,11 +40,10 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
   const router = useRouter();
   useGlobalShortcuts();
   const tNav = useTranslations('nav');
-  const tShell = useTranslations('workspace.shell');
-  const tWs = useTranslations('workspace');
+
+  const isAdmin = !!(email && ADMIN_EMAILS.includes(email));
 
   const navLabels: Record<string, string> = {
-    '/workspace': tWs('overview'),
     '/workspace/recordings': tNav('recordings'),
     '/workspace/search': tNav('search'),
     '/workspace/integrations': tNav('integrations'),
@@ -65,166 +52,75 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-4 py-4 sm:px-6 lg:px-8">
-      <div className="soft-orb -left-10 top-8 h-40 w-40 bg-accent/25" />
-      <div className="soft-orb right-10 top-32 h-52 w-52 bg-[#60d4c7]/10" />
+    <div className="relative min-h-screen bg-bg">
+      {/* ── Top navbar ── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
+          {/* Logo */}
+          <Link href="/workspace/recordings" className="flex shrink-0 items-center gap-2.5">
+            <Image src="/logo.png" alt="Nexus" width={32} height={32} className="rounded-lg" />
+            <span className="display-title text-lg text-text">Nexus</span>
+          </Link>
 
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-4 lg:flex-row">
-        <aside className="ambient-shell card flex shrink-0 flex-col gap-6 p-5 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[320px] lg:p-6">
-          <div className="flex items-center gap-4 rounded-[24px] border border-border bg-surfaceAlt/70 px-4 py-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-onAccent shadow-[0_10px_30px_var(--accent-shadow)]">
-              <AudioWaveform className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-mute">Studio Workspace</p>
-              <h1 className="display-title text-2xl">Gravador</h1>
-            </div>
-          </div>
-
-          <div className="lg:hidden">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {NAV_KEYS.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`inline-flex min-w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${
-                      isActive
-                        ? 'border-accent bg-accent text-onAccent'
-                        : 'border-border bg-surfaceAlt/50 text-mute hover:text-text'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {navLabels[item.href]}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          <nav className="hidden flex-1 flex-col gap-2 lg:flex" aria-label="Main navigation">
-            {NAV_KEYS.map((item) => {
-              const isActive = pathname === item.href;
+          {/* Nav links */}
+          <nav className="ml-4 flex items-center gap-1 overflow-x-auto" aria-label="Main">
+            {NAV_ITEMS.map((item) => {
+              const active =
+                pathname === item.href || pathname.startsWith(item.href + '/');
               const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex items-center gap-3 rounded-[22px] border px-4 py-3 transition ${
-                    isActive
-                      ? 'border-accent bg-accent text-onAccent shadow-[0_16px_40px_-22px_var(--accent-shadow)]'
-                      : 'border-transparent bg-transparent text-mute hover:border-border hover:bg-surfaceAlt/60 hover:text-text'
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? 'bg-accent/12 text-accent'
+                      : 'text-mute hover:bg-surfaceAlt hover:text-text'
                   }`}
                 >
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-                      isActive ? 'bg-onAccent/10' : 'bg-surfaceAlt text-accent'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium">{navLabels[item.href]}</div>
-                    <div className={`text-xs ${isActive ? 'text-onAccent/70' : 'text-mute'}`}>
-                      {tShell(item.descKey)}
-                    </div>
-                  </div>
-                  <ChevronRight
-                    className={`h-4 w-4 ${isActive ? 'opacity-70' : 'opacity-0 transition group-hover:opacity-100'}`}
-                  />
+                  <Icon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{navLabels[item.href]}</span>
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link
+                href="/workspace/admin"
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  pathname.startsWith('/workspace/admin')
+                    ? 'bg-accent/12 text-accent'
+                    : 'text-mute hover:bg-surfaceAlt hover:text-text'
+                }`}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </Link>
+            )}
           </nav>
 
-          <div className="space-y-4">
-            <div className="rounded-[24px] border border-border bg-surfaceAlt/65 p-4">
-              <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-mute">
-                <span>{tShell('pipeline')}</span>
-                <Sparkles className="h-4 w-4 text-accent" />
-              </div>
-              <div className="mt-4 space-y-3 text-sm text-mute">
-                <div className="flex items-center justify-between rounded-2xl bg-bg/50 px-3 py-2 text-text">
-                  <span>{tShell('mobileCapture')}</span>
-                  <span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">
-                    Live
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-bg/50 px-3 py-2">
-                  <span>{tShell('aiProcessing')}</span>
-                  <span className="text-ok">Ready</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-bg/50 px-3 py-2">
-                  <span>{tShell('workspaceDelivery')}</span>
-                  <span className="text-accentSoft">Stable</span>
-                </div>
-              </div>
+          {/* Right section */}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-onAccent">
+              {getInitials(email, uid)}
             </div>
-
-            <div className="rounded-[24px] border border-border bg-bg/60 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-sm font-bold text-onAccent">
-                  {getInitials(email, uid)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.24em] text-mute">
-                    {tShell('activeSession')}
-                  </p>
-                  <p className="truncate font-medium text-text">{email ?? uid}</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border px-3 py-3 text-sm text-mute">
-                <FolderKanban className="h-4 w-4 text-accent" />
-                <span>Google-only auth, deploy estável e saúde do Firestore monitorada.</span>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  await fetch('/api/auth/session', { method: 'DELETE' });
-                  router.push('/');
-                  router.refresh();
-                }}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-danger/40 bg-danger/10 px-3 py-3 text-sm font-medium text-danger transition hover:bg-danger/20"
-                aria-label="Sign out of your account"
-              >
-                <LogOut className="h-4 w-4" />
-                {tShell('signOut')}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/auth/session', { method: 'DELETE' });
+                router.push('/');
+                router.refresh();
+              }}
+              className="rounded-lg p-1.5 text-mute transition hover:bg-danger/10 hover:text-danger"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <header className="ambient-shell card flex flex-col gap-4 p-5 sm:p-6 md:flex-row md:items-end md:justify-between">
-            <div>
-              <span className="eyebrow">Audio workspace</span>
-              <h2 className="display-title mt-4 text-4xl sm:text-5xl">
-                Do bolso para a mesa de trabalho.
-              </h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-mute sm:text-base">
-                Grave no app, processe com IA e trate transcript, resumo, ações e busca como um
-                produto, não como uma lista de documentos soltos.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm sm:min-w-[320px]">
-              <div className="rounded-[24px] border border-border bg-surfaceAlt/65 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-mute">Auth</div>
-                <div className="mt-2 text-2xl font-semibold text-text">Google</div>
-                <div className="mt-1 text-mute">Sessão segura</div>
-              </div>
-              <div className="rounded-[24px] border border-border bg-surfaceAlt/65 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-mute">Infra</div>
-                <div className="mt-2 text-2xl font-semibold text-text">anotes</div>
-                <div className="mt-1 text-mute">Banco dedicado</div>
-              </div>
-            </div>
-          </header>
-
-          <main className="min-w-0">{children}</main>
         </div>
-      </div>
+      </header>
+
+      {/* ── Main content ── */}
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">{children}</main>
 
       <CommandPalette />
     </div>

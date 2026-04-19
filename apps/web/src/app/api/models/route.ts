@@ -31,6 +31,12 @@ interface OpenRouterModel {
   };
   supported_parameters: string[];
   per_request_limits: unknown;
+  quality_scores?: {
+    overall?: number;
+    reasoning?: number;
+    coding?: number;
+    instruction?: number;
+  };
 }
 
 /**
@@ -44,6 +50,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const provider = searchParams.get('provider') ?? 'openrouter';
+  const forceRefresh = searchParams.get('force') === 'true';
 
   if (provider !== 'openrouter') {
     return NextResponse.json(
@@ -61,7 +68,7 @@ export async function GET(req: Request) {
   const lastFetched = meta?.lastFetchedAt?.toMillis() ?? 0;
   const isStale = now - lastFetched > STALE_MS;
 
-  if (isStale) {
+  if (isStale || forceRefresh) {
     try {
       await refreshOpenRouterCatalog(db, provider);
     } catch (err) {
@@ -166,6 +173,7 @@ async function refreshOpenRouterCatalog(db: FirebaseFirestore.Firestore, catalog
           request: Number.parseFloat(m.pricing?.request ?? '0'),
           image: Number.parseFloat(m.pricing?.image ?? '0'),
         },
+        qualityScores: m.quality_scores ?? null,
         inputModalities: m.architecture?.input_modalities ?? ['text'],
         outputModalities: m.architecture?.output_modalities ?? ['text'],
         supportedParameters: m.supported_parameters ?? [],

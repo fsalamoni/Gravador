@@ -10,7 +10,7 @@
  * - Clears agent configs that reference removed models
  */
 
-const HEALTH_CHECK_STORAGE_KEY = 'gravador:model-health-check-ts';
+const HEALTH_CHECK_STORAGE_KEY = 'nexus:model-health-check-ts';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 let sessionCheckDone = false;

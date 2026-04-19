@@ -168,7 +168,34 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
             }));
             setOpenRouterApiModels(specs);
           } else {
-            setOrError('empty');
+            // No remote models — try force refresh
+            return fetch('/api/models?provider=openrouter&force=true')
+              .then((r2) => {
+                if (!r2.ok) throw new Error(`HTTP ${r2.status}`);
+                return r2.json();
+              })
+              .then((data2) => {
+                if (data2.models && data2.models.length > 0) {
+                  const specs2: ModelSpec[] = data2.models.map((m: ApiCatalogModel) => ({
+                    id: m.modelId,
+                    provider: 'openrouter',
+                    name: m.name,
+                    description: m.description || '',
+                    contextTokens: m.contextLength || 0,
+                    pricing: {
+                      input: m.pricing.prompt * 1_000_000,
+                      output: m.pricing.completion * 1_000_000,
+                    },
+                    ratings: estimateRatingsFromApi(
+                      m.qualityScores,
+                      m.pricing.prompt * 1_000_000,
+                    ),
+                  }));
+                  setOpenRouterApiModels(specs2);
+                } else {
+                  setOrError('empty');
+                }
+              });
           }
         })
         .catch((err: unknown) => {
@@ -902,6 +929,13 @@ const THEME_META: Record<
     bg: 'rgb(20,17,10)',
     surface: 'rgb(31,26,17)',
   },
+  claro: {
+    label: 'Claro',
+    emoji: '🌤️',
+    accent: 'rgb(59,130,246)',
+    bg: 'rgb(248,250,252)',
+    surface: 'rgb(255,255,255)',
+  },
 };
 
 function AppearanceTab() {
@@ -915,7 +949,7 @@ function AppearanceTab() {
           <h2 className="text-2xl font-semibold text-text">Tema de Cores</h2>
         </div>
         <p className="mt-3 leading-7 text-mute">
-          Escolha um tema visual para o Gravador. A mudança é aplicada instantaneamente e salva no
+          Escolha um tema visual para o Nexus. A mudança é aplicada instantaneamente e salva no
           navegador.
         </p>
       </div>
@@ -981,10 +1015,10 @@ function AppearanceTab() {
         <div className="text-xs uppercase tracking-[0.24em] text-mute">Preview ao vivo</div>
         <div className="mt-4 flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-onAccent text-lg font-bold">
-            G
+            N
           </div>
           <div>
-            <div className="text-lg font-semibold text-text">Gravador</div>
+            <div className="text-lg font-semibold text-text">Nexus</div>
             <div className="text-sm text-mute">Tema atual: {THEME_META[theme].label}</div>
           </div>
         </div>

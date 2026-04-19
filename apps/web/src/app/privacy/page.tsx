@@ -15,7 +15,7 @@ export default function PrivacyPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent text-onAccent">
               <AudioWaveform className="h-5 w-5" />
             </div>
-            <span className="display-title text-xl">Gravador</span>
+            <span className="display-title text-xl">Nexus</span>
           </Link>
         </header>
 
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
 
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-text">1. Dados Coletados</h2>
-            <p>O Gravador coleta e processa os seguintes dados:</p>
+            <p>O Nexus coleta e processa os seguintes dados:</p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
                 <strong className="text-text">Dados de conta:</strong> e-mail, nome e foto de perfil
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
               3. Processamento por Provedores de IA
             </h2>
             <p>
-              Para fornecer funcionalidades de transcrição, resumo e busca, o Gravador envia dados
+              Para fornecer funcionalidades de transcrição, resumo e busca, o Nexus envia dados
               de áudio e texto para provedores de IA terceirizados. Os provedores utilizados
               incluem:
             </p>
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-text">6. Compartilhamento de Dados</h2>
             <p>
-              O Gravador não vende dados pessoais. Dados são compartilhados apenas com provedores de
+              O Nexus não vende dados pessoais. Dados são compartilhados apenas com provedores de
               IA para processamento (conforme seção 3) e com o Google Cloud para infraestrutura de
               armazenamento e autenticação.
             </p>
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-text">9. Código Aberto</h2>
             <p>
-              O Gravador é software de código aberto (AGPL-3.0). Você pode auditar o código para
+              O Nexus é software de código aberto (AGPL-3.0). Você pode auditar o código para
               verificar como seus dados são tratados em{' '}
               <a
                 href="https://github.com/fsalamoni/gravador"

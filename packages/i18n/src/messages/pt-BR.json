@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Gravador",
+    "name": "Nexus",
     "tagline": "Grave, transcreva, transforme em conhecimento."
   },
   "auth": {
@@ -14,13 +14,13 @@
     "googleDescription": "Use sua conta Google para acessar o workspace web e sincronizar suas gravações com o backend ativo.",
     "googleOnly": "Acesso oficial via Google Auth",
     "googleRedirecting": "Abrindo autenticação do Google...",
-    "googleRequiredError": "O acesso ao Gravador está restrito ao Google Auth.",
+    "googleRequiredError": "O acesso ao Nexus está restrito ao Google Auth.",
     "googleGenericError": "Não foi possível concluir a autenticação com Google agora.",
     "googlePopupClosed": "A janela de autenticação foi fechada antes da conclusão.",
     "googlePopupBlocked": "O navegador bloqueou a janela do Google. Vamos tentar redirecionar automaticamente.",
     "googleUnauthorizedDomain": "O domínio atual ainda não está autorizado no Firebase Auth para login Google.",
     "googleOperationNotAllowed": "O provider Google ainda não está habilitado no Firebase Authentication deste projeto.",
-    "googleSessionError": "O login Google voltou, mas o servidor não conseguiu abrir a sessão do Gravador.",
+    "googleSessionError": "O login Google voltou, mas o servidor não conseguiu abrir a sessão do Nexus.",
     "mobilePreparing": "Preparando seu acesso seguro...",
     "mobileGoogleSubtitle": "Use a mesma conta Google do workspace web para gravar e sincronizar neste dispositivo.",
     "mobileSigningIn": "Entrando com Google...",
@@ -59,7 +59,7 @@
     "syncBody": "Abra a mesma gravação no workspace web para buscar, compartilhar, reprocessar e seguir trabalhando com o time."
   },
   "download": {
-    "title": "Baixe e teste o Gravador",
+    "title": "Baixe e teste o Nexus",
     "description": "Instale o build Android de preview atual ou siga usando o workspace web ao vivo enquanto a distribuição mobile é ampliada.",
     "androidTitle": "Build interno para Android",
     "androidReadyBody": "O APK interno mais recente já está pronto para validação contra o backend em produção.",
@@ -86,7 +86,7 @@
     "selfHostTitle": "Guia de self-host",
     "selfHostBody": "Setup local e self-host com Docker para rodar a stack fora da nuvem gerenciada.",
     "creditsTitle": "Créditos",
-    "creditsBody": "Referências open source, inspirações e projetos-base usados pelo Gravador.",
+    "creditsBody": "Referências open source, inspirações e projetos-base usados pelo Nexus.",
     "repoTitle": "Repositório",
     "repoBody": "Código-fonte, issues e histórico de releases no GitHub.",
     "openCta": "Abrir referência",

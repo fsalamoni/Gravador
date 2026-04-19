@@ -24,6 +24,8 @@ steps:
       - NEXT_PUBLIC_FIRESTORE_DATABASE_ID=${_NEXT_PUBLIC_FIRESTORE_DATABASE_ID}
       - --build-arg
       - NEXT_PUBLIC_APP_URL=${_NEXT_PUBLIC_APP_URL}
+      - --build-arg
+      - NEXT_PUBLIC_ADMIN_EMAILS=${_NEXT_PUBLIC_ADMIN_EMAILS}
       - .
 images:
   - ${_IMAGE_URI}:${BUILD_ID}

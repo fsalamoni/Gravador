@@ -1,5 +1,6 @@
 import { ArrowUpRight, AudioWaveform, Mic, ShieldCheck, Sparkles } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export default async function LandingPage() {
@@ -9,12 +10,10 @@ export default async function LandingPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
         <header className="ambient-shell card flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-onAccent shadow-[0_12px_32px_var(--accent-shadow)]">
-              <AudioWaveform className="h-5 w-5" />
-            </div>
+            <Image src="/logo.png" alt="Nexus" width={44} height={44} className="rounded-2xl shadow-[0_12px_32px_var(--accent-shadow)]" />
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-mute">
-                Studio-grade notes
+                AI Audio Workspace
               </p>
               <div className="display-title text-2xl">{t('app.name')}</div>
             </div>
@@ -250,7 +249,7 @@ export default async function LandingPage() {
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 px-2 py-2 text-sm text-mute sm:px-3">
-          <span>© 2026 Gravador · AGPL-3.0</span>
+          <span>© 2026 Nexus · AGPL-3.0</span>
           <div className="flex items-center gap-4">
             <Link href="/terms" className="transition hover:text-text">
               Termos

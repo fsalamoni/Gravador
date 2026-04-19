@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Gravador",
+    "name": "Nexus",
     "tagline": "Record, transcribe, turn into knowledge."
   },
   "auth": {
@@ -14,13 +14,13 @@
     "googleDescription": "Use your Google account to access the web workspace and sync recordings against the live backend.",
     "googleOnly": "Official access via Google Auth",
     "googleRedirecting": "Opening Google authentication...",
-    "googleRequiredError": "Gravador access is restricted to Google Auth.",
+    "googleRequiredError": "Nexus access is restricted to Google Auth.",
     "googleGenericError": "Google authentication could not be completed right now.",
     "googlePopupClosed": "The authentication window was closed before completion.",
     "googlePopupBlocked": "The browser blocked the Google popup. We will try redirecting automatically.",
     "googleUnauthorizedDomain": "The current domain is not yet authorized in Firebase Auth for Google sign-in.",
     "googleOperationNotAllowed": "The Google provider is not enabled in this Firebase Authentication project.",
-    "googleSessionError": "Google sign-in returned, but the server could not create the Gravador session.",
+    "googleSessionError": "Google sign-in returned, but the server could not create the Nexus session.",
     "mobilePreparing": "Preparing secure access...",
     "mobileGoogleSubtitle": "Use the same Google account as the web workspace to record and sync on this device.",
     "mobileSigningIn": "Signing in with Google...",
@@ -59,7 +59,7 @@
     "syncBody": "Open the same recording on the web workspace to search, share, reprocess, and keep working with your team."
   },
   "download": {
-    "title": "Download and test Gravador",
+    "title": "Download and test Nexus",
     "description": "Install the current Android preview build, or keep using the live web workspace while mobile distribution is being expanded.",
     "androidTitle": "Android internal build",
     "androidReadyBody": "The latest internal Android APK is ready for validation against the live backend.",
@@ -86,7 +86,7 @@
     "selfHostTitle": "Self-host guide",
     "selfHostBody": "Docker-based local and self-host setup for running the stack outside managed cloud.",
     "creditsTitle": "Credits",
-    "creditsBody": "Open-source references, inspirations, and upstream projects used by Gravador.",
+    "creditsBody": "Open-source references, inspirations, and upstream projects used by Nexus.",
     "repoTitle": "Repository",
     "repoBody": "Source code, issue tracking, and release history on GitHub.",
     "openCta": "Open reference",

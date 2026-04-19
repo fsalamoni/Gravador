@@ -173,7 +173,7 @@ export default function LoginPage() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-mute">Secure studio access</p>
-              <div className="display-title text-3xl">Gravador</div>
+              <div className="display-title text-3xl">Nexus</div>
             </div>
           </div>
 

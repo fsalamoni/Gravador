@@ -20,35 +20,35 @@ const display = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: 'Gravador',
-    template: '%s | Gravador',
+    default: 'Nexus',
+    template: '%s | Nexus',
   },
   description:
     'Grave no celular, processe com IA e entregue tudo no workspace web. Download Android de teste e acesso web em um unico hub.',
-  applicationName: 'Gravador',
+  applicationName: 'Nexus',
   manifest: '/manifest.webmanifest',
   alternates: {
     canonical: '/',
   },
-  keywords: ['Gravador', 'audio workspace', 'AI notes', 'voice recorder', 'transcription'],
+  keywords: ['Nexus', 'audio workspace', 'AI notes', 'voice recorder', 'transcription'],
   openGraph: {
-    title: 'Gravador',
+    title: 'Nexus',
     description:
       'Grave no celular, processe com IA e acesse transcript, resumo, acoes e busca sem sair do navegador.',
     url: appUrl,
-    siteName: 'Gravador',
+    siteName: 'Nexus',
     type: 'website',
   },
   twitter: {
     card: 'summary',
-    title: 'Gravador',
+    title: 'Nexus',
     description:
       'Open-source AI audio workspace com download Android de teste e workspace web ao vivo.',
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Gravador',
+    title: 'Nexus',
   },
 };
 

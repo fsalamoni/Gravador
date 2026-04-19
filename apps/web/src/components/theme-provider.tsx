@@ -11,6 +11,7 @@ export const THEMES = [
   'artico',
   'vulcao',
   'solaris',
+  'claro',
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number];
@@ -29,7 +30,7 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-const STORAGE_KEY = 'gravador-theme';
+const STORAGE_KEY = 'nexus-theme';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>('terra');
