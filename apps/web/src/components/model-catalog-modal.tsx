@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, ChevronUp, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Loader2, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   type ModelSpec,
@@ -16,12 +16,14 @@ interface Props {
   providerLabel: string;
   models: ModelSpec[];
   loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onClose: () => void;
 }
 
-export function ModelCatalogModal({ providerLabel, models: allModels, loading, selectedIds, onToggle, onClose }: Props) {
+export function ModelCatalogModal({ providerLabel, models: allModels, loading, error, onRetry, selectedIds, onToggle, onClose }: Props) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('avg');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -111,6 +113,21 @@ export function ModelCatalogModal({ providerLabel, models: allModels, loading, s
               Carregando catálogo do provedor…
             </div>
           ) : (
+          <>
+          {error && (
+            <div className="flex items-center gap-3 border-b border-border bg-danger/5 px-6 py-3">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-danger" />
+              <p className="flex-1 text-sm text-danger">
+                {error === 'empty' ? 'Nenhum modelo encontrado no catálogo remoto.' : `Erro ao carregar catálogo completo: ${error}`}
+                {allModels.length > 0 && ' Exibindo modelos offline.'}
+              </p>
+              {onRetry && (
+                <button type="button" onClick={onRetry} className="shrink-0 rounded-[14px] border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger/10">
+                  Tentar novamente
+                </button>
+              )}
+            </div>
+          )}
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg/95 backdrop-blur-sm">
               <tr className="border-b border-border">
@@ -168,6 +185,7 @@ export function ModelCatalogModal({ providerLabel, models: allModels, loading, s
               )}
             </tbody>
           </table>
+          </>
           )}
         </div>
 

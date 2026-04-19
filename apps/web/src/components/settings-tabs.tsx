@@ -98,6 +98,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   // OpenRouter API models (loaded on demand)
   const [openRouterApiModels, setOpenRouterApiModels] = useState<ModelSpec[]>([]);
   const [orLoading, setOrLoading] = useState(false);
+  const [orError, setOrError] = useState<string | null>(null);
 
   // Personal catalog as Set for O(1) lookups
   const selectedModelIds = new Set(settings.selectedModels ?? []);
@@ -118,12 +119,16 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
 
   // Fetch OpenRouter full catalog from API when user visits providers/agents
   useEffect(() => {
-    if ((tab === 'providers' || tab === 'agents') && openRouterApiModels.length === 0 && !orLoading) {
+    if ((tab === 'providers' || tab === 'agents') && openRouterApiModels.length === 0 && !orLoading && !orError) {
       setOrLoading(true);
+      setOrError(null);
       fetch('/api/models?provider=openrouter')
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then((data) => {
-          if (data.models) {
+          if (data.models && data.models.length > 0) {
             const specs: ModelSpec[] = data.models.map((m: ApiCatalogModel) => ({
               id: m.modelId,
               provider: 'openrouter',
@@ -137,12 +142,22 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
               ratings: estimateRatingsFromApi(m.qualityScores, m.pricing.prompt * 1_000_000),
             }));
             setOpenRouterApiModels(specs);
+          } else {
+            setOrError('empty');
           }
         })
-        .catch(() => {})
+        .catch((err: unknown) => {
+          setOrError(err instanceof Error ? err.message : 'Erro de rede');
+        })
         .finally(() => setOrLoading(false));
     }
-  }, [tab, openRouterApiModels.length, orLoading]);
+  }, [tab, openRouterApiModels.length, orLoading, orError]);
+
+  /** Retry loading OpenRouter models after error */
+  const retryOpenRouter = useCallback(() => {
+    setOrError(null);
+    setOpenRouterApiModels([]);
+  }, []);
 
   const save = useCallback(
     async (newSettings: AISettings) => {
@@ -184,6 +199,14 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
     (provider: string): ModelSpec[] => {
       if (provider === 'openrouter' && openRouterApiModels.length > 0) return openRouterApiModels;
       return getModelsForProvider(provider);
+    },
+    [openRouterApiModels],
+  );
+
+  /** Lookup a model by ID — searches both static registry and API models */
+  const findModelById = useCallback(
+    (id: string): ModelSpec | undefined => {
+      return getModelById(id) ?? openRouterApiModels.find((m) => m.id === id);
     },
     [openRouterApiModels],
   );
@@ -279,6 +302,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
         <AgentsTab
           settings={settings}
           selectedModelIds={selectedModelIds}
+          findModelById={findModelById}
           onSave={save}
           onOpenAgentModal={(key) => setAgentModalKey(key)}
         />
@@ -291,6 +315,8 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           providerLabel={PROVIDERS.find((p) => p.id === catalogModalProvider)?.label ?? catalogModalProvider}
           models={getProviderModels(catalogModalProvider)}
           loading={catalogModalProvider === 'openrouter' && orLoading}
+          error={catalogModalProvider === 'openrouter' ? orError : null}
+          onRetry={catalogModalProvider === 'openrouter' ? retryOpenRouter : undefined}
           selectedIds={selectedModelIds}
           onToggle={toggleCatalogModel}
           onClose={() => setCatalogModalProvider(null)}
@@ -538,11 +564,13 @@ function ProvidersTab({
 function AgentsTab({
   settings,
   selectedModelIds,
+  findModelById,
   onSave,
   onOpenAgentModal,
 }: {
   settings: AISettings;
   selectedModelIds: Set<string>;
+  findModelById: (id: string) => ModelSpec | undefined;
   onSave: (s: AISettings) => Promise<void>;
   onOpenAgentModal: (agentKey: string) => void;
 }) {
@@ -564,7 +592,7 @@ function AgentsTab({
       {AGENTS.map((agent) => {
         const current = agentModels[agent.key];
         const currentModelId = current?.model;
-        const modelSpec = currentModelId ? getModelById(currentModelId) : undefined;
+        const modelSpec = currentModelId ? findModelById(currentModelId) : undefined;
         const isInCatalog = currentModelId ? selectedModelIds.has(currentModelId) : true;
 
         return (

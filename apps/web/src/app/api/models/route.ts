@@ -95,6 +95,7 @@ export async function GET(req: Request) {
     };
   });
 
+  console.log(`[models] returning ${models.length} models for ${provider}`);
   return NextResponse.json({ provider, count: models.length, models });
 }
 
