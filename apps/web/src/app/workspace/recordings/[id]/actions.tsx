@@ -23,7 +23,7 @@ export function ActionsView({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-[28px] border border-dashed border-border bg-[#100c09]/45 px-6 py-10 text-center text-mute">
+      <div className="rounded-[28px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
         Nenhuma ação detectada (ou ainda em processamento).
       </div>
     );
@@ -51,7 +51,7 @@ export function ActionsView({
             type="checkbox"
             checked={!!a.done}
             onChange={() => toggle(i)}
-            className="mt-1 h-4 w-4 accent-[#f38a37]"
+            className="mt-1 h-4 w-4 accent-accent"
           />
           <div className="flex-1">
             <div className={a.done ? 'leading-7 text-mute line-through' : 'leading-7 text-text'}>

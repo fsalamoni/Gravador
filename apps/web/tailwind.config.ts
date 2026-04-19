@@ -5,16 +5,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#120d0a',
-        surface: '#1d1511',
-        surfaceAlt: '#2a1f19',
-        border: '#463429',
-        accent: '#f38a37',
-        accentSoft: '#ffc48f',
-        text: '#f7efe7',
-        mute: '#baa390',
-        danger: '#ff705d',
-        ok: '#79d4a7',
+        bg: 'rgb(var(--color-bg) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        surfaceAlt: 'rgb(var(--color-surfaceAlt) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
+        accent: 'rgb(var(--color-accent) / <alpha-value>)',
+        accentSoft: 'rgb(var(--color-accentSoft) / <alpha-value>)',
+        text: 'rgb(var(--color-text) / <alpha-value>)',
+        mute: 'rgb(var(--color-mute) / <alpha-value>)',
+        danger: 'rgb(var(--color-danger) / <alpha-value>)',
+        ok: 'rgb(var(--color-ok) / <alpha-value>)',
+        onAccent: 'rgb(var(--color-onAccent) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui'],

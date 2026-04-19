@@ -14,7 +14,7 @@ export function ChaptersView({ payload }: { payload: unknown }) {
   const chapters = (payload as Chapter[] | undefined) ?? [];
   if (chapters.length === 0) {
     return (
-      <div className="rounded-[28px] border border-dashed border-border bg-[#100c09]/45 px-6 py-10 text-center text-mute">
+      <div className="rounded-[28px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
         Capítulos em processamento…
       </div>
     );

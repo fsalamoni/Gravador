@@ -168,7 +168,7 @@ export default function LoginPage() {
           <div className="soft-orb right-8 top-28 h-28 w-28 bg-[#60d4c7]/12" />
 
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-accent text-[#120d0a] shadow-[0_14px_36px_rgba(243,138,55,0.35)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-accent text-onAccent shadow-[0_14px_36px_var(--accent-shadow)]">
               <AudioWaveform className="h-6 w-6" />
             </div>
             <div>
@@ -188,7 +188,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <ShieldCheck className="h-5 w-5 text-ok" />
               <div className="mt-4 text-lg font-semibold text-text">Sessão segura</div>
               <p className="mt-2 text-sm leading-6 text-mute">
@@ -196,14 +196,14 @@ export default function LoginPage() {
                 mobile.
               </p>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Sparkles className="h-5 w-5 text-accent" />
               <div className="mt-4 text-lg font-semibold text-text">IA no centro</div>
               <p className="mt-2 text-sm leading-6 text-mute">
                 Transcript, resumo, capítulos, mapa mental e busca entregues no mesmo fluxo.
               </p>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <ArrowUpRight className="h-5 w-5 text-accentSoft" />
               <div className="mt-4 text-lg font-semibold text-text">Backend ao vivo</div>
               <p className="mt-2 text-sm leading-6 text-mute">
@@ -215,13 +215,13 @@ export default function LoginPage() {
           <div className="mt-8 rounded-[26px] border border-border bg-surfaceAlt/70 p-5">
             <div className="text-xs uppercase tracking-[0.24em] text-mute">Flow</div>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-[#100c09]/55 px-4 py-3 text-sm text-text">
+              <div className="rounded-2xl bg-bg/55 px-4 py-3 text-sm text-text">
                 1. Login Google
               </div>
-              <div className="rounded-2xl bg-[#100c09]/55 px-4 py-3 text-sm text-text">
+              <div className="rounded-2xl bg-bg/55 px-4 py-3 text-sm text-text">
                 2. Sessão do workspace
               </div>
-              <div className="rounded-2xl bg-[#100c09]/55 px-4 py-3 text-sm text-text">
+              <div className="rounded-2xl bg-bg/55 px-4 py-3 text-sm text-text">
                 3. Gravações e IA
               </div>
             </div>
@@ -230,7 +230,7 @@ export default function LoginPage() {
 
         <section className="ambient-shell card flex items-center px-5 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-md">
-            <div className="rounded-[28px] border border-border bg-[#100c09]/60 p-6 sm:p-7">
+            <div className="rounded-[28px] border border-border bg-bg/60 p-6 sm:p-7">
               <div className="text-xs uppercase tracking-[0.28em] text-mute">Google Auth</div>
               <h2 className="display-title mt-4 text-4xl">{t('auth.signIn')}</h2>
               <p className="mt-4 leading-7 text-mute">{t('auth.googleDescription')}</p>
@@ -245,7 +245,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={signInWithGoogle}
                 disabled={loading}
-                className="mt-8 flex w-full items-center justify-center gap-3 rounded-[24px] bg-accent px-5 py-4 font-semibold text-[#120d0a] transition hover:bg-accentSoft disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-8 flex w-full items-center justify-center gap-3 rounded-[24px] bg-accent px-5 py-4 font-semibold text-onAccent transition hover:bg-accentSoft disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
                   <path

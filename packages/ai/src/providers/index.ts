@@ -22,6 +22,7 @@ export interface ProviderKeys {
   anthropic?: string;
   groq?: string;
   google?: string;
+  openrouter?: string;
   ollamaBaseUrl?: string;
 }
 
@@ -54,6 +55,14 @@ export function resolveChatModel(
       const apiKey = keys.groq ?? process.env.GROQ_API_KEY;
       if (!apiKey) throw new Error('Missing GROQ_API_KEY');
       return createGroq({ apiKey })(model);
+    }
+    case 'openrouter': {
+      const apiKey = keys.openrouter ?? process.env.OPENROUTER_API_KEY;
+      if (!apiKey) throw new Error('Missing OPENROUTER_API_KEY');
+      return createOpenAI({
+        apiKey,
+        baseURL: 'https://openrouter.ai/api/v1',
+      })(model);
     }
     case 'ollama': {
       const baseURL =

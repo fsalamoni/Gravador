@@ -33,9 +33,15 @@ export type IntegrationProvider = 'google-drive' | 'dropbox' | 'onedrive' | 'not
 
 // ── Document types ──
 
+/** Per-agent model override. If not set, falls back to workspace default. */
+export type AgentModelConfig = {
+  provider?: string;
+  model?: string;
+};
+
 export type WorkspaceAISettings = {
   transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
-  chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama';
+  chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
   chatModel?: string;
   embeddingProvider?: 'openai' | 'ollama';
   embeddingModel?: string;
@@ -44,8 +50,51 @@ export type WorkspaceAISettings = {
     anthropic?: string;
     groq?: string;
     google?: string;
+    openrouter?: string;
+  };
+  /** Per-agent/pipeline model overrides */
+  agentModels?: {
+    summarize?: AgentModelConfig;
+    actionItems?: AgentModelConfig;
+    mindmap?: AgentModelConfig;
+    chapters?: AgentModelConfig;
+    chat?: AgentModelConfig;
+    embed?: AgentModelConfig;
+    transcribe?: AgentModelConfig;
   };
 };
+
+/** Cached model metadata fetched from provider APIs (e.g. OpenRouter). */
+export interface ModelCatalogEntryDoc {
+  /** Provider-specific model ID, e.g. "anthropic/claude-sonnet-4-6" */
+  modelId: string;
+  /** Which catalog provider this came from */
+  catalogProvider: string;
+  name: string;
+  description: string;
+  contextLength: number;
+  maxCompletionTokens: number;
+  pricing: {
+    prompt: number;
+    completion: number;
+    request: number;
+    image: number;
+  };
+  inputModalities: string[];
+  outputModalities: string[];
+  supportedParameters: string[];
+  /** Quality scores 0-100, seeded from public benchmarks */
+  qualityScores?: {
+    overall?: number;
+    reasoning?: number;
+    coding?: number;
+    instruction?: number;
+  };
+  expirationDate?: string | null;
+  available: boolean;
+  createdAt: Timestamp;
+  lastCheckedAt: Timestamp;
+}
 
 export interface UserDoc {
   email: string;

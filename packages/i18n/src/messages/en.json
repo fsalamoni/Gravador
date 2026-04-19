@@ -156,5 +156,78 @@
     "generic": "Something went wrong. Please try again.",
     "notFound": "We couldn't find what you're looking for.",
     "unauthorized": "You need to sign in to continue."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Account and preferences",
+    "description": "Configure AI providers, choose models for each agent, and manage your account.",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "tabs": {
+      "account": "Account",
+      "providers": "AI Providers",
+      "agents": "Agents",
+      "security": "Security"
+    },
+    "account": {
+      "title": "Connected profile",
+      "email": "Email",
+      "userId": "User ID"
+    },
+    "providers": {
+      "title": "AI Provider",
+      "description": "Select the provider and enter your API key. For OpenRouter, a single key gives access to hundreds of models.",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Enter your {provider} API key",
+      "save": "Save",
+      "openrouter": "Universal gateway — 300+ models, one API key",
+      "openai": "GPT-4.1, GPT-4.1-mini, Whisper, embeddings",
+      "anthropic": "Claude Sonnet 4.6, Claude Opus 4.7",
+      "google": "Gemini 2.5 Pro, Gemini 2.5 Flash",
+      "groq": "Llama 3.1, Whisper v3 — low latency",
+      "ollama": "Local models via self-hosted server"
+    },
+    "catalog": {
+      "title": "Model Catalog",
+      "models": "{count} models",
+      "search": "Search models…",
+      "sortName": "Name",
+      "sortContext": "Context ↓",
+      "sortPrice": "Price ↑",
+      "loading": "Loading catalog…",
+      "empty": "No models found. Check the provider API key.",
+      "deprecated": "Deprecated",
+      "reasoning": "Reasoning",
+      "coding": "Coding"
+    },
+    "agents": {
+      "title": "Models per Agent",
+      "description": "Each agent/pipeline can use a different model. If no model is chosen, the agent uses the workspace default model.",
+      "workspaceDefault": "Workspace default",
+      "unavailable": "Model unavailable",
+      "unavailableMessage": "The model {model} is no longer available in the catalog. Select another model.",
+      "loading": "Loading models…",
+      "summarize": "Summary",
+      "summarizeDesc": "TL;DR, bullet points and long summary",
+      "actionItems": "Action Items",
+      "actionItemsDesc": "Tasks, assignees and deadlines",
+      "mindmap": "Mind Map",
+      "mindmapDesc": "Visual content hierarchy",
+      "chapters": "Chapters",
+      "chaptersDesc": "Temporal audio segmentation",
+      "chat": "Chat",
+      "chatDesc": "Conversation with recording (RAG)",
+      "embed": "Embeddings",
+      "embedDesc": "Vector indexing for search",
+      "transcribe": "Transcription",
+      "transcribeDesc": "Audio to text conversion"
+    },
+    "security": {
+      "title": "Security",
+      "googleAuth": "Exclusive authentication via Google.",
+      "sessionSeparation": "Server session separate from client token.",
+      "keysEncrypted": "API keys encrypted at rest, never exposed to frontend after saving.",
+      "healthCheck": "Production infrastructure validated with real health check."
+    }
   }
 }

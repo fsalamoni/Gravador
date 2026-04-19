@@ -9,7 +9,7 @@ export default async function LandingPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
         <header className="ambient-shell card flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-[#120d0a] shadow-[0_12px_32px_rgba(243,138,55,0.35)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-onAccent shadow-[0_12px_32px_var(--accent-shadow)]">
               <AudioWaveform className="h-5 w-5" />
             </div>
             <div>
@@ -41,7 +41,7 @@ export default async function LandingPage() {
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-semibold text-[#120d0a] transition hover:bg-accentSoft"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-semibold text-onAccent transition hover:bg-accentSoft"
             >
               {t('auth.continueWithGoogle')}
               <ArrowUpRight className="h-4 w-4" />
@@ -65,7 +65,7 @@ export default async function LandingPage() {
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-[#120d0a] transition hover:bg-accentSoft"
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-onAccent transition hover:bg-accentSoft"
               >
                 {t('auth.continueWithGoogle')}
                 <ArrowUpRight className="h-4 w-4" />
@@ -87,17 +87,17 @@ export default async function LandingPage() {
             </div>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+              <div className="rounded-[24px] border border-border bg-bg/55 p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-mute">Backend</div>
                 <div className="mt-2 text-3xl font-semibold text-text">Live</div>
                 <div className="mt-1 text-sm text-mute">Firebase + Cloud Run</div>
               </div>
-              <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+              <div className="rounded-[24px] border border-border bg-bg/55 p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-mute">Access</div>
                 <div className="mt-2 text-3xl font-semibold text-text">Google</div>
                 <div className="mt-1 text-sm text-mute">Auth-only workspace</div>
               </div>
-              <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+              <div className="rounded-[24px] border border-border bg-bg/55 p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-mute">Delivery</div>
                 <div className="mt-2 text-3xl font-semibold text-text">Web + APK</div>
                 <div className="mt-1 text-sm text-mute">Hub de acesso e teste</div>
@@ -125,7 +125,7 @@ export default async function LandingPage() {
               </div>
 
               <div className="mt-6 grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
-                <div className="rounded-[24px] border border-border bg-[#100c09]/60 p-4">
+                <div className="rounded-[24px] border border-border bg-bg/60 p-4">
                   <div className="flex items-center justify-between text-sm text-mute">
                     <span>Recent capture</span>
                     <Mic className="h-4 w-4 text-accent" />
@@ -183,7 +183,7 @@ export default async function LandingPage() {
                     </div>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-[24px] border border-border bg-[#100c09]/60 p-4">
+                    <div className="rounded-[24px] border border-border bg-bg/60 p-4">
                       <div className="text-xs uppercase tracking-[0.24em] text-mute">Pipeline</div>
                       <div className="mt-3 space-y-2 text-sm text-mute">
                         <div className="rounded-2xl bg-surfaceAlt/75 px-3 py-2 text-text">
@@ -197,7 +197,7 @@ export default async function LandingPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-[24px] border border-border bg-[#100c09]/60 p-4">
+                    <div className="rounded-[24px] border border-border bg-bg/60 p-4">
                       <div className="text-xs uppercase tracking-[0.24em] text-mute">
                         Capture modes
                       </div>
@@ -252,6 +252,12 @@ export default async function LandingPage() {
         <footer className="flex flex-wrap items-center justify-between gap-3 px-2 py-2 text-sm text-mute sm:px-3">
           <span>© 2026 Gravador · AGPL-3.0</span>
           <div className="flex items-center gap-4">
+            <Link href="/terms" className="transition hover:text-text">
+              Termos
+            </Link>
+            <Link href="/privacy" className="transition hover:text-text">
+              Privacidade
+            </Link>
             <Link href="/download" className="transition hover:text-text">
               {t('nav.download')}
             </Link>

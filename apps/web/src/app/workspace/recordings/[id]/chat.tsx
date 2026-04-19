@@ -14,7 +14,7 @@ export function ChatView({ recordingId }: { recordingId: string }) {
     <div className="card flex h-[60vh] max-w-4xl flex-col p-4 sm:p-5">
       <div className="flex-1 space-y-4 overflow-y-auto pr-2">
         {messages.length === 0 && (
-          <div className="rounded-[24px] border border-dashed border-border bg-[#100c09]/35 px-5 py-8 text-center text-sm text-mute">
+          <div className="rounded-[24px] border border-dashed border-border bg-bg/35 px-5 py-8 text-center text-sm text-mute">
             Faça uma pergunta sobre esta gravação.
           </div>
         )}
@@ -23,8 +23,8 @@ export function ChatView({ recordingId }: { recordingId: string }) {
             <div
               className={`max-w-[80%] rounded-[24px] px-4 py-3 ${
                 m.role === 'user'
-                  ? 'bg-accent text-[#120d0a]'
-                  : 'border border-border bg-[#100c09]/55 text-text'
+                  ? 'bg-accent text-onAccent'
+                  : 'border border-border bg-bg/55 text-text'
               }`}
             >
               <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
@@ -45,7 +45,7 @@ export function ChatView({ recordingId }: { recordingId: string }) {
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="rounded-[22px] bg-accent px-5 font-semibold text-[#120d0a] disabled:opacity-50"
+          className="rounded-[22px] bg-accent px-5 font-semibold text-onAccent disabled:opacity-50"
         >
           →
         </button>

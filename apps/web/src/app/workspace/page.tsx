@@ -35,17 +35,17 @@ export default async function WorkspaceHome() {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Mic className="h-5 w-5 text-accent" />
               <div className="mt-4 text-3xl font-semibold text-text">{recordings.length}</div>
               <div className="mt-1 text-sm text-mute">Itens recentes</div>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Clock3 className="h-5 w-5 text-accentSoft" />
               <div className="mt-4 text-3xl font-semibold text-text">{totalMinutes}m</div>
               <div className="mt-1 text-sm text-mute">Áudio nesta janela</div>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Sparkles className="h-5 w-5 text-ok" />
               <div className="mt-4 text-3xl font-semibold text-text">{completedCount}</div>
               <div className="mt-1 text-sm text-mute">Prontas para IA</div>
@@ -79,7 +79,7 @@ export default async function WorkspaceHome() {
               <Link
                 key={recording.id}
                 href={`/workspace/recordings/${recording.id}`}
-                className="rounded-[24px] border border-border bg-[#100c09]/55 p-5 transition hover:border-accent/70 hover:-translate-y-0.5"
+                className="rounded-[24px] border border-border bg-bg/55 p-5 transition hover:border-accent/70 hover:-translate-y-0.5"
               >
                 <div className="flex items-center justify-between gap-4">
                   <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-[0.2em] text-mute">
@@ -116,7 +116,7 @@ export default async function WorkspaceHome() {
             ))}
 
             {recordings.length === 0 ? (
-              <div className="col-span-full rounded-[24px] border border-dashed border-border bg-[#100c09]/45 px-6 py-10 text-center text-mute">
+              <div className="col-span-full rounded-[24px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
                 Sem gravações ainda. Abra o app no celular, capture algo e o workspace entra em
                 ação.
               </div>

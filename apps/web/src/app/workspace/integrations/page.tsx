@@ -20,7 +20,7 @@ export default function IntegrationsPage() {
               valor, não só armazenar áudio bruto.
             </p>
           </div>
-          <div className="rounded-[24px] border border-border bg-[#100c09]/55 px-5 py-4 text-sm text-mute">
+          <div className="rounded-[24px] border border-border bg-bg/55 px-5 py-4 text-sm text-mute">
             Conectores para backup, documentação e distribuição operacional.
           </div>
         </div>

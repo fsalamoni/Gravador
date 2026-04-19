@@ -2,7 +2,7 @@ export type Locale = 'pt-BR' | 'en';
 
 export type DeploymentMode = 'cloud' | 'selfhost';
 
-export type AIProvider = 'openai' | 'anthropic' | 'groq' | 'google' | 'ollama';
+export type AIProvider = 'openai' | 'anthropic' | 'groq' | 'google' | 'ollama' | 'openrouter';
 
 export type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
 

@@ -45,12 +45,12 @@ export default async function DocsPage() {
               <p className="mt-5 text-lg leading-8 text-mute">{t('docs.description')}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+              <div className="rounded-[24px] border border-border bg-bg/55 p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-mute">Ops</div>
                 <div className="mt-2 text-2xl font-semibold text-text">Deploy</div>
                 <div className="mt-1 text-sm text-mute">Setup, rollback e rotas públicas</div>
               </div>
-              <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+              <div className="rounded-[24px] border border-border bg-bg/55 p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-mute">Source</div>
                 <div className="mt-2 text-2xl font-semibold text-text">Open</div>
                 <div className="mt-1 text-sm text-mute">Runbooks, créditos e repositório</div>
@@ -93,7 +93,7 @@ export default async function DocsPage() {
           </div>
           <Link
             href="/download"
-            className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-[#120d0a] transition hover:bg-accentSoft"
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-onAccent transition hover:bg-accentSoft"
           >
             {t('docs.downloadCta')}
             <ArrowUpRight className="h-4 w-4" />

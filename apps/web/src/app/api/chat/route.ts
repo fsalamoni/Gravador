@@ -71,10 +71,31 @@ export async function POST(req: Request) {
 
   const locale = detectLocale(rec.locale ?? 'pt-BR');
 
+  // Load workspace AI settings for per-agent model config
+  const wsDoc = await db.collection('workspaces').doc(rec.workspaceId).get();
+  const aiSettings = (wsDoc.data()?.aiSettings ?? {}) as {
+    chatProvider?: string;
+    chatModel?: string;
+    byokKeys?: Record<string, string>;
+    agentModels?: Record<string, { provider?: string; model?: string }>;
+  };
+  const chatAgent = aiSettings.agentModels?.chat;
+  const provider = (chatAgent?.provider ?? aiSettings.chatProvider) as
+    | 'anthropic'
+    | 'openai'
+    | 'google'
+    | 'ollama'
+    | 'openrouter'
+    | undefined;
+  const model = chatAgent?.model ?? aiSettings.chatModel;
+
   const result = chatWithRecording({
     messages,
     context,
     locale,
+    ...(provider ? { provider } : {}),
+    ...(model ? { model } : {}),
+    keys: aiSettings.byokKeys,
   });
 
   return result.toDataStreamResponse();

@@ -156,5 +156,78 @@
     "generic": "Algo deu errado. Tente novamente.",
     "notFound": "Não encontramos o que você procura.",
     "unauthorized": "Você precisa entrar para continuar."
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Conta e preferências",
+    "description": "Configure provedores de IA, escolha modelos para cada agente e gerencie sua conta.",
+    "saving": "Salvando…",
+    "saved": "Salvo",
+    "tabs": {
+      "account": "Conta",
+      "providers": "Provedores de IA",
+      "agents": "Agentes",
+      "security": "Segurança"
+    },
+    "account": {
+      "title": "Perfil conectado",
+      "email": "E-mail",
+      "userId": "User ID"
+    },
+    "providers": {
+      "title": "Provedor de IA",
+      "description": "Selecione o provedor e insira sua API key. Para OpenRouter, uma única chave dá acesso a centenas de modelos.",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Insira sua {provider} API key",
+      "save": "Salvar",
+      "openrouter": "Gateway universal — 300+ modelos, uma API key",
+      "openai": "GPT-4.1, GPT-4.1-mini, Whisper, embeddings",
+      "anthropic": "Claude Sonnet 4.6, Claude Opus 4.7",
+      "google": "Gemini 2.5 Pro, Gemini 2.5 Flash",
+      "groq": "Llama 3.1, Whisper v3 — baixa latência",
+      "ollama": "Modelos locais via servidor self-hosted"
+    },
+    "catalog": {
+      "title": "Catálogo de Modelos",
+      "models": "{count} modelos",
+      "search": "Buscar modelos…",
+      "sortName": "Nome",
+      "sortContext": "Contexto ↓",
+      "sortPrice": "Preço ↑",
+      "loading": "Carregando catálogo…",
+      "empty": "Nenhum modelo encontrado. Verifique a API key do provedor.",
+      "deprecated": "Descontinuado",
+      "reasoning": "Raciocínio",
+      "coding": "Código"
+    },
+    "agents": {
+      "title": "Modelos por Agente",
+      "description": "Cada agente/pipeline pode usar um modelo diferente. Se nenhum modelo for escolhido, o agente usa o modelo padrão do workspace.",
+      "workspaceDefault": "Padrão do workspace",
+      "unavailable": "Modelo indisponível",
+      "unavailableMessage": "O modelo {model} não está mais disponível no catálogo. Selecione outro modelo.",
+      "loading": "Carregando modelos…",
+      "summarize": "Resumo",
+      "summarizeDesc": "TL;DR, bullet points e resumo longo",
+      "actionItems": "Itens de Ação",
+      "actionItemsDesc": "Tarefas, responsáveis e prazos",
+      "mindmap": "Mapa Mental",
+      "mindmapDesc": "Hierarquia visual do conteúdo",
+      "chapters": "Capítulos",
+      "chaptersDesc": "Segmentação temporal do áudio",
+      "chat": "Chat",
+      "chatDesc": "Conversa com a gravação (RAG)",
+      "embed": "Embeddings",
+      "embedDesc": "Indexação vetorial para busca",
+      "transcribe": "Transcrição",
+      "transcribeDesc": "Conversão de áudio para texto"
+    },
+    "security": {
+      "title": "Segurança",
+      "googleAuth": "Autenticação exclusiva via Google.",
+      "sessionSeparation": "Sessão do servidor separada do token do cliente.",
+      "keysEncrypted": "Chaves de API cifradas em repouso, nunca expostas ao frontend após salvamento.",
+      "healthCheck": "Infra de produção validada com health check real."
+    }
   }
 }

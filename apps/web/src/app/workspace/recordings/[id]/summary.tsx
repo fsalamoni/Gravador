@@ -6,7 +6,7 @@ export function SummaryView({ payload }: { payload: unknown }) {
   const s = (payload as Summary | undefined) ?? null;
   if (!s) {
     return (
-      <div className="rounded-[28px] border border-dashed border-border bg-[#100c09]/45 px-6 py-10 text-center text-mute">
+      <div className="rounded-[28px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
         Resumo em processamento…
       </div>
     );
@@ -25,7 +25,7 @@ export function SummaryView({ payload }: { payload: unknown }) {
             {s.bullets.map((b) => (
               <li
                 key={b}
-                className="flex gap-3 rounded-[22px] border border-border bg-[#100c09]/45 px-4 py-4"
+                className="flex gap-3 rounded-[22px] border border-border bg-bg/45 px-4 py-4"
               >
                 <span className="mt-1 text-accent">•</span>
                 <span className="leading-7 text-text">{b}</span>

@@ -50,7 +50,7 @@ export default function SearchPage() {
               para saltar direto ao trecho útil.
             </p>
           </div>
-          <div className="rounded-[24px] border border-border bg-[#100c09]/55 px-5 py-4 text-sm text-mute">
+          <div className="rounded-[24px] border border-border bg-bg/55 px-5 py-4 text-sm text-mute">
             Use linguagem natural para achar contexto, não só texto literal.
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function SearchPage() {
           </div>
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-[26px] bg-accent px-6 py-4 font-semibold text-[#120d0a] transition hover:bg-accentSoft disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-[26px] bg-accent px-6 py-4 font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-60"
             disabled={loading}
           >
             <Sparkles className="h-4 w-4" />
@@ -97,7 +97,7 @@ export default function SearchPage() {
 function ResultList({ items }: { items: Hit[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-[24px] border border-dashed border-border bg-[#100c09]/45 px-5 py-10 text-center text-sm text-mute">
+      <div className="rounded-[24px] border border-dashed border-border bg-bg/45 px-5 py-10 text-center text-sm text-mute">
         Nenhum resultado.
       </div>
     );
@@ -108,7 +108,7 @@ function ResultList({ items }: { items: Hit[] }) {
       {items.map((h, i) => (
         <li
           key={`${h.recording_id}-${i}`}
-          className="rounded-[24px] border border-border bg-[#100c09]/55 p-5"
+          className="rounded-[24px] border border-border bg-bg/55 p-5"
         >
           <Link
             href={`/workspace/recordings/${h.recording_id}?t=${h.start_ms}`}

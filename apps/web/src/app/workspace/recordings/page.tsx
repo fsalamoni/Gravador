@@ -38,12 +38,12 @@ export default async function RecordingsListPage() {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <div className="text-xs uppercase tracking-[0.24em] text-mute">Itens</div>
               <div className="mt-2 text-3xl font-semibold text-text">{recordings.length}</div>
               <div className="mt-1 text-sm text-mute">Na biblioteca atual</div>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Clock3 className="h-5 w-5 text-accent" />
               <div className="mt-3 text-3xl font-semibold text-text">{totalHours}h</div>
               <div className="mt-1 text-sm text-mute">De áudio acumulado</div>

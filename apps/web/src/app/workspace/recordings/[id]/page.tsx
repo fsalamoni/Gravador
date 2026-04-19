@@ -121,19 +121,19 @@ export default async function RecordingPage({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <FileAudio className="h-5 w-5 text-accent" />
               <div className="mt-3 text-2xl font-semibold text-text">{recording.status}</div>
               <div className="mt-1 text-sm text-mute">Status atual</div>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Clock3 className="h-5 w-5 text-accentSoft" />
               <div className="mt-3 text-2xl font-semibold text-text">
                 {Math.round(recording.durationMs / 1000)}s
               </div>
               <div className="mt-1 text-sm text-mute">Duração</div>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <Sparkles className="h-5 w-5 text-ok" />
               <div className="mt-3 text-2xl font-semibold text-text">AI</div>
               <div className="mt-1 text-sm text-mute">Outputs vinculados</div>

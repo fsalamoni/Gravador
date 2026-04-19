@@ -13,7 +13,7 @@ interface Segment {
 export function TranscriptView({ segments }: { segments: Segment[] }) {
   if (segments.length === 0) {
     return (
-      <div className="rounded-[28px] border border-dashed border-border bg-[#100c09]/45 px-6 py-10 text-center text-mute">
+      <div className="rounded-[28px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
         A transcrição aparecerá aqui quando o processamento terminar.
       </div>
     );
@@ -30,7 +30,7 @@ export function TranscriptView({ segments }: { segments: Segment[] }) {
               s.start_ms,
             )
           }
-          className="group block w-full rounded-[24px] border border-border bg-[#100c09]/55 p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surfaceAlt/80"
+          className="group block w-full rounded-[24px] border border-border bg-bg/55 p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surfaceAlt/80"
         >
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-mute">
             <span className="rounded-full border border-accent/35 bg-accent/10 px-3 py-1 font-mono text-accentSoft">

@@ -29,21 +29,21 @@ export default async function DownloadPage() {
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <div className="text-xs uppercase tracking-[0.24em] text-mute">Route</div>
               <div className="mt-2 text-2xl font-semibold text-text">Web + Android</div>
               <p className="mt-2 text-sm leading-6 text-mute">
                 Acesso imediato no navegador e, quando disponível, download direto do APK.
               </p>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <div className="text-xs uppercase tracking-[0.24em] text-mute">Auth</div>
               <div className="mt-2 text-2xl font-semibold text-text">Google</div>
               <p className="mt-2 text-sm leading-6 text-mute">
                 A mesma conta serve como ponte entre o mobile e o workspace web.
               </p>
             </div>
-            <div className="rounded-[24px] border border-border bg-[#100c09]/55 p-4">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <div className="text-xs uppercase tracking-[0.24em] text-mute">Release</div>
               <div className="mt-2 text-2xl font-semibold text-text">Ops-first</div>
               <p className="mt-2 text-sm leading-6 text-mute">
@@ -74,7 +74,7 @@ export default async function DownloadPage() {
                 href={androidPreviewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-[#120d0a] transition hover:bg-accentSoft"
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-onAccent transition hover:bg-accentSoft"
               >
                 <Download className="h-4 w-4" />
                 {t('download.androidCta')}
@@ -88,7 +88,7 @@ export default async function DownloadPage() {
                 {t('download.androidPendingCta')}
               </Link>
             )}
-            <div className="mt-6 rounded-[24px] border border-border bg-[#100c09]/55 px-4 py-4 text-sm leading-6 text-mute">
+            <div className="mt-6 rounded-[24px] border border-border bg-bg/55 px-4 py-4 text-sm leading-6 text-mute">
               {t('download.androidInstallHint')}
             </div>
           </article>

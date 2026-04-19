@@ -61,34 +61,44 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
 
     await setStatus(db, recordingId, 'summarizing');
+    const resolve = (agent: string) => ({
+      provider: (workspaceAI.agentModels[agent]?.provider ?? workspaceAI.chatProvider) as
+        | 'anthropic'
+        | 'openai'
+        | 'google'
+        | 'ollama'
+        | 'openrouter',
+      model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
+    });
+
     const [summary, actions, mindmap, chapters] = await Promise.allSettled([
       runSummary({
         segments,
         fullText: tx.fullText,
         locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
+        provider: resolve('summarize').provider,
+        model: resolve('summarize').model,
         keys: workspaceAI.keys,
       }),
       runActionItems({
         segments,
         locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
+        provider: resolve('actionItems').provider,
+        model: resolve('actionItems').model,
         keys: workspaceAI.keys,
       }),
       runMindmap({
         fullText: tx.fullText,
         locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
+        provider: resolve('mindmap').provider,
+        model: resolve('mindmap').model,
         keys: workspaceAI.keys,
       }),
       runChapters({
         segments,
         locale,
-        provider: workspaceAI.chatProvider,
-        model: workspaceAI.chatModel,
+        provider: resolve('chapters').provider,
+        model: resolve('chapters').model,
         keys: workspaceAI.keys,
       }),
     ]);
@@ -277,11 +287,12 @@ async function loadWorkspaceAI(db: Firestore, workspaceId: string) {
   const wsDoc = await db.collection('workspaces').doc(workspaceId).get();
   const s = (wsDoc.data()?.aiSettings ?? {}) as {
     transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
-    chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama';
+    chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
     chatModel?: string;
     embeddingProvider?: 'openai' | 'ollama';
     embeddingModel?: string;
     byokKeys?: Record<string, string>;
+    agentModels?: Record<string, { provider?: string; model?: string }>;
   };
   return {
     transcribeProvider: s.transcribeProvider,
@@ -290,6 +301,7 @@ async function loadWorkspaceAI(db: Firestore, workspaceId: string) {
     embeddingProvider: s.embeddingProvider,
     embeddingModel: s.embeddingModel,
     keys: s.byokKeys ?? {},
+    agentModels: s.agentModels ?? {},
   };
 }
 

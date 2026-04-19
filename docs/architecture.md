@@ -63,3 +63,26 @@
 - Gravador uses the named Firestore database `anotes`.
 - Gravador storage objects stay under the `anotes/` prefix.
 - Gravador indexes, rules, and runtime envs must not be reused from `psico` or `(default)`.
+
+## Theme / Color Skin System
+
+The web app supports **8 color themes** that the user can pick from Settings → Aparência:
+
+| ID        | Label    | Accent color   |
+|-----------|----------|----------------|
+| terra     | Terra    | Warm orange    |
+| oceano    | Oceano   | Navy / cyan    |
+| floresta  | Floresta | Green / emerald|
+| noite     | Noite    | Charcoal / purple |
+| aurora    | Aurora   | Rose-pink      |
+| artico    | Ártico   | Cool gray / ice blue |
+| vulcao    | Vulcão   | Crimson red    |
+| solaris   | Solaris  | Golden         |
+
+### How it works
+
+1. **CSS custom properties** — 11 channelised RGB triplet tokens (e.g. `--color-accent: 243 138 55`) plus 4 auxiliary rgba vars (`--glow1`, `--glow2`, `--selection-bg`, `--accent-shadow`). Defined in `globals.css` under `@layer base` with `[data-theme="<id>"]` selectors.
+2. **Tailwind mapping** — `tailwind.config.ts` maps each token to `rgb(var(--color-X) / <alpha-value>)` so opacity modifiers like `bg-accent/10` work.
+3. **ThemeProvider** (`components/theme-provider.tsx`) — React context reads from `localStorage('gravador-theme')` on mount, applies `data-theme` attribute to `<html>`, and persists to Firestore via `PUT /api/settings { theme }` on change.
+4. **Settings UI** — The "Aparência" tab in `settings-tabs.tsx` shows a responsive grid of theme cards with live swatches + a preview card.
+5. **Server sync** — Theme choice is stored in the workspace Firestore document under `theme` field and loaded on first mount for cross-device consistency.

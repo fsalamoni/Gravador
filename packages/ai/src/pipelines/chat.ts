@@ -24,7 +24,7 @@ export function chatWithRecording(input: {
   context: RetrievedChunk[];
   locale: Locale;
   model?: ChatModelName;
-  provider?: 'anthropic' | 'openai' | 'google' | 'ollama';
+  provider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
   keys?: ProviderKeys;
 }) {
   const provider = input.provider ?? 'anthropic';

@@ -361,9 +361,6 @@ importers:
       '@types/node':
         specifier: 22.10.2
         version: 22.10.2
-      typescript:
-        specifier: 5.7.2
-        version: 5.7.2
 
 packages:
 

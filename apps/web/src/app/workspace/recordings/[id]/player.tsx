@@ -17,7 +17,7 @@ export function Player({ src }: { src: string }) {
     const ws = WaveSurfer.create({
       container: containerRef.current,
       waveColor: '#4a372a',
-      progressColor: '#f38a37',
+      progressColor: 'rgb(var(--color-accent))',
       cursorColor: '#ffc48f',
       barWidth: 3,
       barGap: 2,
@@ -46,7 +46,7 @@ export function Player({ src }: { src: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[28px] border border-border bg-[#100c09]/55 p-5">
+      <div className="rounded-[28px] border border-border bg-bg/55 p-5">
         {src ? (
           <div ref={containerRef} />
         ) : (
@@ -63,7 +63,7 @@ export function Player({ src }: { src: string }) {
         <button
           type="button"
           onClick={() => wsRef.current?.playPause()}
-          className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-[#120d0a] transition hover:bg-accentSoft disabled:opacity-60"
+          className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-onAccent transition hover:bg-accentSoft disabled:opacity-60"
           disabled={!src}
         >
           {playing ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
