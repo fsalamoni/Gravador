@@ -3,8 +3,29 @@
 @tailwind utilities;
 
 @layer base {
-  /* ── Default theme: Terra (warm brown / orange) ── */
+  /* ── Default theme: Claro (light / blue-gray) ── */
   :root,
+  [data-theme="claro"] {
+    color-scheme: light;
+    --color-bg: 248 250 252;
+    --color-bg-deep: 241 245 249;
+    --color-surface: 255 255 255;
+    --color-surfaceAlt: 241 245 249;
+    --color-border: 203 213 225;
+    --color-accent: 59 130 246;
+    --color-accentSoft: 96 165 250;
+    --color-text: 15 23 42;
+    --color-mute: 100 116 139;
+    --color-danger: 239 68 68;
+    --color-ok: 22 163 74;
+    --color-onAccent: 255 255 255;
+    --glow1: rgba(59, 130, 246, 0.06);
+    --glow2: rgba(99, 102, 241, 0.04);
+    --selection-bg: rgba(59, 130, 246, 0.18);
+    --accent-shadow: rgba(59, 130, 246, 0.2);
+  }
+
+  /* ── Terra (warm brown / orange) ── */
   [data-theme="terra"] {
     color-scheme: dark;
     --color-bg: 18 13 10;
@@ -163,27 +184,6 @@
     --glow2: rgba(245, 158, 11, 0.12);
     --selection-bg: rgba(251, 191, 36, 0.32);
     --accent-shadow: rgba(251, 191, 36, 0.35);
-  }
-
-  /* ── Claro (light / blue-gray) ── */
-  [data-theme="claro"] {
-    color-scheme: light;
-    --color-bg: 248 250 252;
-    --color-bg-deep: 241 245 249;
-    --color-surface: 255 255 255;
-    --color-surfaceAlt: 241 245 249;
-    --color-border: 203 213 225;
-    --color-accent: 59 130 246;
-    --color-accentSoft: 96 165 250;
-    --color-text: 15 23 42;
-    --color-mute: 100 116 139;
-    --color-danger: 239 68 68;
-    --color-ok: 22 163 74;
-    --color-onAccent: 255 255 255;
-    --glow1: rgba(59, 130, 246, 0.06);
-    --glow2: rgba(99, 102, 241, 0.04);
-    --selection-bg: rgba(59, 130, 246, 0.18);
-    --accent-shadow: rgba(59, 130, 246, 0.2);
   }
 
   html,

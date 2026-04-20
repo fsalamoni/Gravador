@@ -1,13 +1,15 @@
 import { ArrowUpRight, Download, FileText, Globe, Smartphone } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { DownloadQRSection } from './download-qr-section';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DownloadPage() {
   const t = await getTranslations();
-  const androidPreviewUrl = process.env.ANDROID_PREVIEW_URL?.trim();
+  const androidPreviewUrl = process.env.ANDROID_PREVIEW_URL?.trim() ?? null;
   const hasAndroidPreview = Boolean(androidPreviewUrl);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://gravador.app';
 
   return (
     <main className="min-h-screen px-4 py-4 sm:px-6 lg:px-8">
@@ -53,6 +55,9 @@ export default async function DownloadPage() {
           </div>
         </section>
 
+        {/* QR Code Section for Android and iOS */}
+        <DownloadQRSection androidUrl={androidPreviewUrl} webAppUrl={baseUrl} />
+
         <section className="grid gap-4 lg:grid-cols-[1.2fr_0.9fr_0.9fr]">
           <article className="card p-6 sm:p-7">
             <div className="flex items-center justify-between">
@@ -71,7 +76,7 @@ export default async function DownloadPage() {
             </p>
             {hasAndroidPreview ? (
               <a
-                href={androidPreviewUrl}
+                href={androidPreviewUrl ?? '#'}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-onAccent transition hover:bg-accentSoft"
@@ -126,6 +131,9 @@ export default async function DownloadPage() {
           <p className="text-xs uppercase tracking-[0.24em] text-mute">iOS</p>
           <h2 className="mt-3 text-3xl font-semibold text-text">{t('download.iosTitle')}</h2>
           <p className="mt-4 max-w-3xl leading-8 text-mute">{t('download.iosBody')}</p>
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-2 text-sm font-medium text-accent">
+            🚧 Em construção — em breve disponível
+          </div>
         </article>
       </div>
     </main>

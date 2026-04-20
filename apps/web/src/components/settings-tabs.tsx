@@ -891,10 +891,64 @@ function AgentsTab({
       <div className="card p-5">
         <h3 className="font-semibold text-text">Provedor de Transcrição</h3>
         <p className="mt-1 text-sm text-mute">
-          Escolha o provedor e modelo para transcrição de áudio (speech-to-text). Você paga pelo uso
-          normalmente na conta do seu provedor.
+          Escolha o provedor e modelo para transcrição de áudio (speech-to-text). Cada provedor tem
+          características e custos diferentes.
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+        {/* Detailed provider explanations */}
+        <div className="mt-4 space-y-3">
+          <div className="rounded-[16px] border border-border bg-bg/50 p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-text">🟢 Groq (Whisper v3)</span>
+              <span className="rounded-full bg-ok/15 px-2.5 py-0.5 text-[11px] font-medium text-ok">
+                Recomendado
+              </span>
+            </div>
+            <p className="mt-1.5 text-sm leading-6 text-mute">
+              Transcrição ultrarrápida usando Whisper Large v3 otimizado nos chips LPU da Groq.
+              Latência média de 10–30 segundos para 1 hora de áudio. Suporta português, inglês e
+              mais de 50 idiomas.
+            </p>
+            <div className="mt-2 rounded-[12px] bg-surfaceAlt/60 px-3 py-2 text-xs text-mute">
+              <strong className="text-text">Custos:</strong> ~$0.111/hora (Whisper Large v3) ou
+              ~$0.04/hora (Whisper v3 Turbo). Plano gratuito disponível com limite de
+              requisições/min. Cobrado via API key BYOK na sua conta Groq.
+            </div>
+          </div>
+
+          <div className="rounded-[16px] border border-border bg-bg/50 p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-text">🔵 OpenAI (Whisper)</span>
+            </div>
+            <p className="mt-1.5 text-sm leading-6 text-mute">
+              Modelo Whisper-1 da OpenAI — referência de qualidade em transcrição. Boa precisão em
+              múltiplos idiomas incluindo português. Latência maior que Groq mas com resultados
+              muito consistentes.
+            </p>
+            <div className="mt-2 rounded-[12px] bg-surfaceAlt/60 px-3 py-2 text-xs text-mute">
+              <strong className="text-text">Custos:</strong> ~$0.006/minuto (~$0.36/hora). Sem plano
+              gratuito para áudio. Cobrado via API key BYOK na sua conta OpenAI.
+            </div>
+          </div>
+
+          <div className="rounded-[16px] border border-border bg-bg/50 p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-text">⚙️ Local (faster-whisper)</span>
+            </div>
+            <p className="mt-1.5 text-sm leading-6 text-mute">
+              Transcrição 100% local usando faster-whisper (CTranslate2). Nenhum dado sai do seu
+              servidor. Ideal para compliance e privacidade. Requer GPU (NVIDIA recomendado) ou CPU
+              potente. Latência depende do seu hardware.
+            </p>
+            <div className="mt-2 rounded-[12px] bg-surfaceAlt/60 px-3 py-2 text-xs text-mute">
+              <strong className="text-text">Custos:</strong> Gratuito — sem cobrança por token.
+              Custo é apenas infraestrutura (servidor/GPU). Com docker compose, basta rodar o
+              container faster-whisper incluído no projeto.
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <label
               htmlFor="transcribe-provider"
@@ -950,16 +1004,6 @@ function AgentsTab({
             />
           </div>
         </div>
-        <p className="mt-2 text-xs text-mute">
-          {transcribeProvider === 'groq' &&
-            'Usa sua API key Groq (BYOK): custo cobrado na sua própria conta Groq.'}
-          {transcribeProvider === 'openai' &&
-            'Usa sua API key OpenAI (BYOK): custo cobrado na sua própria conta OpenAI.'}
-          {transcribeProvider === 'local-faster-whisper' &&
-            'Usa seu servidor local (self-hosted): custo de infraestrutura é seu, sem cobrança por token.'}
-          {!transcribeProvider &&
-            'Usa sua API key Groq (BYOK): custo cobrado na sua própria conta Groq.'}
-        </p>
       </div>
 
       {AGENTS.map((agent) => {

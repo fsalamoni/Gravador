@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 export const THEMES = [
+  'claro',
   'terra',
   'oceano',
   'floresta',
@@ -11,7 +12,6 @@ export const THEMES = [
   'artico',
   'vulcao',
   'solaris',
-  'claro',
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number];
@@ -22,7 +22,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'terra',
+  theme: 'claro',
   setTheme: () => {},
 });
 
@@ -33,7 +33,7 @@ export function useTheme() {
 const STORAGE_KEY = 'nexus-theme';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>('terra');
+  const [theme, setThemeState] = useState<ThemeId>('claro');
   const [mounted, setMounted] = useState(false);
 
   // Read from localStorage on mount
