@@ -12,6 +12,10 @@ const config: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'reactflow'],
   },
+  env: {
+    NEXT_PUBLIC_COMMIT_SHA: process.env.NEXT_PUBLIC_COMMIT_SHA ?? 'unknown',
+    NEXT_PUBLIC_BUILD_TIME: process.env.NEXT_PUBLIC_BUILD_TIME ?? 'unknown',
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.googleapis.com' },
