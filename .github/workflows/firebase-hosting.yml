@@ -59,6 +59,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate service account JSON
+        shell: bash
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if ! printf '%s' "$SA_JSON" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON. Open the service-account file in a plain-text editor (VS Code / nano / cat), copy every character from '{' to '}', and re-paste into GitHub Secrets. Files saved as UTF-16 or with a BOM will fail here."
+            exit 1
+          fi
+          if ! printf '%s' "$SA_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("type")=="service_account", "missing type"; assert d.get("private_key"), "missing private_key"; assert d.get("client_email"), "missing client_email"'; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT parses but is missing required fields (type/private_key/client_email). Re-download from Firebase Console → Project Settings → Service accounts → Generate new private key."
+            exit 1
+          fi
+          echo "FIREBASE_SERVICE_ACCOUNT looks good."
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
