@@ -305,11 +305,13 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
     [openRouterApiModels, ollamaApiModels],
   );
 
-  /** All personal catalog models for the current provider (for agent selection) */
+  /** All personal catalog models for the current provider (for agent selection).
+   *  If no models are manually selected, show ALL available models from the provider. */
   const agentCatalogModels = useMemo(() => {
+    const all = getProviderModels(selectedProvider);
     const ids = new Set(settings.selectedModels ?? []);
-    if (ids.size === 0) return [];
-    return getProviderModels(selectedProvider).filter((m) => ids.has(m.id));
+    if (ids.size === 0) return all;
+    return all.filter((m) => ids.has(m.id));
   }, [getProviderModels, selectedProvider, settings.selectedModels]);
 
   return (

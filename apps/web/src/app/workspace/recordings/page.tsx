@@ -1,7 +1,6 @@
-import { getSessionUser } from '@/lib/firebase-server';
+import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { listUserRecordings } from '@/lib/server-recordings';
 import { ArrowLeft, Clock3, Trash2 } from 'lucide-react';
-import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { RecordingsGrid } from './recordings-grid';
@@ -11,9 +10,9 @@ export default async function RecordingsListPage() {
   const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  const cookieStore = await cookies();
-  const workspaceId = cookieStore.get('workspaceId')?.value;
-  if (!workspaceId) redirect('/workspace');
+  const db = getServerDb();
+  const wsSnap = await db.collection('workspaces').where('ownerId', '==', user.uid).limit(1).get();
+  const workspaceId = wsSnap.empty ? null : wsSnap.docs[0]!.id;
 
   const recordings = (await listUserRecordings(user.uid)) as Array<{
     id: string;
@@ -63,9 +62,11 @@ export default async function RecordingsListPage() {
             </Link>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="col-span-full mb-2 sm:col-span-3 flex justify-end">
-              <WebRecorderButton workspaceId={workspaceId} />
-            </div>
+            {workspaceId && (
+              <div className="col-span-full mb-2 sm:col-span-3 flex justify-end">
+                <WebRecorderButton workspaceId={workspaceId} />
+              </div>
+            )}
             <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <div className="text-xs uppercase tracking-[0.24em] text-mute">Itens</div>
               <div className="mt-2 text-3xl font-semibold text-text">{recordings.length}</div>
