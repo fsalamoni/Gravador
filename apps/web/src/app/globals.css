@@ -3,10 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-bg: #f8f9fb;
+    --color-surface: #ffffff;
+    --color-surfaceAlt: #f0f1f5;
+    --color-border: #e0e2e8;
+    --color-accent: #7c5cff;
+    --color-accentSoft: #a08bff;
+    --color-text: #1a1c22;
+    --color-mute: #6b7080;
+    --color-danger: #e53e5e;
+    --color-ok: #16a34a;
+  }
+
+  .dark {
+    --color-bg: #0b0e14;
+    --color-surface: #141824;
+    --color-surfaceAlt: #1b2030;
+    --color-border: #262b3c;
+    --color-accent: #7c5cff;
+    --color-accentSoft: #a08bff;
+    --color-text: #e6e8ef;
+    --color-mute: #8a90a2;
+    --color-danger: #ff5c7c;
+    --color-ok: #34d399;
+  }
+
   html,
   body {
-    background: #0b0e14;
-    color: #e6e8ef;
+    background: var(--color-bg);
+    color: var(--color-text);
   }
   body {
     font-feature-settings: "cv11";

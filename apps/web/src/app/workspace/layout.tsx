@@ -20,6 +20,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <NavItem href="/workspace/search">Buscar</NavItem>
         <NavItem href="/workspace/integrations">Integrações</NavItem>
         <NavItem href="/workspace/settings">Configurações</NavItem>
+        <div className="mt-auto pt-4 border-t border-border">
+          <NavItem href="/download">Download App</NavItem>
+        </div>
       </aside>
       <main className="flex-1 p-8">{children}</main>
     </div>
