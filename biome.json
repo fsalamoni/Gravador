@@ -14,7 +14,10 @@
       "**/android/**",
       "**/*.generated.*",
       "**/supabase/.branches/**",
-      "**/supabase/.temp/**"
+      "**/supabase/.temp/**",
+      "**/gha-creds-*.json",
+      "**/application_default_credentials.json",
+      "**/*service-account*.json"
     ]
   },
   "organizeImports": { "enabled": true },
