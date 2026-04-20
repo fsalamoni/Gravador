@@ -13,11 +13,14 @@ interface Segment {
 export function TranscriptView({ segments }: { segments: Segment[] }) {
   if (segments.length === 0) {
     return (
-      <p className="text-mute">A transcrição aparecerá aqui quando o processamento terminar.</p>
+      <div className="rounded-[28px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
+        A transcrição aparecerá aqui quando o processamento terminar.
+      </div>
     );
   }
+
   return (
-    <div className="space-y-3 max-w-3xl">
+    <div className="space-y-3 max-w-4xl">
       {segments.map((s) => (
         <button
           key={s.id}
@@ -27,13 +30,20 @@ export function TranscriptView({ segments }: { segments: Segment[] }) {
               s.start_ms,
             )
           }
-          className="block text-left w-full hover:bg-surfaceAlt p-3 rounded-lg transition group"
+          aria-label={`Jump to ${formatDurationMs(s.start_ms)}`}
+          className="group block w-full rounded-[24px] border border-border bg-bg/55 p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-surfaceAlt/80"
         >
-          <div className="flex gap-3 text-sm text-mute mb-1">
-            <span className="text-accentSoft font-mono">{formatDurationMs(s.start_ms)}</span>
-            {s.speaker_id ? <span>Falante {s.speaker_id.slice(0, 6)}</span> : null}
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-mute">
+            <span className="rounded-full border border-accent/35 bg-accent/10 px-3 py-1 font-mono text-accentSoft">
+              {formatDurationMs(s.start_ms)}
+            </span>
+            {s.speaker_id ? (
+              <span className="rounded-full border border-border px-3 py-1 text-[11px] text-mute">
+                Falante {s.speaker_id.slice(0, 6)}
+              </span>
+            ) : null}
           </div>
-          <p className="text-text leading-relaxed group-hover:text-white">{s.text}</p>
+          <p className="leading-8 text-text transition group-hover:text-white">{s.text}</p>
         </button>
       ))}
     </div>

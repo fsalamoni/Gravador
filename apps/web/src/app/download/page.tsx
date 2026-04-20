@@ -1,149 +1,141 @@
-import type { Metadata } from 'next';
+import { ArrowUpRight, Download, FileText, Globe, Smartphone } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
+import { DownloadQRSection } from './download-qr-section';
 
-export const metadata: Metadata = {
-  title: 'Download — Gravador',
-  description: 'Baixe o app Gravador para Android e iOS.',
-};
+export const dynamic = 'force-dynamic';
 
-export default function DownloadPage() {
-  const apkUrl =
-    process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL ??
-    'https://github.com/fsalamoni/Gravador/releases/latest/download/gravador.apk';
-  const iosUrl = process.env.NEXT_PUBLIC_IOS_DOWNLOAD_URL ?? 'https://gravador.app/ios';
+export default async function DownloadPage() {
+  const t = await getTranslations();
+  const androidPreviewUrl = process.env.ANDROID_PREVIEW_URL?.trim() ?? null;
+  const hasAndroidPreview = Boolean(androidPreviewUrl);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://gravador.app';
 
   return (
-    <div className="min-h-screen bg-bg text-text flex flex-col items-center justify-center px-6 py-16">
-      <h1 className="text-4xl font-bold mb-2">Gravador</h1>
-      <p className="text-mute text-lg mb-12 text-center max-w-md">
-        Grave, transcreva e transforme em conhecimento — direto do seu celular.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl w-full">
-        {/* Android */}
-        <div className="card p-8 flex flex-col items-center text-center">
-          <span className="text-5xl mb-4">🤖</span>
-          <h2 className="text-xl font-semibold mb-2">Android</h2>
-          <p className="text-mute text-sm mb-6">
-            Escaneie o QR code abaixo com a câmera do seu celular para baixar o APK.
-          </p>
-          <div className="bg-white p-4 rounded-xl mb-4">
-            <QrCode value={apkUrl} size={180} />
-          </div>
-          <a
-            href={apkUrl}
-            className="bg-accent hover:bg-accentSoft text-white px-6 py-2.5 rounded-xl font-medium transition mt-2"
-          >
-            Baixar APK
-          </a>
-          <p className="text-mute text-xs mt-3">Requer Android 8.0 ou superior</p>
-        </div>
-
-        {/* iOS */}
-        <div className="card p-8 flex flex-col items-center text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-surfaceAlt/60 backdrop-blur-sm flex items-center justify-center z-10">
-            <div className="bg-surface border border-border rounded-xl px-6 py-4 shadow-lg">
-              <span className="text-2xl">🚧</span>
-              <p className="font-medium mt-2">Em construção</p>
-              <p className="text-mute text-sm mt-1">Disponível em breve na App Store</p>
+    <main className="min-h-screen px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-5">
+        <section className="ambient-shell card overflow-hidden px-6 py-8 sm:px-8 sm:py-10 lg:px-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <Link href="/" className="eyebrow">
+                {t('nav.home')}
+              </Link>
+              <h1 className="display-title mt-6 text-5xl leading-[0.94] sm:text-6xl">
+                {t('download.title')}
+              </h1>
+              <p className="mt-5 text-lg leading-8 text-mute">{t('download.description')}</p>
+            </div>
+            <div className="rounded-full border border-border bg-surfaceAlt/70 px-5 py-3 text-sm font-semibold text-mute">
+              {hasAndroidPreview ? t('download.statusReady') : t('download.statusPending')}
             </div>
           </div>
-          <span className="text-5xl mb-4">🍎</span>
-          <h2 className="text-xl font-semibold mb-2">iOS</h2>
-          <p className="text-mute text-sm mb-6">
-            Escaneie o QR code com a câmera do iPhone para instalar via TestFlight.
-          </p>
-          <div className="bg-white p-4 rounded-xl mb-4">
-            <QrCode value={iosUrl} size={180} />
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
+              <div className="text-xs uppercase tracking-[0.24em] text-mute">Route</div>
+              <div className="mt-2 text-2xl font-semibold text-text">Web + Android</div>
+              <p className="mt-2 text-sm leading-6 text-mute">
+                Acesso imediato no navegador e, quando disponível, download direto do APK.
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
+              <div className="text-xs uppercase tracking-[0.24em] text-mute">Auth</div>
+              <div className="mt-2 text-2xl font-semibold text-text">Google</div>
+              <p className="mt-2 text-sm leading-6 text-mute">
+                A mesma conta serve como ponte entre o mobile e o workspace web.
+              </p>
+            </div>
+            <div className="rounded-[24px] border border-border bg-bg/55 p-4">
+              <div className="text-xs uppercase tracking-[0.24em] text-mute">Release</div>
+              <div className="mt-2 text-2xl font-semibold text-text">Ops-first</div>
+              <p className="mt-2 text-sm leading-6 text-mute">
+                Documentação pública, health check real e handoff operacional visível.
+              </p>
+            </div>
           </div>
-          <span className="bg-mute/20 text-mute px-6 py-2.5 rounded-xl font-medium mt-2 cursor-not-allowed">
-            Em breve
-          </span>
-          <p className="text-mute text-xs mt-3">Requer iOS 16.0 ou superior</p>
-        </div>
+        </section>
+
+        {/* QR Code Section for Android and iOS */}
+        <DownloadQRSection androidUrl={androidPreviewUrl} webAppUrl={baseUrl} />
+
+        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.9fr_0.9fr]">
+          <article className="card p-6 sm:p-7">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-mute">Android</p>
+                <h2 className="mt-3 text-3xl font-semibold text-text">
+                  {t('download.androidTitle')}
+                </h2>
+              </div>
+              <Smartphone className="h-6 w-6 text-accent" />
+            </div>
+            <p className="mt-4 max-w-2xl leading-8 text-mute">
+              {hasAndroidPreview
+                ? t('download.androidReadyBody')
+                : t('download.androidPendingBody')}
+            </p>
+            {hasAndroidPreview ? (
+              <a
+                href={androidPreviewUrl ?? '#'}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-onAccent transition hover:bg-accentSoft"
+              >
+                <Download className="h-4 w-4" />
+                {t('download.androidCta')}
+              </a>
+            ) : (
+              <Link
+                href="/docs"
+                className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-6 py-3 font-semibold transition hover:text-text"
+              >
+                <FileText className="h-4 w-4" />
+                {t('download.androidPendingCta')}
+              </Link>
+            )}
+            <div className="mt-6 rounded-[24px] border border-border bg-bg/55 px-4 py-4 text-sm leading-6 text-mute">
+              {t('download.androidInstallHint')}
+            </div>
+          </article>
+
+          <article className="card p-6">
+            <Globe className="h-6 w-6 text-[#8be3d7]" />
+            <p className="mt-4 text-xs uppercase tracking-[0.24em] text-mute">Web</p>
+            <h2 className="mt-3 text-2xl font-semibold text-text">{t('download.webTitle')}</h2>
+            <p className="mt-4 leading-7 text-mute">{t('download.webBody')}</p>
+            <Link
+              href="/login?next=/workspace"
+              className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-5 py-3 font-semibold transition hover:text-text"
+            >
+              {t('download.webCta')}
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </article>
+
+          <article className="card p-6">
+            <FileText className="h-6 w-6 text-accentSoft" />
+            <p className="mt-4 text-xs uppercase tracking-[0.24em] text-mute">Docs</p>
+            <h2 className="mt-3 text-2xl font-semibold text-text">{t('download.docsTitle')}</h2>
+            <p className="mt-4 leading-7 text-mute">{t('download.docsBody')}</p>
+            <Link
+              href="/docs"
+              className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-5 py-3 font-semibold transition hover:text-text"
+            >
+              {t('download.docsCta')}
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </article>
+        </section>
+
+        <article className="card p-6 sm:p-7">
+          <p className="text-xs uppercase tracking-[0.24em] text-mute">iOS</p>
+          <h2 className="mt-3 text-3xl font-semibold text-text">{t('download.iosTitle')}</h2>
+          <p className="mt-4 max-w-3xl leading-8 text-mute">{t('download.iosBody')}</p>
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-2 text-sm font-medium text-accent">
+            🚧 Em construção — em breve disponível
+          </div>
+        </article>
       </div>
-
-      <div className="mt-12 text-center">
-        <p className="text-mute text-sm">
-          Também disponível na{' '}
-          <a href="/workspace" className="text-accent hover:underline">
-            versão web
-          </a>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Pure-SVG QR code generator using a simple bit-matrix approach.
- * Generates a valid QR-like visual (using a deterministic pattern).
- * For production, integrate a proper QR library like `qrcode`.
- */
-function QrCode({ value, size = 180 }: { value: string; size?: number }) {
-  // Generate a deterministic bit grid from the string value
-  const gridSize = 25;
-  const cellSize = size / gridSize;
-  const cells: { x: number; y: number }[] = [];
-
-  // Simple hash-based pattern for visual representation
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = (hash * 31 + value.charCodeAt(i)) & 0xffffffff;
-  }
-
-  // Finder patterns (top-left, top-right, bottom-left)
-  const addFinderPattern = (startX: number, startY: number) => {
-    for (let y = 0; y < 7; y++) {
-      for (let x = 0; x < 7; x++) {
-        const isOuter = y === 0 || y === 6 || x === 0 || x === 6;
-        const isInner = x >= 2 && x <= 4 && y >= 2 && y <= 4;
-        if (isOuter || isInner) {
-          cells.push({ x: startX + x, y: startY + y });
-        }
-      }
-    }
-  };
-
-  addFinderPattern(0, 0);
-  addFinderPattern(gridSize - 7, 0);
-  addFinderPattern(0, gridSize - 7);
-
-  // Fill data area with hash-based pattern
-  let seed = hash;
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
-      // Skip finder pattern areas
-      const inFinder =
-        (x < 8 && y < 8) || (x >= gridSize - 8 && y < 8) || (x < 8 && y >= gridSize - 8);
-      if (inFinder) continue;
-
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      if (seed % 3 !== 0) {
-        cells.push({ x, y });
-      }
-    }
-  }
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      xmlns="http://www.w3.org/2000/svg"
-      role="img"
-      aria-label={`QR Code: ${value}`}
-    >
-      <rect width={size} height={size} fill="white" />
-      {cells.map((cell) => (
-        <rect
-          key={`${cell.x}-${cell.y}`}
-          x={cell.x * cellSize}
-          y={cell.y * cellSize}
-          width={cellSize}
-          height={cellSize}
-          fill="black"
-        />
-      ))}
-    </svg>
+    </main>
   );
 }

@@ -1,0 +1,143 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function isSelfWorkspace(wsId) {
+      return isAuth() && wsId == uid();
+    }
+
+    function isWorkspaceMember(wsId) {
+      return isAuth() &&
+        (
+          isSelfWorkspace(wsId) ||
+          exists(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid()))
+        );
+    }
+
+    function isWorkspaceAdmin(wsId) {
+      return isAuth() &&
+        (
+          isSelfWorkspace(wsId) ||
+          get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid())).data.role in ['owner', 'admin']
+        );
+    }
+
+    function isWorkspaceOwner(wsId) {
+      return isAuth() &&
+        (
+          isSelfWorkspace(wsId) ||
+          get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid())).data.role == 'owner'
+        );
+    }
+
+    function isRecordingOwner(data) {
+      return isAuth() && data.createdBy == uid();
+    }
+
+    function canAccessRecordingData(data) {
+      return isRecordingOwner(data) || isWorkspaceMember(data.workspaceId);
+    }
+
+    function parentRecordingData(recId) {
+      return get(/databases/$(database)/documents/recordings/$(recId)).data;
+    }
+
+    function canAccessParentRecording(recId) {
+      return isAuth() && canAccessRecordingData(parentRecordingData(recId));
+    }
+
+    // ── Users ──
+    match /users/{userId} {
+      allow read: if isAuth() && uid() == userId;
+      allow create: if isAuth() && uid() == userId;
+      allow update: if isAuth() && uid() == userId;
+      allow delete: if false;
+    }
+
+    // ── Workspaces ──
+    match /workspaces/{wsId} {
+      allow read: if isWorkspaceMember(wsId);
+      allow create: if isAuth();
+      allow update: if isWorkspaceAdmin(wsId);
+      allow delete: if isWorkspaceOwner(wsId);
+
+      match /members/{memberId} {
+        allow read: if isWorkspaceMember(wsId);
+        allow write: if isWorkspaceAdmin(wsId);
+      }
+
+      match /folders/{folderId} {
+        allow read: if isWorkspaceMember(wsId);
+        allow write: if isWorkspaceMember(wsId);
+      }
+
+      match /tags/{tagId} {
+        allow read: if isWorkspaceMember(wsId);
+        allow write: if isWorkspaceMember(wsId);
+      }
+    }
+
+    // ── Recordings ──
+    match /recordings/{recId} {
+      allow read: if canAccessRecordingData(resource.data);
+      allow create: if isAuth()
+                    && request.resource.data.createdBy == uid()
+                    && isWorkspaceMember(request.resource.data.workspaceId);
+      allow update: if canAccessRecordingData(resource.data)
+                    && request.resource.data.workspaceId == resource.data.workspaceId
+                    && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isRecordingOwner(resource.data) || isWorkspaceAdmin(resource.data.workspaceId);
+
+      match /transcripts/{trId} {
+        allow read: if canAccessParentRecording(recId);
+        allow write: if false; // server-only via admin SDK
+      }
+
+      match /transcript_segments/{segId} {
+        allow read: if canAccessParentRecording(recId);
+        allow write: if false; // server-only via admin SDK
+      }
+
+      match /ai_outputs/{kind} {
+        allow read: if canAccessParentRecording(recId);
+        allow write: if false; // server-only via admin SDK
+      }
+
+      match /embeddings/{chunkId} {
+        allow read: if canAccessParentRecording(recId);
+        allow write: if false; // server-only via admin SDK
+      }
+
+      match /action_items/{itemId} {
+        allow read: if canAccessParentRecording(recId);
+        allow update: if canAccessParentRecording(recId);
+        allow create, delete: if false; // server-only
+      }
+    }
+
+    // ── Shares ──
+    match /shares/{shareId} {
+      allow read: if true; // public shares are readable by token lookup
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.createdBy == uid();
+      allow delete: if isAuth() && resource.data.createdBy == uid();
+    }
+
+    // ── Jobs ──
+    match /jobs/{jobId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if false; // server-only
+    }
+  }
+}

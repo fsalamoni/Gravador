@@ -1,387 +1,264 @@
-import { sql } from 'drizzle-orm';
-import {
-  boolean,
-  index,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable,
-  primaryKey,
-  real,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-  vector,
-} from 'drizzle-orm/pg-core';
+import type { Timestamp } from 'firebase-admin/firestore';
 
-export const recordingStatusEnum = pgEnum('recording_status', [
-  'queued',
-  'uploading',
-  'transcribing',
-  'diarizing',
-  'summarizing',
-  'embedding',
-  'ready',
-  'failed',
-]);
+// ── Enums ──
 
-export const aiOutputKindEnum = pgEnum('ai_output_kind', [
-  'summary',
-  'action_items',
-  'mindmap',
-  'chapters',
-  'quotes',
-  'sentiment',
-  'flashcards',
-]);
+export type RecordingStatus =
+  | 'queued'
+  | 'uploading'
+  | 'transcribing'
+  | 'diarizing'
+  | 'summarizing'
+  | 'embedding'
+  | 'ready'
+  | 'failed';
 
-export const jobStatusEnum = pgEnum('job_status', [
-  'queued',
-  'running',
-  'succeeded',
-  'failed',
-  'cancelled',
-]);
+export type AIOutputKind =
+  | 'summary'
+  | 'action_items'
+  | 'mindmap'
+  | 'chapters'
+  | 'quotes'
+  | 'sentiment'
+  | 'flashcards';
 
-export const localeEnum = pgEnum('locale', ['pt-BR', 'en']);
+export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
-export const planEnum = pgEnum('plan', ['free', 'pro', 'team', 'selfhost']);
+export type Locale = 'pt-BR' | 'en';
 
-/**
- * `users` mirrors a subset of `auth.users` (Supabase manages identity).
- * Populated via trigger after signup.
- */
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey(),
-  email: text('email').notNull(),
-  fullName: text('full_name'),
-  avatarUrl: text('avatar_url'),
-  locale: localeEnum('locale').default('pt-BR').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export type Plan = 'free' | 'pro' | 'team' | 'selfhost';
 
-export const workspaces = pgTable(
-  'workspaces',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    slug: text('slug').notNull(),
-    name: text('name').notNull(),
-    ownerId: uuid('owner_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    plan: planEnum('plan').default('free').notNull(),
-    stripeCustomerId: text('stripe_customer_id'),
-    stripeSubscriptionId: text('stripe_subscription_id'),
-    aiSettings: jsonb('ai_settings').$type<WorkspaceAISettings>().default({}).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    slugIdx: uniqueIndex('workspaces_slug_idx').on(t.slug),
-  }),
-);
+export type WorkspaceRole = 'owner' | 'admin' | 'member';
+
+export type IntegrationProvider = 'google-drive' | 'dropbox' | 'onedrive' | 'notion' | 'obsidian';
+
+// ── Document types ──
+
+/** Per-agent model override. If not set, falls back to workspace default. */
+export type AgentModelConfig = {
+  provider?: string;
+  model?: string;
+};
 
 export type WorkspaceAISettings = {
   transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
-  chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama';
+  transcribeModel?: string;
+  chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
   chatModel?: string;
   embeddingProvider?: 'openai' | 'ollama';
   embeddingModel?: string;
+  ollamaUrl?: string;
   byokKeys?: {
     openai?: string;
     anthropic?: string;
     groq?: string;
     google?: string;
+    openrouter?: string;
+    ollamaBaseUrl?: string;
+  };
+  /** Per-agent/pipeline model overrides */
+  agentModels?: {
+    summarize?: AgentModelConfig;
+    actionItems?: AgentModelConfig;
+    mindmap?: AgentModelConfig;
+    chapters?: AgentModelConfig;
+    chat?: AgentModelConfig;
+    embed?: AgentModelConfig;
+    transcribe?: AgentModelConfig;
   };
 };
 
-export const workspaceMembers = pgTable(
-  'workspace_members',
-  {
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    role: text('role').$type<'owner' | 'admin' | 'member'>().default('member').notNull(),
-    joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({ pk: primaryKey({ columns: [t.workspaceId, t.userId] }) }),
-);
+/** Cached model metadata fetched from provider APIs (e.g. OpenRouter). */
+export interface ModelCatalogEntryDoc {
+  /** Provider-specific model ID, e.g. "anthropic/claude-sonnet-4-6" */
+  modelId: string;
+  /** Which catalog provider this came from */
+  catalogProvider: string;
+  name: string;
+  description: string;
+  contextLength: number;
+  maxCompletionTokens: number;
+  pricing: {
+    prompt: number;
+    completion: number;
+    request: number;
+    image: number;
+  };
+  inputModalities: string[];
+  outputModalities: string[];
+  supportedParameters: string[];
+  /** Quality scores 0-100, seeded from public benchmarks */
+  qualityScores?: {
+    overall?: number;
+    reasoning?: number;
+    coding?: number;
+    instruction?: number;
+  };
+  expirationDate?: string | null;
+  available: boolean;
+  createdAt: Timestamp;
+  lastCheckedAt: Timestamp;
+}
 
-export const folders = pgTable('folders', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  parentId: uuid('parent_id'),
-  name: text('name').notNull(),
-  color: text('color'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export interface UserDoc {
+  email: string;
+  fullName?: string;
+  avatarUrl?: string;
+  locale: Locale;
+  createdAt: Timestamp;
+}
 
-export const tags = pgTable(
-  'tags',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
-    color: text('color'),
-  },
-  (t) => ({ unique: uniqueIndex('tags_workspace_name_idx').on(t.workspaceId, t.name) }),
-);
+export interface WorkspaceDoc {
+  slug: string;
+  name: string;
+  ownerId: string;
+  plan: Plan;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  aiSettings: WorkspaceAISettings;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
-export const recordings = pgTable(
-  'recordings',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    createdBy: uuid('created_by')
-      .notNull()
-      .references(() => users.id),
-    folderId: uuid('folder_id').references(() => folders.id, { onDelete: 'set null' }),
-    title: text('title'),
-    status: recordingStatusEnum('status').default('queued').notNull(),
-    locale: localeEnum('locale'),
-    durationMs: integer('duration_ms').notNull(),
-    sizeBytes: integer('size_bytes').notNull(),
-    mimeType: text('mime_type').notNull(),
-    storagePath: text('storage_path').notNull(),
-    storageBucket: text('storage_bucket').default('audio-raw').notNull(),
-    waveformPeaks: jsonb('waveform_peaks').$type<number[]>(),
-    capturedAt: timestamp('captured_at', { withTimezone: true }).notNull(),
-    capturedFromDevice: text('captured_from_device'),
-    latitude: real('latitude'),
-    longitude: real('longitude'),
-    deletedAt: timestamp('deleted_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    workspaceIdx: index('recordings_workspace_idx').on(t.workspaceId, t.capturedAt),
-    folderIdx: index('recordings_folder_idx').on(t.folderId),
-    statusIdx: index('recordings_status_idx').on(t.status),
-  }),
-);
+export interface WorkspaceMemberDoc {
+  role: WorkspaceRole;
+  joinedAt: Timestamp;
+}
 
-export const recordingTags = pgTable(
-  'recording_tags',
-  {
-    recordingId: uuid('recording_id')
-      .notNull()
-      .references(() => recordings.id, { onDelete: 'cascade' }),
-    tagId: uuid('tag_id')
-      .notNull()
-      .references(() => tags.id, { onDelete: 'cascade' }),
-  },
-  (t) => ({ pk: primaryKey({ columns: [t.recordingId, t.tagId] }) }),
-);
+export interface FolderDoc {
+  workspaceId: string;
+  parentId?: string;
+  name: string;
+  color?: string;
+  createdAt: Timestamp;
+}
 
-export const speakers = pgTable('speakers', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  label: text('label').notNull(),
-  voiceEmbedding: vector('voice_embedding', { dimensions: 192 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export interface TagDoc {
+  workspaceId: string;
+  name: string;
+  color?: string;
+}
 
-export const transcripts = pgTable('transcripts', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  recordingId: uuid('recording_id')
-    .notNull()
-    .references(() => recordings.id, { onDelete: 'cascade' })
-    .unique(),
-  provider: text('provider').notNull(),
-  model: text('model').notNull(),
-  detectedLocale: localeEnum('detected_locale'),
-  fullText: text('full_text').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export interface RecordingDoc {
+  workspaceId: string;
+  createdBy: string;
+  folderId?: string;
+  title?: string;
+  status: RecordingStatus;
+  locale?: Locale;
+  durationMs: number;
+  sizeBytes: number;
+  mimeType: string;
+  storagePath: string;
+  storageBucket: string;
+  waveformPeaks?: number[];
+  capturedAt: Timestamp;
+  capturedFromDevice?: string;
+  latitude?: number;
+  longitude?: number;
+  deletedAt?: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
-export const transcriptSegments = pgTable(
-  'transcript_segments',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    transcriptId: uuid('transcript_id')
-      .notNull()
-      .references(() => transcripts.id, { onDelete: 'cascade' }),
-    recordingId: uuid('recording_id')
-      .notNull()
-      .references(() => recordings.id, { onDelete: 'cascade' }),
-    speakerId: uuid('speaker_id').references(() => speakers.id),
-    startMs: integer('start_ms').notNull(),
-    endMs: integer('end_ms').notNull(),
-    text: text('text').notNull(),
-    confidence: real('confidence'),
-  },
-  (t) => ({
-    transcriptIdx: index('segments_transcript_idx').on(t.transcriptId, t.startMs),
-    recordingIdx: index('segments_recording_idx').on(t.recordingId, t.startMs),
-  }),
-);
+export interface TranscriptDoc {
+  recordingId: string;
+  provider: string;
+  model: string;
+  detectedLocale?: Locale;
+  fullText: string;
+  createdAt: Timestamp;
+}
 
-export const aiOutputs = pgTable(
-  'ai_outputs',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    recordingId: uuid('recording_id')
-      .notNull()
-      .references(() => recordings.id, { onDelete: 'cascade' }),
-    kind: aiOutputKindEnum('kind').notNull(),
-    payload: jsonb('payload').notNull(),
-    provider: text('provider').notNull(),
-    model: text('model').notNull(),
-    costCents: integer('cost_cents').default(0).notNull(),
-    latencyMs: integer('latency_ms'),
-    promptVersion: text('prompt_version').notNull(),
-    locale: localeEnum('locale'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    uniqPerKind: uniqueIndex('ai_outputs_recording_kind_idx').on(t.recordingId, t.kind),
-  }),
-);
+export interface TranscriptSegmentDoc {
+  transcriptId: string;
+  recordingId: string;
+  speakerId?: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+  confidence?: number;
+}
 
-export const embeddings = pgTable(
-  'embeddings',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    recordingId: uuid('recording_id')
-      .notNull()
-      .references(() => recordings.id, { onDelete: 'cascade' }),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    chunkIndex: integer('chunk_index').notNull(),
-    startSegmentId: uuid('start_segment_id'),
-    endSegmentId: uuid('end_segment_id'),
-    startMs: integer('start_ms').notNull(),
-    endMs: integer('end_ms').notNull(),
-    content: text('content').notNull(),
-    embedding: vector('embedding', { dimensions: 1536 }).notNull(),
-    model: text('model').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    hnsw: index('embeddings_vector_idx')
-      .using('hnsw', t.embedding.op('vector_cosine_ops'))
-      .with({ m: 16, ef_construction: 64 }),
-    workspaceIdx: index('embeddings_workspace_idx').on(t.workspaceId),
-  }),
-);
+export interface AIOutputDoc {
+  recordingId: string;
+  kind: AIOutputKind;
+  payload: unknown;
+  provider: string;
+  model: string;
+  costCents: number;
+  latencyMs?: number;
+  promptVersion: string;
+  locale?: Locale;
+  createdAt: Timestamp;
+}
 
-export const actionItems = pgTable('action_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  recordingId: uuid('recording_id')
-    .notNull()
-    .references(() => recordings.id, { onDelete: 'cascade' }),
-  text: text('text').notNull(),
-  assignee: text('assignee'),
-  dueDate: timestamp('due_date', { withTimezone: true }),
-  done: boolean('done').default(false).notNull(),
-  sourceSegmentIds: jsonb('source_segment_ids').$type<string[]>().default([]).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export interface EmbeddingDoc {
+  recordingId: string;
+  workspaceId: string;
+  chunkIndex: number;
+  startSegmentId?: string;
+  endSegmentId?: string;
+  startMs: number;
+  endMs: number;
+  content: string;
+  embedding: number[];
+  model: string;
+  createdAt: Timestamp;
+}
 
-export const shares = pgTable(
-  'shares',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    recordingId: uuid('recording_id')
-      .notNull()
-      .references(() => recordings.id, { onDelete: 'cascade' }),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    createdBy: uuid('created_by')
-      .notNull()
-      .references(() => users.id),
-    token: text('token').notNull(),
-    passwordHash: text('password_hash'),
-    expiresAt: timestamp('expires_at', { withTimezone: true }),
-    permissions: jsonb('permissions')
-      .$type<{ viewTranscript: boolean; viewSummary: boolean; viewChat: boolean }>()
-      .default({ viewTranscript: true, viewSummary: true, viewChat: false })
-      .notNull(),
-    revokedAt: timestamp('revoked_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({ tokenIdx: uniqueIndex('shares_token_idx').on(t.token) }),
-);
+export interface ActionItemDoc {
+  recordingId: string;
+  text: string;
+  assignee?: string;
+  dueDate?: Timestamp;
+  done: boolean;
+  sourceSegmentIds: string[];
+  createdAt: Timestamp;
+}
 
-export const integrations = pgTable(
-  'integrations',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    provider: text('provider')
-      .$type<'google-drive' | 'dropbox' | 'onedrive' | 'notion' | 'obsidian'>()
-      .notNull(),
-    accessTokenEncrypted: text('access_token_encrypted').notNull(),
-    refreshTokenEncrypted: text('refresh_token_encrypted'),
-    expiresAt: timestamp('expires_at', { withTimezone: true }),
-    metadata: jsonb('metadata').default({}).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    uniq: uniqueIndex('integrations_user_provider_idx').on(t.userId, t.provider, t.workspaceId),
-  }),
-);
+export interface ShareDoc {
+  recordingId: string;
+  workspaceId: string;
+  createdBy: string;
+  token: string;
+  passwordHash?: string;
+  expiresAt?: Timestamp | null;
+  permissions: {
+    viewTranscript: boolean;
+    viewSummary: boolean;
+    viewChat: boolean;
+  };
+  revokedAt?: Timestamp | null;
+  createdAt: Timestamp;
+}
 
-export const jobs = pgTable(
-  'jobs',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    recordingId: uuid('recording_id').references(() => recordings.id, { onDelete: 'cascade' }),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id, { onDelete: 'cascade' }),
-    kind: text('kind').notNull(),
-    status: jobStatusEnum('status').default('queued').notNull(),
-    attempt: integer('attempt').default(0).notNull(),
-    triggerRunId: text('trigger_run_id'),
-    error: text('error'),
-    startedAt: timestamp('started_at', { withTimezone: true }),
-    finishedAt: timestamp('finished_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    statusIdx: index('jobs_status_idx').on(t.status),
-    recordingIdx: index('jobs_recording_idx').on(t.recordingId),
-  }),
-);
+export interface JobDoc {
+  recordingId: string;
+  workspaceId: string;
+  kind: string;
+  status: JobStatus;
+  error?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
-export const usageEvents = pgTable('usage_events', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  kind: text('kind').notNull(),
-  units: real('units').notNull(),
-  costCents: integer('cost_cents').default(0).notNull(),
-  metadata: jsonb('metadata').default({}).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export interface IntegrationDoc {
+  workspaceId: string;
+  userId: string;
+  provider: IntegrationProvider;
+  accessTokenEncrypted: string;
+  refreshTokenEncrypted?: string;
+  expiresAt?: Timestamp;
+  metadata: Record<string, unknown>;
+  createdAt: Timestamp;
+}
 
-export const ftsView = sql`-- materialized search handled via migration`;
-
-export type Recording = typeof recordings.$inferSelect;
-export type NewRecording = typeof recordings.$inferInsert;
-export type Transcript = typeof transcripts.$inferSelect;
-export type TranscriptSegmentRow = typeof transcriptSegments.$inferSelect;
-export type AIOutputRow = typeof aiOutputs.$inferSelect;
-export type Workspace = typeof workspaces.$inferSelect;
-export type Share = typeof shares.$inferSelect;
+export interface UsageEventDoc {
+  workspaceId: string;
+  userId: string;
+  kind: string;
+  amount: number;
+  recordingId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Timestamp;
+}

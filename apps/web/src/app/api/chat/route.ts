@@ -1,10 +1,15 @@
-import { createSupabaseServer } from '@/lib/supabase-server';
+import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { chatWithRecording, embedTexts } from '@gravador/ai';
 import { detectLocale } from '@gravador/i18n';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+type VectorQueryOptionsCompat = {
+  limit: number;
+  distanceMeasure: 'COSINE' | 'EUCLIDEAN' | 'DOT_PRODUCT';
+};
 
 export async function POST(req: Request) {
   const { recordingId, messages } = (await req.json()) as {
@@ -15,18 +20,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'missing_input' }, { status: 400 });
   }
 
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { data: rec, error: recErr } = await supabase
-    .from('recordings')
-    .select('workspace_id, locale')
-    .eq('id', recordingId)
-    .single();
-  if (recErr || !rec) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const db = getServerDb();
+  const recDoc = await db.collection('recordings').doc(recordingId).get();
+  if (!recDoc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  const rec = recDoc.data() as { workspaceId: string; createdBy: string; locale?: string };
+
+  // Verify user owns this recording or is a workspace member
+  if (rec.createdBy !== user.uid) {
+    const memberDoc = await db
+      .collection('workspaces')
+      .doc(rec.workspaceId)
+      .collection('members')
+      .doc(user.uid)
+      .get();
+    if (!memberDoc.exists) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
 
   const query = messages[messages.length - 1]!.content;
   const [queryEmbedding] = await embedTexts([query]);
@@ -34,28 +45,61 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'embed_failed' }, { status: 500 });
   }
 
-  const { data: chunks } = await supabase.rpc('match_embeddings', {
-    query_embedding: queryEmbedding,
-    ws_id: rec.workspace_id,
-    match_count: 6,
-    min_similarity: 0.5,
+  // Vector search using Firestore findNearest
+  const embeddingsRef = db.collection('recordings').doc(recordingId).collection('embeddings');
+  const findNearestOpts = {
+    limit: 6,
+    distanceMeasure: 'COSINE' as const,
+    distanceResultField: '_distance',
+  };
+  const vectorQuery = embeddingsRef.findNearest(
+    'embedding',
+    queryEmbedding,
+    findNearestOpts as unknown as VectorQueryOptionsCompat,
+  );
+  const embSnap = await vectorQuery.get();
+
+  const context = embSnap.docs.map((d) => {
+    const data = d.data();
+    return {
+      content: data.content as string,
+      startMs: data.startMs as number,
+      endMs: data.endMs as number,
+      similarity: 1 - (data._distance ?? 0),
+    };
   });
 
-  const context = (chunks ?? [])
-    .filter((c: { recording_id: string }) => c.recording_id === recordingId)
-    .map((c: { content: string; start_ms: number; end_ms: number; similarity: number }) => ({
-      content: c.content,
-      startMs: c.start_ms,
-      endMs: c.end_ms,
-      similarity: c.similarity,
-    }));
-
   const locale = detectLocale(rec.locale ?? 'pt-BR');
+
+  // Load workspace AI settings for per-agent model config
+  const wsDoc = await db.collection('workspaces').doc(rec.workspaceId).get();
+  const aiSettings = (wsDoc.data()?.aiSettings ?? {}) as {
+    chatProvider?: string;
+    chatModel?: string;
+    byokKeys?: Record<string, string>;
+    ollamaUrl?: string;
+    agentModels?: Record<string, { provider?: string; model?: string }>;
+  };
+  const chatAgent = aiSettings.agentModels?.chat;
+  const provider = (chatAgent?.provider ?? aiSettings.chatProvider) as
+    | 'anthropic'
+    | 'openai'
+    | 'google'
+    | 'ollama'
+    | 'openrouter'
+    | undefined;
+  const model = chatAgent?.model ?? aiSettings.chatModel;
+
+  const keys = { ...(aiSettings.byokKeys ?? {}) };
+  if (aiSettings.ollamaUrl) keys.ollamaBaseUrl = aiSettings.ollamaUrl;
 
   const result = chatWithRecording({
     messages,
     context,
     locale,
+    ...(provider ? { provider } : {}),
+    ...(model ? { model } : {}),
+    keys,
   });
 
   return result.toDataStreamResponse();

@@ -1,6 +1,7 @@
 'use client';
 
 import { formatDurationMs } from '@gravador/core';
+import { Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 
@@ -15,12 +16,13 @@ export function Player({ src }: { src: string }) {
     if (!containerRef.current || !src) return;
     const ws = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: '#3a4058',
-      progressColor: '#7c5cff',
-      cursorColor: '#a08bff',
-      barWidth: 2,
-      barRadius: 2,
-      height: 80,
+      waveColor: 'rgb(var(--color-mute) / 0.4)',
+      progressColor: 'rgb(var(--color-accent))',
+      cursorColor: 'rgb(var(--color-accentSoft))',
+      barWidth: 3,
+      barGap: 2,
+      barRadius: 999,
+      height: 104,
       url: src,
     });
     ws.on('ready', () => setDuration(ws.getDuration() * 1000));
@@ -43,18 +45,33 @@ export function Player({ src }: { src: string }) {
   }, []);
 
   return (
-    <div>
-      <div ref={containerRef} />
-      <div className="flex items-center justify-between mt-3 text-sm text-mute">
-        <span>{formatDurationMs(current)}</span>
+    <div className="space-y-5">
+      <div className="rounded-[28px] border border-border bg-bg/55 p-5">
+        {src ? (
+          <div ref={containerRef} />
+        ) : (
+          <div className="flex h-[104px] items-center justify-center rounded-[22px] border border-dashed border-border text-sm text-mute">
+            O áudio ainda não está disponível para reprodução.
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[26px] border border-border bg-surfaceAlt/70 px-4 py-4 text-sm text-mute">
+        <div className="rounded-full border border-border px-3 py-1.5 font-mono">
+          {formatDurationMs(current)}
+        </div>
         <button
           type="button"
           onClick={() => wsRef.current?.playPause()}
-          className="bg-accent text-white px-4 py-1.5 rounded-lg hover:bg-accentSoft"
+          className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-onAccent transition hover:bg-accentSoft disabled:opacity-60"
+          disabled={!src}
+          aria-label={playing ? 'Pause audio' : 'Play audio'}
         >
-          {playing ? '❚❚' : '▶'}
+          {playing ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
         </button>
-        <span>{formatDurationMs(duration)}</span>
+        <div className="rounded-full border border-border px-3 py-1.5 font-mono">
+          {formatDurationMs(duration)}
+        </div>
       </div>
     </div>
   );

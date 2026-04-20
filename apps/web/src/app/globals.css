@@ -3,44 +3,261 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --color-bg: #f8f9fb;
-    --color-surface: #ffffff;
-    --color-surfaceAlt: #f0f1f5;
-    --color-border: #e0e2e8;
-    --color-accent: #7c5cff;
-    --color-accentSoft: #a08bff;
-    --color-text: #1a1c22;
-    --color-mute: #6b7080;
-    --color-danger: #e53e5e;
-    --color-ok: #16a34a;
+  /* ── Default theme: Claro (light / blue-gray) ── */
+  :root,
+  [data-theme="claro"] {
+    color-scheme: light;
+    --color-bg: 248 250 252;
+    --color-bg-deep: 241 245 249;
+    --color-surface: 255 255 255;
+    --color-surfaceAlt: 241 245 249;
+    --color-border: 203 213 225;
+    --color-accent: 59 130 246;
+    --color-accentSoft: 96 165 250;
+    --color-text: 15 23 42;
+    --color-mute: 100 116 139;
+    --color-danger: 239 68 68;
+    --color-ok: 22 163 74;
+    --color-onAccent: 255 255 255;
+    --glow1: rgba(59, 130, 246, 0.06);
+    --glow2: rgba(99, 102, 241, 0.04);
+    --selection-bg: rgba(59, 130, 246, 0.18);
+    --accent-shadow: rgba(59, 130, 246, 0.2);
   }
 
-  .dark {
-    --color-bg: #0b0e14;
-    --color-surface: #141824;
-    --color-surfaceAlt: #1b2030;
-    --color-border: #262b3c;
-    --color-accent: #7c5cff;
-    --color-accentSoft: #a08bff;
-    --color-text: #e6e8ef;
-    --color-mute: #8a90a2;
-    --color-danger: #ff5c7c;
-    --color-ok: #34d399;
+  /* ── Terra (warm brown / orange) ── */
+  [data-theme="terra"] {
+    color-scheme: dark;
+    --color-bg: 18 13 10;
+    --color-bg-deep: 11 8 6;
+    --color-surface: 29 21 17;
+    --color-surfaceAlt: 42 31 25;
+    --color-border: 70 52 41;
+    --color-accent: 243 138 55;
+    --color-accentSoft: 255 196 143;
+    --color-text: 247 239 231;
+    --color-mute: 186 163 144;
+    --color-danger: 255 112 93;
+    --color-ok: 121 212 167;
+    --color-onAccent: 18 13 10;
+    --glow1: rgba(243, 138, 55, 0.18);
+    --glow2: rgba(105, 211, 190, 0.12);
+    --selection-bg: rgba(243, 138, 55, 0.32);
+    --accent-shadow: rgba(243, 138, 55, 0.35);
+  }
+
+  /* ── Oceano (deep navy / cyan) ── */
+  [data-theme="oceano"] {
+    --color-bg: 10 16 23;
+    --color-bg-deep: 6 11 16;
+    --color-surface: 17 27 39;
+    --color-surfaceAlt: 25 38 55;
+    --color-border: 41 61 84;
+    --color-accent: 56 189 248;
+    --color-accentSoft: 125 211 252;
+    --color-text: 231 240 247;
+    --color-mute: 138 165 191;
+    --color-danger: 248 113 113;
+    --color-ok: 52 211 153;
+    --color-onAccent: 10 16 23;
+    --glow1: rgba(56, 189, 248, 0.18);
+    --glow2: rgba(59, 130, 246, 0.12);
+    --selection-bg: rgba(56, 189, 248, 0.32);
+    --accent-shadow: rgba(56, 189, 248, 0.35);
+  }
+
+  /* ── Floresta (dark green / emerald) ── */
+  [data-theme="floresta"] {
+    --color-bg: 10 18 14;
+    --color-bg-deep: 6 13 9;
+    --color-surface: 17 29 22;
+    --color-surfaceAlt: 25 42 33;
+    --color-border: 45 70 57;
+    --color-accent: 52 211 153;
+    --color-accentSoft: 110 231 183;
+    --color-text: 231 247 239;
+    --color-mute: 138 191 163;
+    --color-danger: 251 146 60;
+    --color-ok: 52 211 153;
+    --color-onAccent: 10 18 14;
+    --glow1: rgba(52, 211, 153, 0.18);
+    --glow2: rgba(16, 185, 129, 0.12);
+    --selection-bg: rgba(52, 211, 153, 0.32);
+    --accent-shadow: rgba(52, 211, 153, 0.35);
+  }
+
+  /* ── Noite (charcoal / purple) ── */
+  [data-theme="noite"] {
+    --color-bg: 15 11 23;
+    --color-bg-deep: 10 7 18;
+    --color-surface: 26 21 37;
+    --color-surfaceAlt: 37 32 55;
+    --color-border: 61 52 84;
+    --color-accent: 167 139 250;
+    --color-accentSoft: 196 181 253;
+    --color-text: 240 234 247;
+    --color-mute: 160 144 191;
+    --color-danger: 251 113 133;
+    --color-ok: 103 232 249;
+    --color-onAccent: 15 11 23;
+    --glow1: rgba(167, 139, 250, 0.18);
+    --glow2: rgba(139, 92, 246, 0.12);
+    --selection-bg: rgba(167, 139, 250, 0.32);
+    --accent-shadow: rgba(167, 139, 250, 0.35);
+  }
+
+  /* ── Aurora (dark / rose-pink) ── */
+  [data-theme="aurora"] {
+    --color-bg: 21 10 18;
+    --color-bg-deep: 16 7 13;
+    --color-surface: 33 21 32;
+    --color-surfaceAlt: 47 30 46;
+    --color-border: 77 51 73;
+    --color-accent: 244 114 182;
+    --color-accentSoft: 249 168 212;
+    --color-text: 247 231 240;
+    --color-mute: 191 138 171;
+    --color-danger: 251 146 60;
+    --color-ok: 52 211 153;
+    --color-onAccent: 21 10 18;
+    --glow1: rgba(244, 114, 182, 0.18);
+    --glow2: rgba(236, 72, 153, 0.12);
+    --selection-bg: rgba(244, 114, 182, 0.32);
+    --accent-shadow: rgba(244, 114, 182, 0.35);
+  }
+
+  /* ── Ártico (cool gray / ice blue) ── */
+  [data-theme="artico"] {
+    --color-bg: 14 17 20;
+    --color-bg-deep: 9 11 14;
+    --color-surface: 23 28 34;
+    --color-surfaceAlt: 33 40 47;
+    --color-border: 55 65 81;
+    --color-accent: 96 165 250;
+    --color-accentSoft: 147 197 253;
+    --color-text: 241 245 249;
+    --color-mute: 148 163 184;
+    --color-danger: 248 113 113;
+    --color-ok: 74 222 128;
+    --color-onAccent: 14 17 20;
+    --glow1: rgba(96, 165, 250, 0.16);
+    --glow2: rgba(147, 197, 253, 0.1);
+    --selection-bg: rgba(96, 165, 250, 0.32);
+    --accent-shadow: rgba(96, 165, 250, 0.3);
+  }
+
+  /* ── Vulcão (dark / crimson red) ── */
+  [data-theme="vulcao"] {
+    --color-bg: 21 10 10;
+    --color-bg-deep: 16 6 6;
+    --color-surface: 33 20 20;
+    --color-surfaceAlt: 48 28 28;
+    --color-border: 77 47 47;
+    --color-accent: 248 113 113;
+    --color-accentSoft: 252 165 165;
+    --color-text: 247 231 231;
+    --color-mute: 191 138 138;
+    --color-danger: 251 191 36;
+    --color-ok: 52 211 153;
+    --color-onAccent: 21 10 10;
+    --glow1: rgba(248, 113, 113, 0.18);
+    --glow2: rgba(239, 68, 68, 0.12);
+    --selection-bg: rgba(248, 113, 113, 0.32);
+    --accent-shadow: rgba(248, 113, 113, 0.35);
+  }
+
+  /* ── Solaris (dark / golden) ── */
+  [data-theme="solaris"] {
+    --color-bg: 20 17 10;
+    --color-bg-deep: 15 12 6;
+    --color-surface: 31 26 17;
+    --color-surfaceAlt: 44 37 25;
+    --color-border: 74 63 45;
+    --color-accent: 251 191 36;
+    --color-accentSoft: 252 211 77;
+    --color-text: 247 240 231;
+    --color-mute: 191 171 138;
+    --color-danger: 248 113 113;
+    --color-ok: 52 211 153;
+    --color-onAccent: 20 17 10;
+    --glow1: rgba(251, 191, 36, 0.18);
+    --glow2: rgba(245, 158, 11, 0.12);
+    --selection-bg: rgba(251, 191, 36, 0.32);
+    --accent-shadow: rgba(251, 191, 36, 0.35);
   }
 
   html,
   body {
-    background: var(--color-bg);
-    color: var(--color-text);
+    background: rgb(var(--color-bg));
+    color: rgb(var(--color-text));
   }
+
   body {
+    min-height: 100vh;
     font-feature-settings: "cv11";
+    background-image: radial-gradient(circle at top left, var(--glow1), transparent 34%),
+      radial-gradient(circle at 82% 18%, var(--glow2), transparent 24%),
+      linear-gradient(180deg, rgb(var(--color-bg)) 0%, rgb(var(--color-bg-deep)) 100%);
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.2;
+    background-image: linear-gradient(rgb(var(--color-border) / 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--color-border) / 0.08) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 92%);
+  }
+
+  * {
+    scrollbar-color: rgb(var(--color-border)) rgb(var(--color-bg));
+  }
+
+  ::selection {
+    background: var(--selection-bg);
+    color: rgb(var(--color-text));
   }
 }
 
 @layer utilities {
   .card {
-    @apply bg-surface border border-border rounded-xl;
+    @apply rounded-[28px] border border-border bg-surface shadow-studio;
+    backdrop-filter: blur(22px);
+  }
+
+  .display-title {
+    @apply font-display tracking-[-0.04em];
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center rounded-full border border-border bg-surfaceAlt/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-mute;
+  }
+
+  .ambient-shell {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .ambient-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    border: 1px solid rgb(var(--color-border) / 0.12);
+  }
+
+  .glass-divider {
+    border-color: rgb(var(--color-border) / 0.15);
+  }
+
+  .soft-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(20px);
+    opacity: 0.6;
   }
 }

@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "143237037612",
+    "project_id": "hocapp-44760",
+    "storage_bucket": "hocapp-44760.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143237037612:android:31789e1c4b51e86f031b89",
+        "android_client_info": {
+          "package_name": "ai.gravador.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "143237037612-etj2lbdph46vk6u58taa7hm329fv99sm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.gravador.app",
+            "certificate_hash": "fc1de649a513c39ffd36909163357c88f58f0b94"
+          }
+        },
+        {
+          "client_id": "143237037612-likp7uaelm375jjk2pfg4tpi19r0c91a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.gravador.app",
+            "certificate_hash": "d1da8de8c1a53582915aea1ddb51f8e5392cf35c"
+          }
+        },
+        {
+          "client_id": "143237037612-a95vks10tuuaeeab9ekpk0kf4mng06r2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQvrVLWz495gYOvmgE8e3Iu1CXB_o1AYM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "143237037612-a95vks10tuuaeeab9ekpk0kf4mng06r2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "143237037612-hc8jrc15e2ibh2vgg5d6uj4a0j7ejb4l.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ai.gravador.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -11,13 +11,17 @@ export function MindmapView({ payload }: { payload: unknown }) {
   const { nodes, edges } = useMemo(() => toFlow(tree), [tree]);
 
   if (!tree) {
-    return <p className="text-mute">Mapa mental em processamento…</p>;
+    return (
+      <div className="rounded-[28px] border border-dashed border-border bg-bg/45 px-6 py-10 text-center text-mute">
+        Mapa mental em processamento…
+      </div>
+    );
   }
 
   return (
-    <div className="h-[600px] card overflow-hidden">
+    <div className="card h-[min(600px,70vh)] overflow-hidden p-0">
       <ReactFlow nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.3 }}>
-        <Background color="#262b3c" />
+        <Background color="rgb(var(--color-border))" gap={24} />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
@@ -44,11 +48,13 @@ function toFlow(root: MindNode | undefined): { nodes: Node[]; edges: Edge[] } {
       data: { label: n.label },
       position: { x, y: cy },
       style: {
-        background: depth === 0 ? '#7c5cff' : '#141824',
-        color: depth === 0 ? 'white' : '#e6e8ef',
-        border: '1px solid #262b3c',
-        borderRadius: 10,
-        padding: 8,
+        background: depth === 0 ? 'rgb(var(--color-accent))' : 'rgb(var(--color-surface))',
+        color: depth === 0 ? 'rgb(var(--color-onAccent))' : 'rgb(var(--color-text))',
+        border: '1px solid rgb(var(--color-border))',
+        borderRadius: 18,
+        padding: 12,
+        minWidth: 160,
+        boxShadow: '0 24px 60px rgba(0, 0, 0, 0.25)',
         fontSize: 13,
       },
     });
@@ -60,7 +66,7 @@ function toFlow(root: MindNode | undefined): { nodes: Node[]; edges: Edge[] } {
         id: `${n.id}-${child.id}`,
         source: n.id,
         target: child.id,
-        style: { stroke: '#3a4058' },
+        style: { stroke: 'rgb(var(--color-border))', strokeWidth: 1.4 },
       });
       cursor += leaves * layoutRowHeight;
     }

@@ -9,7 +9,7 @@ import { useRecorder } from './store';
  * meter polling, and exposes stable start/stop/pause/resume callbacks.
  *
  * Background behaviour is configured at the native layer via `UIBackgroundModes`
- * (iOS) and a foreground service notification (Android), declared in app.config.ts.
+ * (iOS) and a foreground service notification (Android), declared in app.config.js.
  */
 export function useRecordingController() {
   const recorder = useAudioRecorder({

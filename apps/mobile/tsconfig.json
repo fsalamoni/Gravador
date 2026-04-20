@@ -4,6 +4,7 @@
     "jsx": "react-native",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "customConditions": ["react-native"],
     "allowJs": true,
     "isolatedModules": true,
     "resolveJsonModule": true,

@@ -1,2 +1,2 @@
 export * from './schema.ts';
-export * from './client.ts';
+export { getDb, getAdminAuth, getAdminStorage, getAdminApp } from './client.ts';

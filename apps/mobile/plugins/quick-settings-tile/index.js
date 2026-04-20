@@ -1,6 +1,6 @@
 // Expo config plugin stub — wires the Android QS Tile and iOS AppIntents.
 // See README.md. Fleshed out in Fase 2 native work.
-const { withAndroidManifest, withInfoPlist } = require('@expo/config-plugins');
+const { withAndroidManifest, withInfoPlist } = require('expo/config-plugins');
 
 const withQuickSettingsTile = (config) => {
   let next = withAndroidManifest(config, (mod) => {

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Gravador",
+    "name": "Nexus",
     "tagline": "Grave, transcreva, transforme em conhecimento."
   },
   "auth": {
@@ -10,7 +10,24 @@
     "email": "E-mail",
     "magicLink": "Enviar link mágico",
     "continueWithGoogle": "Continuar com Google",
-    "continueWithApple": "Continuar com Apple"
+    "continueWithApple": "Continuar com Apple",
+    "googleDescription": "Use sua conta Google para acessar o workspace web e sincronizar suas gravações com o backend ativo.",
+    "googleOnly": "Acesso oficial via Google Auth",
+    "googleRedirecting": "Abrindo autenticação do Google...",
+    "googleRequiredError": "O acesso ao Nexus está restrito ao Google Auth.",
+    "googleGenericError": "Não foi possível concluir a autenticação com Google agora.",
+    "googlePopupClosed": "A janela de autenticação foi fechada antes da conclusão.",
+    "googlePopupBlocked": "O navegador bloqueou a janela do Google. Vamos tentar redirecionar automaticamente.",
+    "googleUnauthorizedDomain": "O domínio atual ainda não está autorizado no Firebase Auth para login Google.",
+    "googleOperationNotAllowed": "O provider Google ainda não está habilitado no Firebase Authentication deste projeto.",
+    "googleSessionError": "O login Google voltou, mas o servidor não conseguiu abrir a sessão do Nexus.",
+    "mobilePreparing": "Preparando seu acesso seguro...",
+    "mobileGoogleSubtitle": "Use a mesma conta Google do workspace web para gravar e sincronizar neste dispositivo.",
+    "mobileSigningIn": "Entrando com Google...",
+    "mobileGoogleHint": "Este build usa autenticação Firebase com Google e precisa dos client IDs públicos configurados no Expo.",
+    "mobileGoogleConfigError": "O Google Sign-In ainda não foi configurado para este build mobile.",
+    "mobileGoogleError": "Não foi possível concluir o login Google neste dispositivo.",
+    "mobileGoogleCancelled": "O login Google foi cancelado antes da conclusão."
   },
   "nav": {
     "home": "Início",
@@ -20,7 +37,60 @@
     "search": "Buscar",
     "settings": "Configurações",
     "integrations": "Integrações",
-    "workspace": "Workspace"
+    "workspace": "Workspace",
+    "download": "Baixar app",
+    "docs": "Docs"
+  },
+  "landing": {
+    "eyebrow": "Build Android de teste + workspace web ao vivo",
+    "description": "Grave no celular, processe com IA e mantenha transcrição, resumo, ações, mapa mental e chat sincronizados em um workspace web que já está no ar.",
+    "primaryCta": "Começar grátis",
+    "downloadCta": "Baixar build Android",
+    "githubCta": "GitHub",
+    "mobileStatus": "A prioridade imediata é a distribuição interna no Android. O site agora é o ponto oficial de instalação e validação.",
+    "captureLabel": "Captura",
+    "captureTitle": "Grave direto do bolso",
+    "captureBody": "Comece no mobile, continue com a gravação em segundo plano e sincronize depois sem perder a sessão.",
+    "aiLabel": "Pipeline de IA",
+    "aiTitle": "Transforme áudio bruto em ação",
+    "aiBody": "Cada gravação pode gerar resumo, ações, capítulos, citações e mapa mental em um só fluxo.",
+    "syncLabel": "Workspace web",
+    "syncTitle": "Revise tudo no desktop",
+    "syncBody": "Abra a mesma gravação no workspace web para buscar, compartilhar, reprocessar e seguir trabalhando com o time."
+  },
+  "download": {
+    "title": "Baixe e teste o Nexus",
+    "description": "Instale o build Android de preview atual ou siga usando o workspace web ao vivo enquanto a distribuição mobile é ampliada.",
+    "androidTitle": "Build interno para Android",
+    "androidReadyBody": "O APK interno mais recente já está pronto para validação contra o backend em produção.",
+    "androidPendingBody": "O slot de download já existe, mas o APK Android mais recente ainda não foi publicado no site.",
+    "androidCta": "Baixar APK",
+    "androidPendingCta": "Abrir instruções de instalação",
+    "androidInstallHint": "Como este APK é interno, o Android pode pedir autorização para instalar apps de fontes desconhecidas.",
+    "webTitle": "Use o web app agora",
+    "webBody": "Se você precisa de acesso imediato, entre com sua conta Google e siga no navegador enquanto o build mobile é validado.",
+    "webCta": "Abrir workspace web",
+    "docsTitle": "Notas de release e documentação",
+    "docsBody": "Precisa do workflow de release, runbook de deploy ou guias de self-host? A rota de docs agora é pública e funcional.",
+    "docsCta": "Abrir docs",
+    "iosTitle": "iOS vem na próxima etapa",
+    "iosBody": "iOS e TestFlight ficam para a próxima fase porque as credenciais Apple não entraram no acesso confirmado de hoje.",
+    "statusReady": "Build disponível",
+    "statusPending": "Build pendente"
+  },
+  "docs": {
+    "title": "Docs e referências de release",
+    "description": "Acesso público às referências operacionais, runbooks de deploy e materiais de self-host que sustentam o rollout web e mobile.",
+    "deployTitle": "Setup de deploy",
+    "deployBody": "Cloud Run, Firebase Hosting, preview mobile e configuração de ambientes obrigatórios.",
+    "selfHostTitle": "Guia de self-host",
+    "selfHostBody": "Setup local e self-host com Docker para rodar a stack fora da nuvem gerenciada.",
+    "creditsTitle": "Créditos",
+    "creditsBody": "Referências open source, inspirações e projetos-base usados pelo Nexus.",
+    "repoTitle": "Repositório",
+    "repoBody": "Código-fonte, issues e histórico de releases no GitHub.",
+    "openCta": "Abrir referência",
+    "downloadCta": "Ir para o hub de download"
   },
   "recorder": {
     "start": "Começar a gravar",
@@ -54,6 +124,8 @@
       "chapters": "Capítulos",
       "speakers": "Falantes",
       "quotes": "Citações",
+      "sentiment": "Sentimento",
+      "flashcards": "Flashcards",
       "chat": "Chat com a gravação"
     },
     "actions": {
@@ -86,5 +158,140 @@
     "generic": "Algo deu errado. Tente novamente.",
     "notFound": "Não encontramos o que você procura.",
     "unauthorized": "Você precisa entrar para continuar."
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Conta e preferências",
+    "description": "Configure provedores de IA, escolha modelos para cada agente e gerencie sua conta.",
+    "saving": "Salvando…",
+    "saved": "Salvo",
+    "tabs": {
+      "account": "Conta",
+      "providers": "Provedores de IA",
+      "agents": "Agentes",
+      "security": "Segurança"
+    },
+    "account": {
+      "title": "Perfil conectado",
+      "email": "E-mail",
+      "userId": "User ID"
+    },
+    "providers": {
+      "title": "Provedor de IA",
+      "description": "Selecione o provedor e insira sua API key. Para OpenRouter, uma única chave dá acesso a centenas de modelos.",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Insira sua {provider} API key",
+      "save": "Salvar",
+      "openrouter": "Gateway universal — 300+ modelos, uma API key",
+      "openai": "GPT-4.1, GPT-4.1-mini, Whisper, embeddings",
+      "anthropic": "Claude Sonnet 4.6, Claude Opus 4.7",
+      "google": "Gemini 2.5 Pro, Gemini 2.5 Flash",
+      "groq": "Llama 3.1, Whisper v3 — baixa latência",
+      "ollama": "Modelos locais via servidor self-hosted"
+    },
+    "catalog": {
+      "title": "Catálogo de Modelos",
+      "models": "{count} modelos",
+      "search": "Buscar modelos…",
+      "sortName": "Nome",
+      "sortContext": "Contexto ↓",
+      "sortPrice": "Preço ↑",
+      "loading": "Carregando catálogo…",
+      "empty": "Nenhum modelo encontrado. Verifique a API key do provedor.",
+      "deprecated": "Descontinuado",
+      "reasoning": "Raciocínio",
+      "coding": "Código"
+    },
+    "agents": {
+      "title": "Modelos por Agente",
+      "description": "Cada agente/pipeline pode usar um modelo diferente. Se nenhum modelo for escolhido, o agente usa o modelo padrão do workspace.",
+      "workspaceDefault": "Padrão do workspace",
+      "unavailable": "Modelo indisponível",
+      "unavailableMessage": "O modelo {model} não está mais disponível no catálogo. Selecione outro modelo.",
+      "loading": "Carregando modelos…",
+      "summarize": "Resumo",
+      "summarizeDesc": "TL;DR, bullet points e resumo longo",
+      "actionItems": "Itens de Ação",
+      "actionItemsDesc": "Tarefas, responsáveis e prazos",
+      "mindmap": "Mapa Mental",
+      "mindmapDesc": "Hierarquia visual do conteúdo",
+      "chapters": "Capítulos",
+      "chaptersDesc": "Segmentação temporal do áudio",
+      "chat": "Chat",
+      "chatDesc": "Conversa com a gravação (RAG)",
+      "embed": "Embeddings",
+      "embedDesc": "Indexação vetorial para busca",
+      "transcribe": "Transcrição",
+      "transcribeDesc": "Conversão de áudio para texto"
+    },
+    "security": {
+      "title": "Segurança",
+      "googleAuth": "Autenticação exclusiva via Google.",
+      "sessionSeparation": "Sessão do servidor separada do token do cliente.",
+      "keysEncrypted": "Chaves de API cifradas em repouso, nunca expostas ao frontend após salvamento.",
+      "healthCheck": "Infra de produção validada com health check real."
+    }
+  },
+  "workspace": {
+    "overview": "Visão geral",
+    "recentRecordings": "Gravações recentes",
+    "viewAll": "Ver todas",
+    "recentItems": "Itens recentes",
+    "audioInWindow": "Áudio nesta janela",
+    "readyForAI": "Prontas para IA",
+    "noRecordingsYet": "Sem gravações ainda",
+    "pipelineVisible": "Pipeline visível",
+    "captureOnMobile": "Capture no mobile",
+    "recordings": {
+      "title": "Biblioteca de gravações",
+      "items": "Itens",
+      "inLibrary": "Na biblioteca atual",
+      "hoursAccumulated": "De áudio acumulado",
+      "empty": "Nenhuma gravação ainda"
+    },
+    "recording": {
+      "back": "Voltar para gravações",
+      "detail": "Detalhe da gravação",
+      "status": "Status atual",
+      "duration": "Duração",
+      "aiOutputs": "Outputs vinculados",
+      "transcriptPending": "A transcrição aparecerá aqui quando o processamento terminar",
+      "summaryPending": "Resumo em processamento…",
+      "noActions": "Nenhuma ação detectada (ou ainda em processamento)",
+      "actionOwner": "Owner",
+      "actionDue": "Due",
+      "chaptersPending": "Capítulos em processamento…",
+      "mindmapPending": "Mapa mental em processamento…",
+      "speaker": "Falante",
+      "noAudio": "O áudio ainda não está disponível para reprodução",
+      "askQuestion": "Faça uma pergunta sobre esta gravação"
+    },
+    "search": {
+      "title": "Search layer",
+      "placeholder": "Buscar no acervo...",
+      "semantic": "Semântica",
+      "keyword": "Palavras-chave",
+      "noResults": "Nenhum resultado",
+      "button": "Buscar",
+      "naturalLanguage": "Pergunte em linguagem natural…"
+    },
+    "shell": {
+      "overviewDesc": "Dashboard e estatísticas",
+      "recordingsDesc": "Biblioteca de gravações",
+      "searchDesc": "Busca semântica e por palavras-chave",
+      "integrationsDesc": "Serviços conectados",
+      "settingsDesc": "Conta e preferências",
+      "adminDesc": "Estatísticas de uso e admin",
+      "pipeline": "Pipeline",
+      "mobileCapture": "Capture no mobile",
+      "aiProcessing": "Processamento IA",
+      "workspaceDelivery": "Entrega no workspace",
+      "activeSession": "Sessão ativa",
+      "signOut": "Sair"
+    },
+    "share": {
+      "expired": "Este link expirou ou foi revogado",
+      "publicNotice": "Compartilhamento público — conteúdo é restrito ao que o criador permitiu"
+    }
   }
 }

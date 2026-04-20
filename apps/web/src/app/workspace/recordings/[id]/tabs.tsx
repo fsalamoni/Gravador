@@ -1,16 +1,28 @@
 'use client';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ActionsView } from './actions';
 import { ChaptersView } from './chapters';
 import { ChatView } from './chat';
+import { FlashcardsView } from './flashcards';
 import { MindmapView } from './mindmap';
+import { QuotesView } from './quotes';
+import { SentimentView } from './sentiment';
 import { SummaryView } from './summary';
 import { TranscriptView } from './transcript';
 
 type Output = { kind: string; payload: unknown };
+
+interface ActionItem {
+  id: string;
+  text: string;
+  assignee: string | null;
+  dueDate: string | null;
+  done: boolean;
+}
 
 interface Props {
   recordingId: string;
@@ -23,9 +35,10 @@ interface Props {
     speaker_id: string | null;
   }>;
   outputs: Output[];
+  actionItems: ActionItem[];
 }
 
-export function RecordingTabs({ recordingId, transcript, segments, outputs }: Props) {
+export function RecordingTabs({ recordingId, transcript, segments, outputs, actionItems }: Props) {
   const t = useTranslations('recording.tabs');
   const [tab, setTab] = useState('transcript');
 
@@ -33,7 +46,10 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs }: Pr
 
   return (
     <Tabs.Root value={tab} onValueChange={setTab}>
-      <Tabs.List className="flex gap-1 border-b border-border">
+      <Tabs.List
+        className="flex flex-wrap gap-2 rounded-[24px] border border-border bg-bg/55 p-2"
+        aria-label="Recording content tabs"
+      >
         {(
           [
             ['transcript', t('transcript')],
@@ -41,13 +57,16 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs }: Pr
             ['actions', t('actions')],
             ['mindmap', t('mindmap')],
             ['chapters', t('chapters')],
+            ['quotes', t('quotes')],
+            ['sentiment', t('sentiment')],
+            ['flashcards', t('flashcards')],
             ['chat', t('chat')],
           ] as const
         ).map(([key, label]) => (
           <Tabs.Trigger
             key={key}
             value={key}
-            className="px-4 py-2.5 text-sm text-mute data-[state=active]:text-text data-[state=active]:border-b-2 data-[state=active]:border-accent -mb-px"
+            className="rounded-full px-4 py-2.5 text-sm font-medium text-mute transition data-[state=active]:bg-accent data-[state=active]:text-onAccent"
           >
             {label}
           </Tabs.Trigger>
@@ -55,22 +74,49 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs }: Pr
       </Tabs.List>
       <div className="mt-6">
         <Tabs.Content value="transcript">
-          <TranscriptView segments={segments} />
+          <ErrorBoundary>
+            <TranscriptView segments={segments} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="summary">
-          <SummaryView payload={byKind.get('summary')} />
+          <ErrorBoundary>
+            <SummaryView payload={byKind.get('summary')} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="actions">
-          <ActionsView payload={byKind.get('action_items')} recordingId={recordingId} />
+          <ErrorBoundary>
+            <ActionsView items={actionItems} recordingId={recordingId} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="mindmap">
-          <MindmapView payload={byKind.get('mindmap')} />
+          <ErrorBoundary>
+            <MindmapView payload={byKind.get('mindmap')} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="chapters">
-          <ChaptersView payload={byKind.get('chapters')} />
+          <ErrorBoundary>
+            <ChaptersView payload={byKind.get('chapters')} />
+          </ErrorBoundary>
+        </Tabs.Content>
+        <Tabs.Content value="quotes">
+          <ErrorBoundary>
+            <QuotesView payload={byKind.get('quotes')} />
+          </ErrorBoundary>
+        </Tabs.Content>
+        <Tabs.Content value="sentiment">
+          <ErrorBoundary>
+            <SentimentView payload={byKind.get('sentiment')} />
+          </ErrorBoundary>
+        </Tabs.Content>
+        <Tabs.Content value="flashcards">
+          <ErrorBoundary>
+            <FlashcardsView payload={byKind.get('flashcards')} />
+          </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="chat">
-          <ChatView recordingId={recordingId} />
+          <ErrorBoundary>
+            <ChatView recordingId={recordingId} />
+          </ErrorBoundary>
         </Tabs.Content>
       </div>
     </Tabs.Root>

@@ -1,41 +1,14 @@
-import { createSupabaseServer } from '@/lib/supabase-server';
-import Link from 'next/link';
+import { WorkspaceShell } from '@/components/workspace-shell';
+import { getSessionUser } from '@/lib/firebase-server';
 import { redirect } from 'next/navigation';
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect('/login');
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-60 border-r border-border bg-surface p-6 flex flex-col gap-2">
-        <Link href="/workspace" className="text-lg font-semibold tracking-tight mb-6">
-          Gravador
-        </Link>
-        <NavItem href="/workspace">Início</NavItem>
-        <NavItem href="/workspace/recordings">Gravações</NavItem>
-        <NavItem href="/workspace/search">Buscar</NavItem>
-        <NavItem href="/workspace/integrations">Integrações</NavItem>
-        <NavItem href="/workspace/settings">Configurações</NavItem>
-        <div className="mt-auto pt-4 border-t border-border">
-          <NavItem href="/download">Download App</NavItem>
-        </div>
-      </aside>
-      <main className="flex-1 p-8">{children}</main>
-    </div>
-  );
-}
-
-function NavItem({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="px-3 py-2 rounded-lg text-mute hover:bg-surfaceAlt hover:text-text transition"
-    >
+    <WorkspaceShell email={user.email ?? null} uid={user.uid}>
       {children}
-    </Link>
+    </WorkspaceShell>
   );
 }

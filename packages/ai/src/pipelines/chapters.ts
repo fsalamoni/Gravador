@@ -19,7 +19,7 @@ export async function runChapters(input: {
   segments: TranscriptSegment[];
   locale: Locale;
   model?: ChatModelName;
-  provider?: 'anthropic' | 'openai' | 'google' | 'ollama';
+  provider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
   keys?: ProviderKeys;
 }) {
   const started = Date.now();
