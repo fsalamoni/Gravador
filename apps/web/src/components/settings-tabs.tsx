@@ -344,29 +344,49 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
         </div>
       </section>
 
-      {/* Tabs */}
-      <section className="card bg-surface px-4 py-3 sm:px-5">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const isActive = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`inline-flex min-w-fit items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? 'border-accent bg-accent text-onAccent'
-                    : 'border-border bg-surfaceAlt/50 text-mute hover:text-text'
+      {/* Tab selector — each tab rendered as a card tile, matching the platform visual language */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const isActive = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`card flex flex-col items-start gap-3 p-5 text-left transition ${
+                isActive
+                  ? 'border-accent ring-2 ring-accent/30'
+                  : 'hover:border-accent/40 hover:shadow-studio'
+              }`}
+              aria-pressed={isActive}
+            >
+              <div
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
+                  isActive ? 'bg-accent text-onAccent' : 'bg-surfaceAlt text-mute'
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className={`font-semibold ${isActive ? 'text-accent' : 'text-text'}`}>
+                  {t.label}
+                </div>
+                <div className="mt-1 text-xs leading-5 text-mute">
+                  {
+                    {
+                      account: 'E-mail, ID e perfil',
+                      appearance: 'Temas de cor',
+                      providers: 'APIs e catálogo',
+                      agents: 'Modelos por agente',
+                      security: 'Proteção e privacidade',
+                    }[t.id]
+                  }
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </section>
 
       {/* Tab Content */}

@@ -55,8 +55,17 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   const messages = await getMessages();
+  // Inline script runs before React hydrates to apply the persisted theme, avoiding
+  // flash-of-wrong-theme. Defaults to "claro" when no preference is stored.
+  const themeBootstrap = `
+(function(){try{var t=localStorage.getItem('nexus-theme');var v=['claro','terra','oceano','floresta','noite','aurora','artico','vulcao','solaris'];if(!t||v.indexOf(t)===-1){t='claro';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','claro');}})();
+`;
   return (
-    <html lang={locale} className={`dark ${sans.variable} ${display.variable}`}>
+    <html lang={locale} data-theme="claro" className={`${sans.variable} ${display.variable}`}>
+      <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: inline theme bootstrap to avoid FOUC */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className="min-h-screen bg-bg font-sans text-text antialiased">
         <ThemeProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
