@@ -58,6 +58,15 @@
 7. `recordings.status` transitions `queued → transcribing → summarizing → embedding → ready`.
 8. Web client reads via Server Components; chat uses `/api/chat` with Firestore vector search (findNearest).
 
+### Web recorder (browser)
+
+The web app also supports **in-browser audio recording** via the Web Audio API:
+
+- **Hook**: `useWebRecorder` (`hooks/use-web-recorder.ts`) — wraps `navigator.mediaDevices.getUserMedia` + `MediaRecorder` API.
+- **Component**: `WebRecorderButton` (`workspace/recordings/web-recorder-button.tsx`) — client component with mic/stop buttons and live duration display.
+- **Flow**: Record → stop → upload blob to Firebase Storage → create Firestore `recordings` doc with status `transcribing` → AI pipeline picks it up automatically.
+- **workspaceId**: Resolved server-side by querying Firestore `workspaces` collection (not cookie-based).
+
 ## Isolation contract
 
 - Gravador uses the named Firestore database `anotes`.
@@ -157,6 +166,36 @@ The AI pipeline worker (`process-recording.ts`) implements:
 - **Exponential backoff**: Each pipeline call is wrapped in `withRetry()` — up to 3 retries with `BASE_DELAY * 2^attempt + jitter` delays.
 - **Per-pipeline status**: After fan-out completes, `pipelineResults` (e.g. `{ summary: 'ok', mindmap: 'failed' }`) is stored on the recording document.
 - **Graceful degradation**: `Promise.allSettled` ensures one failing pipeline doesn't block others. Only successful outputs are persisted.
+
+## Model Catalog (OpenRouter)
+
+The web app supports a **dynamic model catalog** via OpenRouter's API:
+
+- **API route**: `GET /api/models?provider=openrouter` — fetches all text-capable models from `https://openrouter.ai/api/v1/models`.
+- **Firestore cache**: Models stored in `model_catalog` collection with 6-hour TTL. Refresh triggered automatically when stale.
+- **Live fallback**: If Firestore index query fails, falls back to direct OpenRouter API call.
+- **Settings UI**: `settings-tabs.tsx` loads the full catalog. When no models are manually selected, **all available models** are shown in agent selection dropdowns. Users can optionally narrow the list via the catalog modal.
+- **Agent assignment**: Each AI agent (summary, mindmap, chapters, etc.) can be assigned a specific model from the catalog.
+
+## Transcription Providers
+
+The `transcribe()` function in `@gravador/ai` supports 3 providers:
+
+| Provider              | Model             | Cost              | Notes                                    |
+|-----------------------|-------------------|-------------------|------------------------------------------|
+| **Groq** (default)    | Whisper Large v3  | Free              | Rate limit ~20 req/min. Fastest (<1x RT) |
+| **OpenAI**            | Whisper-1         | ~$0.006/min audio | No aggressive rate limit                 |
+| **Local (self-host)** | faster-whisper    | Free              | Requires own GPU                         |
+
+Configuration: `aiSettings.transcribeProvider` + `aiSettings.transcribeModel` in workspace settings. Keys stored in `aiSettings.byokKeys`.
+
+## CI/CD
+
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): lint (biome) → typecheck (turbo) → tests — runs on push to `main` and PRs.
+- **Firebase Hosting** (`.github/workflows/firebase-hosting.yml`): Deploys Firestore indexes and hosting on push to `main`.
+- **Cloud Build** (`infra/cloudbuild/web.yaml`): Builds Docker image with all `NEXT_PUBLIC_*` env vars baked in, pushes to Artifact Registry.
+- **Cloud Run**: Serves the web app at `anotes.web.app` via custom domain mapping. Deployed manually via `gcloud run deploy`.
+- **EAS Build** (`.github/workflows/eas-preview.yml`): Builds Android APK on PRs touching mobile code. Manual builds via `eas build --profile preview`.
 
 ## Command Palette (⌘K)
 
