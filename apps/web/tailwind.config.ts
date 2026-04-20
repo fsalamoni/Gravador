@@ -5,16 +5,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0b0e14',
-        surface: '#141824',
-        surfaceAlt: '#1b2030',
-        border: '#262b3c',
-        accent: '#7c5cff',
-        accentSoft: '#a08bff',
-        text: '#e6e8ef',
-        mute: '#8a90a2',
-        danger: '#ff5c7c',
-        ok: '#34d399',
+        bg: 'var(--color-bg)',
+        surface: 'var(--color-surface)',
+        surfaceAlt: 'var(--color-surfaceAlt)',
+        border: 'var(--color-border)',
+        accent: 'var(--color-accent)',
+        accentSoft: 'var(--color-accentSoft)',
+        text: 'var(--color-text)',
+        mute: 'var(--color-mute)',
+        danger: 'var(--color-danger)',
+        ok: 'var(--color-ok)',
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui'],

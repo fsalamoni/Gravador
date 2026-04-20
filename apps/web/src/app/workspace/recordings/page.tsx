@@ -1,6 +1,7 @@
 import { createSupabaseServer } from '@/lib/supabase-server';
 import { formatDurationMs } from '@gravador/core';
 import Link from 'next/link';
+import { RecordingsPageClient } from './recordings-client';
 
 export default async function RecordingsListPage() {
   const supabase = await createSupabaseServer();
@@ -12,7 +13,10 @@ export default async function RecordingsListPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold mb-6">Gravações</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-semibold">Gravações</h1>
+        <RecordingsPageClient />
+      </div>
       <div className="card divide-y divide-border">
         {(recordings ?? []).map((r) => (
           <Link
