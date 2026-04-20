@@ -117,12 +117,12 @@ export function normalizeTargetFolder(
 ) {
   const trimmed = input?.trim();
   if (!trimmed) return getDefaultTargetFolder(integrationId);
-  const withoutTrailing = trimmed.replace(/\/+$/, '');
+  const withoutTrailing = trimTrailingSlashes(trimmed);
   return withoutTrailing.startsWith('/') ? withoutTrailing : `/${withoutTrailing}`;
 }
 
 export function buildWhatsAppReceiveUrl(appBaseUrl: string) {
-  return `${appBaseUrl.replace(/\/+$/, '')}/api/integrations/whatsapp/inbound`;
+  return `${trimTrailingSlashes(appBaseUrl)}/api/integrations/whatsapp/inbound`;
 }
 
 export function sanitizeIntegrationForClient(
@@ -188,7 +188,7 @@ export async function syncRecordingToStorageIntegration(params: {
   const audioBytes = await downloadRecordingAudio(recording.storagePath);
   const recordingFolderName = buildRecordingFolderName(bundle.recording.title, params.recordingId);
   const targetFolder = normalizeTargetFolder(integration.targetFolder, params.integrationId);
-  const fullFolderPath = `${targetFolder}/${recordingFolderName}`.replace(/\/{2,}/g, '/');
+  const fullFolderPath = joinPathSegments(targetFolder, recordingFolderName);
   const baseName = sanitizeFilename(bundle.recording.title || params.recordingId);
   const audioExt = fileExtensionFromMime(recording.mimeType, recording.storagePath);
   const files = [
@@ -547,7 +547,7 @@ async function ensureGoogleDriveFolder(accessToken: string, targetPath: string) 
   let parentId = 'root';
   for (const segment of splitFolderPath(targetPath)) {
     const query = encodeURIComponent(
-      `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${segment.replace(/'/g, "\\'")}' and '${parentId}' in parents`,
+      `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${escapeGoogleDriveQueryValue(segment)}' and '${escapeGoogleDriveQueryValue(parentId)}' in parents`,
     );
     const listRes = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)&pageSize=1`,
@@ -671,7 +671,7 @@ async function uploadDropboxFile(
 async function ensureOneDriveFolder(accessToken: string, targetPath: string) {
   let current = '';
   for (const segment of splitFolderPath(targetPath)) {
-    current = `${current}/${segment}`.replace(/\/{2,}/g, '/');
+    current = joinPathSegments(current, segment);
     const getRes = await fetch(
       `https://graph.microsoft.com/v1.0/me/drive/root:${encodeOneDrivePath(current)}`,
       {
@@ -762,15 +762,48 @@ function splitFolderPath(input: string) {
 }
 
 function normalizeDropboxPath(input: string) {
-  const normalized = input.replace(/\/{2,}/g, '/');
+  const normalized = collapseSlashes(input);
   return normalized.startsWith('/') ? normalized : `/${normalized}`;
 }
 
 function encodeOneDrivePath(input: string) {
-  const normalized = input.replace(/\/{2,}/g, '/').replace(/\/+$/, '');
+  const normalized = trimTrailingSlashes(collapseSlashes(input));
   return normalized
     .split('/')
     .filter(Boolean)
     .map((segment) => `/${encodeURIComponent(segment)}`)
     .join('');
+}
+
+function trimTrailingSlashes(input: string) {
+  let index = input.length;
+  while (index > 0 && input[index - 1] === '/') {
+    index -= 1;
+  }
+  return input.slice(0, index);
+}
+
+function collapseSlashes(input: string) {
+  let output = '';
+  let previousSlash = false;
+  for (const char of input) {
+    if (char === '/') {
+      if (!previousSlash) output += char;
+      previousSlash = true;
+      continue;
+    }
+    previousSlash = false;
+    output += char;
+  }
+  return output;
+}
+
+function joinPathSegments(...segments: string[]) {
+  const joined = segments.filter(Boolean).join('/');
+  const normalized = collapseSlashes(joined);
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+function escapeGoogleDriveQueryValue(value: string) {
+  return value.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
 }

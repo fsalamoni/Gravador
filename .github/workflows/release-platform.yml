@@ -33,6 +33,8 @@ env:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,6 +52,8 @@ jobs:
     needs: validate
     if: ${{ inputs.build_android && vars['HAS_EXPO_TOKEN'] == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -86,6 +90,8 @@ jobs:
     needs: validate
     if: ${{ inputs.build_ios && vars['HAS_EXPO_TOKEN'] == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -196,19 +202,23 @@ jobs:
       - name: Build and publish web container
         env:
           COMMIT_SHA: ${{ github.sha }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          CLOUD_BUILD_SERVICE_ACCOUNT: ${{ vars['CLOUD_BUILD_SERVICE_ACCOUNT'] }}
         run: |
           BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          service_account="${CLOUD_BUILD_SERVICE_ACCOUNT:-${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com}"
           gcloud builds submit \
-            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --project "$FIREBASE_PROJECT_ID" \
             --region us-central1 \
-            --service-account "projects/${{ secrets.FIREBASE_PROJECT_ID }}/serviceAccounts/hocapp-44760@appspot.gserviceaccount.com" \
+            --service-account "projects/$FIREBASE_PROJECT_ID/serviceAccounts/$service_account" \
             --config infra/cloudbuild/web.yaml \
-            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/${{ secrets.FIREBASE_PROJECT_ID }}/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app,_NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA},_NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME} \
+            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/$FIREBASE_PROJECT_ID/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app,_NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA},_NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME} \
             .
       - name: Deploy Cloud Run service
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_STORAGE_BUCKET: hocapp-44760.firebasestorage.app
+          CLOUD_RUN_SERVICE_ACCOUNT: ${{ vars['CLOUD_RUN_SERVICE_ACCOUNT'] }}
           ANDROID_PREVIEW_URL: ${{ vars['ANDROID_PREVIEW_URL'] }}
           INTERNAL_WEBHOOK_SECRET: ${{ secrets['INTERNAL_WEBHOOK_SECRET'] }}
           OPENAI_API_KEY: ${{ secrets['OPENAI_API_KEY'] }}
@@ -223,6 +233,7 @@ jobs:
           DROPBOX_OAUTH_CLIENT_SECRET: ${{ secrets['DROPBOX_OAUTH_CLIENT_SECRET'] }}
         run: |
           env_vars="NEXT_PUBLIC_APP_URL=https://anotes.web.app,FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID,FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET,FIRESTORE_DATABASE_ID=anotes"
+          service_account="${CLOUD_RUN_SERVICE_ACCOUNT:-${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com}"
           for key in ANDROID_PREVIEW_URL INTERNAL_WEBHOOK_SECRET OPENAI_API_KEY ANTHROPIC_API_KEY GROQ_API_KEY GOOGLE_GENERATIVE_AI_API_KEY GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET DROPBOX_OAUTH_CLIENT_ID DROPBOX_OAUTH_CLIENT_SECRET; do
             value="${!key}"
             if [[ -n "$value" ]]; then
@@ -233,7 +244,7 @@ jobs:
             --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
             --region us-central1 \
             --image "us-central1-docker.pkg.dev/${{ secrets.FIREBASE_PROJECT_ID }}/gravador-web/anotes-web:latest" \
-            --service-account hocapp-44760@appspot.gserviceaccount.com \
+            --service-account "$service_account" \
             --allow-unauthenticated \
             --port 3000 \
             --memory 512Mi \

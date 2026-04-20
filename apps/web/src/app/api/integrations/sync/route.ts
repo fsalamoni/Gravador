@@ -94,6 +94,7 @@ async function resolveRecordingIds(
   limit = 5,
 ) {
   if (recordingId) return [recordingId];
+  // Keep the batch intentionally small to avoid long-running provider sync requests and API quotas.
   const cap = Math.min(Math.max(limit, 1), 10);
   const snap = await db
     .collection('recordings')

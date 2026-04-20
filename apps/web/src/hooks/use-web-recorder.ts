@@ -79,9 +79,7 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      finalDurationRef.current = startTimeRef.current
-        ? Date.now() - startTimeRef.current
-        : durationMs;
+      finalDurationRef.current = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setStatusMessage('Finalizando e enviando a gravação…');
