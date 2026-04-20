@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getDefaultTargetFolder } from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -184,7 +185,14 @@ export async function GET(req: Request) {
         accessToken: token.access_token,
         refreshToken: token.refresh_token ?? null,
         expiresIn: token.expires_in ?? null,
+        tokenObtainedAt: new Date().toISOString(),
         scope: token.scope ?? null,
+        targetFolder:
+          stateData.integrationId === 'google-drive' ||
+          stateData.integrationId === 'onedrive' ||
+          stateData.integrationId === 'dropbox'
+            ? getDefaultTargetFolder(stateData.integrationId)
+            : null,
       },
       { merge: true },
     );

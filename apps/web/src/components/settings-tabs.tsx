@@ -914,6 +914,20 @@ function AgentsTab({
           Escolha o provedor e modelo para transcrição de áudio (speech-to-text). Cada provedor tem
           características e custos diferentes.
         </p>
+        <div className="mt-3 grid gap-2 text-xs text-mute sm:grid-cols-3">
+          <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
+            <strong className="text-text">Velocidade:</strong> Groq costuma ser o mais rápido para
+            backlog alto.
+          </div>
+          <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
+            <strong className="text-text">Qualidade:</strong> OpenAI Whisper segue como referência
+            estável em múltiplos idiomas.
+          </div>
+          <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
+            <strong className="text-text">Privacidade:</strong> faster-whisper local evita envio de
+            áudio para terceiros.
+          </div>
+        </div>
 
         {/* Detailed provider explanations */}
         <div className="mt-4 space-y-3">
@@ -967,6 +981,10 @@ function AgentsTab({
             </div>
           </div>
         </div>
+        <p className="mt-3 text-xs leading-6 text-mute">
+          Valores de custo são referências públicas por hora/minuto e podem variar; confirme a
+          tabela oficial do provedor antes de estimar produção.
+        </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>

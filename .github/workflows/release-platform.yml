@@ -1,0 +1,276 @@
+name: Release Platform
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Perfil EAS para mobile
+        required: true
+        default: production
+        type: choice
+        options:
+          - preview
+          - production
+      deploy_web:
+        description: Publicar o web
+        required: true
+        default: true
+        type: boolean
+      build_android:
+        description: Gerar build Android
+        required: true
+        default: true
+        type: boolean
+      build_ios:
+        description: Gerar build iOS
+        required: true
+        default: true
+        type: boolean
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm -r --if-present run test
+
+  mobile-android:
+    needs: validate
+    if: ${{ inputs.build_android && vars['HAS_EXPO_TOKEN'] == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Build Android
+        id: android
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
+        run: |
+          eas build --profile "${{ inputs.profile }}" --platform android --non-interactive --json > eas-android.json
+          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('eas-android.json','utf8')); const build=Array.isArray(payload)?payload[0]:payload; fs.appendFileSync(process.env.GITHUB_OUTPUT, `id=${build?.id ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `details=${build?.detailsPageUrl ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact=${build?.artifacts?.buildUrl ?? ''}\n`);"
+      - name: Android summary
+        run: |
+          {
+            echo "## Android"
+            echo ""
+            echo "- Profile: ${{ inputs.profile }}"
+            echo "- Build ID: ${{ steps.android.outputs.id || 'n/a' }}"
+            echo "- Details: ${{ steps.android.outputs.details || 'n/a' }}"
+            echo "- Artifact: ${{ steps.android.outputs.artifact || 'n/a' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  mobile-ios:
+    needs: validate
+    if: ${{ inputs.build_ios && vars['HAS_EXPO_TOKEN'] == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Build iOS
+        id: ios
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
+        run: |
+          eas build --profile "${{ inputs.profile }}" --platform ios --non-interactive --json > eas-ios.json
+          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('eas-ios.json','utf8')); const build=Array.isArray(payload)?payload[0]:payload; fs.appendFileSync(process.env.GITHUB_OUTPUT, `id=${build?.id ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `details=${build?.detailsPageUrl ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact=${build?.artifacts?.buildUrl ?? ''}\n`);"
+      - name: iOS summary
+        run: |
+          {
+            echo "## iOS"
+            echo ""
+            echo "- Profile: ${{ inputs.profile }}"
+            echo "- Build ID: ${{ steps.ios.outputs.id || 'n/a' }}"
+            echo "- Details: ${{ steps.ios.outputs.details || 'n/a' }}"
+            echo "- Artifact/TestFlight: ${{ steps.ios.outputs.artifact || steps.ios.outputs.details || 'n/a' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web:
+    needs: validate
+    if: ${{ inputs.deploy_web }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check deploy secrets
+        shell: bash
+        env:
+          HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          HAS_PID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
+          HAS_API_KEY: ${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] != '' }}
+          HAS_AUTH_DOMAIN: ${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] != '' }}
+          HAS_WEB_PID: ${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] != '' }}
+          HAS_STORAGE_BUCKET: ${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] != '' }}
+          HAS_SENDER_ID: ${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] != '' }}
+          HAS_APP_ID: ${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] != '' }}
+        run: |
+          missing=()
+          [[ "$HAS_SA"             == "true" ]] || missing+=("FIREBASE_SERVICE_ACCOUNT")
+          [[ "$HAS_PID"            == "true" ]] || missing+=("FIREBASE_PROJECT_ID")
+          [[ "$HAS_API_KEY"        == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_API_KEY")
+          [[ "$HAS_AUTH_DOMAIN"    == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN")
+          [[ "$HAS_WEB_PID"        == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_PROJECT_ID")
+          [[ "$HAS_STORAGE_BUCKET" == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET")
+          [[ "$HAS_SENDER_ID"      == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID")
+          [[ "$HAS_APP_ID"         == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_APP_ID")
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing required GitHub secrets for deploy: ${missing[*]}"
+            exit 1
+          fi
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      - name: Deploy Firebase platform config
+        env:
+          FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          pnpm exec firebase deploy \
+            --only firestore:indexes,firestore:rules,storage \
+            --project "$FIREBASE_PID" \
+            --non-interactive \
+            --force
+      - name: Wait for Firestore indexes
+        env:
+          FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          node scripts/wait-firestore-indexes.mjs \
+            --project "$FIREBASE_PID" \
+            --database anotes \
+            --timeout-ms 900000
+      - name: Ensure Artifact Registry repository
+        run: |
+          gcloud artifacts repositories describe gravador-web \
+            --location us-central1 \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" >/dev/null 2>&1 || \
+          gcloud artifacts repositories create gravador-web \
+            --repository-format=docker \
+            --location=us-central1 \
+            --description="Gravador web containers" \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+      - name: Build and publish web container
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          CLOUD_BUILD_SERVICE_ACCOUNT: ${{ vars['CLOUD_BUILD_SERVICE_ACCOUNT'] }}
+        run: |
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          service_account="${CLOUD_BUILD_SERVICE_ACCOUNT:-${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com}"
+          gcloud builds submit \
+            --project "$FIREBASE_PROJECT_ID" \
+            --region us-central1 \
+            --service-account "projects/$FIREBASE_PROJECT_ID/serviceAccounts/$service_account" \
+            --config infra/cloudbuild/web.yaml \
+            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/$FIREBASE_PROJECT_ID/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app,_NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA},_NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME} \
+            .
+      - name: Deploy Cloud Run service
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: hocapp-44760.firebasestorage.app
+          CLOUD_RUN_SERVICE_ACCOUNT: ${{ vars['CLOUD_RUN_SERVICE_ACCOUNT'] }}
+          ANDROID_PREVIEW_URL: ${{ vars['ANDROID_PREVIEW_URL'] }}
+          INTERNAL_WEBHOOK_SECRET: ${{ secrets['INTERNAL_WEBHOOK_SECRET'] }}
+          OPENAI_API_KEY: ${{ secrets['OPENAI_API_KEY'] }}
+          ANTHROPIC_API_KEY: ${{ secrets['ANTHROPIC_API_KEY'] }}
+          GROQ_API_KEY: ${{ secrets['GROQ_API_KEY'] }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets['GOOGLE_GENERATIVE_AI_API_KEY'] }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets['GOOGLE_OAUTH_CLIENT_ID'] }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets['GOOGLE_OAUTH_CLIENT_SECRET'] }}
+          MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets['MICROSOFT_OAUTH_CLIENT_ID'] }}
+          MICROSOFT_OAUTH_CLIENT_SECRET: ${{ secrets['MICROSOFT_OAUTH_CLIENT_SECRET'] }}
+          DROPBOX_OAUTH_CLIENT_ID: ${{ secrets['DROPBOX_OAUTH_CLIENT_ID'] }}
+          DROPBOX_OAUTH_CLIENT_SECRET: ${{ secrets['DROPBOX_OAUTH_CLIENT_SECRET'] }}
+        run: |
+          env_vars="NEXT_PUBLIC_APP_URL=https://anotes.web.app,FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID,FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET,FIRESTORE_DATABASE_ID=anotes"
+          service_account="${CLOUD_RUN_SERVICE_ACCOUNT:-${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com}"
+          for key in ANDROID_PREVIEW_URL INTERNAL_WEBHOOK_SECRET OPENAI_API_KEY ANTHROPIC_API_KEY GROQ_API_KEY GOOGLE_GENERATIVE_AI_API_KEY GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET DROPBOX_OAUTH_CLIENT_ID DROPBOX_OAUTH_CLIENT_SECRET; do
+            value="${!key}"
+            if [[ -n "$value" ]]; then
+              env_vars="$env_vars,$key=$value"
+            fi
+          done
+          gcloud run deploy anotes-web \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --region us-central1 \
+            --image "us-central1-docker.pkg.dev/${{ secrets.FIREBASE_PROJECT_ID }}/gravador-web/anotes-web:latest" \
+            --service-account "$service_account" \
+            --allow-unauthenticated \
+            --port 3000 \
+            --memory 512Mi \
+            --cpu 1 \
+            --concurrency 80 \
+            --max-instances 10 \
+            --update-env-vars "$env_vars"
+      - name: Deploy Hosting rewrite
+        env:
+          FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          pnpm exec firebase deploy \
+            --only hosting \
+            --project "$FIREBASE_PID" \
+            --non-interactive \
+            --force
+      - name: Health check public routes
+        run: |
+          curl --fail --silent --show-error https://anotes.web.app >/dev/null
+          curl --fail --silent --show-error https://anotes.web.app/download >/dev/null
+          curl --fail --silent --show-error https://anotes.web.app/api/health >/dev/null
+      - name: Web summary
+        run: |
+          {
+            echo "## Web"
+            echo ""
+            echo "- Hosting: https://anotes.web.app"
+            echo "- Workflow: release-platform"
+          } >> "$GITHUB_STEP_SUMMARY"
