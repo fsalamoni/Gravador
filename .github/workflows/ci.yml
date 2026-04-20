@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/mobile-ai-audio-app-WMM4b]
   pull_request:
 
 concurrency:
