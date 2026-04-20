@@ -145,8 +145,9 @@ async function fetchOpenRouterLiveModels(): Promise<Array<Record<string, unknown
   if (!res.ok) throw new Error(`OpenRouter API returned ${res.status}`);
 
   const json = (await res.json()) as { data: OpenRouterModel[] };
+  // Expose EVERY model the provider returns (paid + free, text + multimodal).
+  // The catalog UI is expected to show the full list so the user can curate it.
   return (json.data ?? [])
-    .filter((m) => m.architecture?.output_modalities?.includes('text'))
     .map((m) => ({
       id: m.id.replace(/\//g, '__'),
       modelId: m.id,
@@ -203,11 +204,9 @@ async function refreshOpenRouterCatalog(db: FirebaseFirestore.Firestore, catalog
 
   const now = FieldValue.serverTimestamp();
 
-  // Upsert incoming models
+  // Upsert incoming models — keep ALL entries so the personal catalog UI exposes
+  // everything the provider advertises (paid + free + multimodal).
   for (const m of models) {
-    // Only include text-capable models
-    if (!m.architecture?.output_modalities?.includes('text')) continue;
-
     const docId = m.id.replace(/\//g, '__');
     const ref = db.collection('model_catalog').doc(docId);
 
