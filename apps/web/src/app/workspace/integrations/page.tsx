@@ -4,95 +4,106 @@ import {
   Calendar,
   Check,
   Cloud,
+  Copy,
   ExternalLink,
   HardDrive,
   Link2,
   Loader2,
   MessageCircle,
+  RefreshCw,
+  Save,
+  Send,
   Unplug,
   X,
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-/* ── Types ─────────────────────────────────────────────────── */
+type IntegrationId = 'google-drive' | 'google-calendar' | 'onedrive' | 'dropbox' | 'whatsapp';
 
 interface Integration {
-  id: string;
+  id: IntegrationId;
   name: string;
   description: string;
   icon: React.ElementType;
   iconColor: string;
   status: 'disconnected' | 'connected' | 'connecting';
-  connectedAt?: string;
-  connectedEmail?: string;
+  connectedAt?: string | null;
+  connectedEmail?: string | null;
+  targetFolder?: string | null;
+  phoneNumber?: string | null;
+  receiveUrl?: string | null;
+  receiveToken?: string | null;
+  lastSyncedAt?: string | null;
+  lastSyncStatus?: string | null;
+  lastSyncError?: string | null;
+  lastSentAt?: string | null;
 }
 
-/* ── Page component ────────────────────────────────────────── */
+const INITIAL_INTEGRATIONS: Integration[] = [
+  {
+    id: 'google-drive',
+    name: 'Google Drive',
+    description:
+      'Sincronize backups reais das gravações em áudio, JSON e Markdown com uma pasta dedicada do seu Google Drive.',
+    icon: Cloud,
+    iconColor: 'text-ok',
+    status: 'disconnected',
+    targetFolder: '/Gravador',
+  },
+  {
+    id: 'google-calendar',
+    name: 'Google Calendar',
+    description:
+      'Conexão OAuth pronta para fluxos de agenda; a sincronização operacional continua separada do backup de arquivos.',
+    icon: Calendar,
+    iconColor: 'text-accent',
+    status: 'disconnected',
+  },
+  {
+    id: 'onedrive',
+    name: 'OneDrive',
+    description:
+      'Envie pacotes completos de backup para o OneDrive pessoal ou corporativo, em uma pasta configurável.',
+    icon: HardDrive,
+    iconColor: 'text-[#0078d4]',
+    status: 'disconnected',
+    targetFolder: '/Apps/Gravador',
+  },
+  {
+    id: 'dropbox',
+    name: 'Dropbox',
+    description:
+      'Faça backup do áudio bruto e das exportações da gravação em uma estrutura pronta para Dropbox.',
+    icon: Link2,
+    iconColor: 'text-[#0061ff]',
+    status: 'disconnected',
+    targetFolder: '/Apps/Gravador',
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    description:
+      'Envie resumos/links para o seu webhook de automação e receba áudios de volta criando gravações reais no banco.',
+    icon: MessageCircle,
+    iconColor: 'text-[#25d366]',
+    status: 'disconnected',
+  },
+];
 
 export default function IntegrationsPage() {
   const searchParams = useSearchParams();
-  const [integrations, setIntegrations] = useState<Integration[]>([
-    {
-      id: 'google-drive',
-      name: 'Google Drive',
-      description:
-        'Sincronize gravações, transcrições e relatórios de IA automaticamente com pastas do seu Google Drive.',
-      icon: Cloud,
-      iconColor: 'text-ok',
-      status: 'disconnected',
-    },
-    {
-      id: 'google-calendar',
-      name: 'Google Calendar',
-      description:
-        'Vincule gravações a eventos do calendário e receba resumos automaticamente nos seus compromissos.',
-      icon: Calendar,
-      iconColor: 'text-accent',
-      status: 'disconnected',
-    },
-    {
-      id: 'onedrive',
-      name: 'OneDrive',
-      description:
-        'Faça backup automático de transcrições e relatórios para o OneDrive pessoal ou corporativo (Microsoft 365).',
-      icon: HardDrive,
-      iconColor: 'text-[#0078d4]',
-      status: 'disconnected',
-    },
-    {
-      id: 'dropbox',
-      name: 'Dropbox',
-      description:
-        'Envie exportações em JSON ou Markdown para o Dropbox automaticamente após o processamento de cada gravação.',
-      icon: Link2,
-      iconColor: 'text-[#0061ff]',
-      status: 'disconnected',
-    },
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp',
-      description:
-        'Receba notificações e resumos das gravações diretamente no seu WhatsApp via webhook configurável.',
-      icon: MessageCircle,
-      iconColor: 'text-[#25d366]',
-      status: 'disconnected',
-    },
-  ]);
-
+  const [integrations, setIntegrations] = useState<Integration[]>(INITIAL_INTEGRATIONS);
   const [toast, setToast] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
     const connected = searchParams.get('connected');
     const error = searchParams.get('error');
     if (!connected && !error) return;
 
-    if (connected) {
-      setToast(`Integração ${connected} conectada com sucesso.`);
-    }
-    if (error) {
-      setToast(`Falha na conexão: ${error}`);
-    }
+    if (connected) setToast(`Integração ${connected} conectada com sucesso.`);
+    if (error) setToast(`Falha na conexão: ${error}`);
 
     const cleaned = new URL(window.location.href);
     cleaned.searchParams.delete('connected');
@@ -100,60 +111,64 @@ export default function IntegrationsPage() {
     window.history.replaceState({}, '', cleaned.toString());
   }, [searchParams]);
 
-  // Load integration statuses from server
   useEffect(() => {
     fetch('/api/integrations')
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((data) => {
-        if (data.integrations) {
-          setIntegrations((prev) =>
-            prev.map((i) => {
-              const remote = (
-                data.integrations as Array<{
-                  id: string;
-                  status: string;
-                  connectedAt?: string;
-                  connectedEmail?: string;
-                }>
-              ).find((ri) => ri.id === i.id);
-              if (remote && remote.status === 'connected') {
-                return {
-                  ...i,
-                  status: 'connected' as const,
-                  connectedAt: remote.connectedAt,
-                  connectedEmail: remote.connectedEmail,
-                };
-              }
-              return i;
-            }),
-          );
-        }
+        if (!Array.isArray(data.integrations)) return;
+        setIntegrations((prev) =>
+          prev.map((integration) => {
+            const remote = data.integrations.find(
+              (item: { id: string }) => item.id === integration.id,
+            ) as Partial<Integration> | undefined;
+            if (!remote) return integration;
+            return {
+              ...integration,
+              ...remote,
+              status: remote.status === 'connected' ? 'connected' : integration.status,
+            };
+          }),
+        );
       })
       .catch(() => {});
   }, []);
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const handleConnect = useCallback(
-    async (integrationId: string) => {
-      setIntegrations((prev) =>
-        prev.map((i) => (i.id === integrationId ? { ...i, status: 'connecting' as const } : i)),
-      );
+  const storageIntegrations = useMemo(
+    () => new Set<IntegrationId>(['google-drive', 'onedrive', 'dropbox']),
+    [],
+  );
 
+  const patchIntegration = useCallback(
+    (integrationId: IntegrationId, patch: Partial<Integration>) => {
+      setIntegrations((prev) =>
+        prev.map((item) => (item.id === integrationId ? { ...item, ...patch } : item)),
+      );
+    },
+    [],
+  );
+
+  const handleConnect = useCallback(
+    async (integrationId: IntegrationId) => {
+      patchIntegration(integrationId, { status: 'connecting' });
       try {
-        let payload: { integrationId: string; webhookUrl?: string; phoneNumber?: string } = {
+        let payload: { integrationId: IntegrationId; webhookUrl?: string; phoneNumber?: string } = {
           integrationId,
         };
 
         if (integrationId === 'whatsapp') {
-          const webhookUrl = window.prompt('Informe a URL do webhook do WhatsApp:')?.trim();
+          const webhookUrl = window
+            .prompt('Informe a URL do webhook do WhatsApp/automação:')
+            ?.trim();
           if (!webhookUrl) throw new Error('Conexão cancelada: webhook é obrigatório.');
           const phoneNumber =
-            window.prompt('Informe o número (opcional, ex: +55 11 99999-9999):')?.trim() ||
-            undefined;
+            window
+              .prompt('Informe o número de destino (opcional, ex: +55 11 99999-9999):')
+              ?.trim() || undefined;
           payload = { integrationId, webhookUrl, phoneNumber };
         }
 
@@ -162,79 +177,144 @@ export default function IntegrationsPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        const data = (await res.json().catch(() => null)) as {
+          redirectUrl?: string;
+          message?: string;
+          receiveUrl?: string;
+          inboundToken?: string;
+        } | null;
 
         if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as {
-            error?: string;
-            message?: string;
-          } | null;
-          throw new Error(body?.message ?? `Falha ao conectar (HTTP ${res.status})`);
+          throw new Error(data?.message ?? `Falha ao conectar (HTTP ${res.status})`);
         }
 
-        const data = (await res.json()) as { redirectUrl?: string; status?: string };
-
-        if (data.redirectUrl) {
-          // OAuth flow — redirect to provider
+        if (data?.redirectUrl) {
           window.location.href = data.redirectUrl;
           return;
         }
 
-        // Direct connection (e.g. webhook-based)
-        setIntegrations((prev) =>
-          prev.map((i) =>
-            i.id === integrationId
-              ? {
-                  ...i,
-                  status: 'connected' as const,
-                  connectedAt: new Date().toISOString(),
-                }
-              : i,
-          ),
-        );
+        patchIntegration(integrationId, {
+          status: 'connected',
+          connectedAt: new Date().toISOString(),
+          receiveUrl: data?.receiveUrl,
+          receiveToken: data?.inboundToken,
+        });
         showToast(`${integrationId} conectado com sucesso!`);
-      } catch (err) {
-        setIntegrations((prev) =>
-          prev.map((i) => (i.id === integrationId ? { ...i, status: 'disconnected' as const } : i)),
-        );
-        showToast(err instanceof Error ? err.message : 'Erro ao conectar. Tente novamente.');
+      } catch (error) {
+        patchIntegration(integrationId, { status: 'disconnected' });
+        showToast(error instanceof Error ? error.message : 'Erro ao conectar.');
       }
     },
-    [showToast],
+    [patchIntegration, showToast],
   );
 
   const handleDisconnect = useCallback(
-    async (integrationId: string) => {
+    async (integrationId: IntegrationId) => {
+      setBusyKey(`disconnect:${integrationId}`);
       try {
         await fetch('/api/integrations/disconnect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ integrationId }),
         });
-        setIntegrations((prev) =>
-          prev.map((i) =>
-            i.id === integrationId
-              ? {
-                  ...i,
-                  status: 'disconnected' as const,
-                  connectedAt: undefined,
-                  connectedEmail: undefined,
-                }
-              : i,
-          ),
-        );
+        patchIntegration(integrationId, {
+          status: 'disconnected',
+          connectedAt: null,
+          connectedEmail: null,
+          receiveToken: null,
+          receiveUrl: null,
+          lastSyncedAt: null,
+          lastSyncError: null,
+          lastSyncStatus: null,
+          lastSentAt: null,
+        });
         showToast('Integração desconectada.');
       } catch {
         showToast('Erro ao desconectar.');
+      } finally {
+        setBusyKey(null);
+      }
+    },
+    [patchIntegration, showToast],
+  );
+
+  const handleSaveSettings = useCallback(
+    async (integration: Integration) => {
+      setBusyKey(`save:${integration.id}`);
+      try {
+        const res = await fetch('/api/integrations/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            integrationId: integration.id,
+            targetFolder: integration.targetFolder,
+            phoneNumber: integration.phoneNumber,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!res.ok) throw new Error(data?.error ?? `Falha ao salvar (${res.status})`);
+        showToast('Configuração salva.');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : 'Erro ao salvar integração.');
+      } finally {
+        setBusyKey(null);
       }
     },
     [showToast],
   );
 
-  /* ── Render ──────────────────────────────────────────────── */
+  const handleSync = useCallback(
+    async (integrationId: IntegrationId) => {
+      setBusyKey(`sync:${integrationId}`);
+      try {
+        const res = await fetch('/api/integrations/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId }),
+        });
+        const data = (await res.json().catch(() => null)) as {
+          status?: string;
+          failures?: Array<{ message: string }>;
+        } | null;
+        if (!res.ok) {
+          throw new Error(data?.failures?.[0]?.message ?? `Falha ao sincronizar (${res.status})`);
+        }
+        patchIntegration(integrationId, {
+          lastSyncedAt: new Date().toISOString(),
+          lastSyncStatus: data?.status === 'partial' ? 'partial' : 'ok',
+          lastSyncError: data?.status === 'partial' ? (data.failures?.[0]?.message ?? null) : null,
+          ...(integrationId === 'whatsapp' ? { lastSentAt: new Date().toISOString() } : {}),
+        });
+        showToast(
+          integrationId === 'whatsapp'
+            ? 'Payload enviado ao webhook do WhatsApp.'
+            : 'Sincronização concluída com sucesso.',
+        );
+      } catch (error) {
+        patchIntegration(integrationId, {
+          lastSyncStatus: 'failed',
+          lastSyncError: error instanceof Error ? error.message : 'Erro na sincronização.',
+        });
+        showToast(error instanceof Error ? error.message : 'Erro ao sincronizar.');
+      } finally {
+        setBusyKey(null);
+      }
+    },
+    [patchIntegration, showToast],
+  );
+
+  const handleCopy = useCallback(
+    (value: string, label: string) => {
+      navigator.clipboard
+        .writeText(value)
+        .then(() => showToast(`${label} copiado.`))
+        .catch(() => showToast(`Não foi possível copiar ${label.toLowerCase()}.`));
+    },
+    [showToast],
+  );
 
   return (
     <div className="space-y-5">
-      {/* Toast notification */}
       {toast && (
         <div className="fixed right-6 top-6 z-50 flex items-center gap-2 rounded-[18px] border border-border bg-surface px-5 py-3 text-sm text-text shadow-lg">
           <Check className="h-4 w-4 text-ok" />
@@ -245,27 +325,30 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {/* Header */}
       <section className="card px-6 py-7 sm:px-7">
         <div>
           <span className="eyebrow">Conectar serviços</span>
           <h1 className="display-title mt-5 text-5xl leading-[0.96]">Integrações</h1>
           <p className="mt-4 max-w-3xl leading-8 text-mute">
-            Conecte seus serviços favoritos para sincronizar gravações, transcrições e relatórios
-            automaticamente. Cada integração usa OAuth seguro para autorização.
+            Agora as integrações fazem backup real: Google Drive, OneDrive e Dropbox recebem áudio
+            bruto + exportações; o WhatsApp pode disparar payloads e também receber áudios para
+            criar gravações automaticamente no banco.
           </p>
         </div>
       </section>
 
-      {/* Integration cards */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {integrations.map((integration) => {
           const Icon = integration.icon;
           const isConnected = integration.status === 'connected';
           const isConnecting = integration.status === 'connecting';
+          const syncBusy = busyKey === `sync:${integration.id}`;
+          const saveBusy = busyKey === `save:${integration.id}`;
+          const disconnectBusy = busyKey === `disconnect:${integration.id}`;
+          const isStorage = storageIntegrations.has(integration.id);
 
           return (
-            <div key={integration.id} className="card p-6">
+            <div key={integration.id} className="card flex flex-col p-6">
               <div className="flex items-center justify-between gap-4">
                 <div
                   className={`flex h-11 w-11 items-center justify-center rounded-2xl ${
@@ -294,19 +377,180 @@ export default function IntegrationsPage() {
                 <div className="mt-1 text-xs text-mute">
                   Conectado em:{' '}
                   <span className="text-text">
-                    {new Date(integration.connectedAt).toLocaleDateString('pt-BR')}
+                    {new Date(integration.connectedAt).toLocaleString('pt-BR')}
                   </span>
                 </div>
               )}
 
-              <div className="mt-5">
+              {isConnected && isStorage && (
+                <div className="mt-4 space-y-3 rounded-[18px] border border-border bg-bg/45 p-4">
+                  <div>
+                    <label
+                      htmlFor={`${integration.id}-target-folder`}
+                      className="text-xs uppercase tracking-[0.24em] text-mute"
+                    >
+                      Pasta de backup
+                    </label>
+                    <input
+                      id={`${integration.id}-target-folder`}
+                      value={integration.targetFolder ?? ''}
+                      onChange={(event) =>
+                        patchIntegration(integration.id, { targetFolder: event.target.value })
+                      }
+                      placeholder="/Apps/Gravador"
+                      className="mt-2 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSettings(integration)}
+                      disabled={saveBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-4 py-2.5 text-sm font-medium text-text transition hover:bg-surfaceAlt disabled:opacity-50"
+                    >
+                      {saveBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      Salvar pasta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSync(integration.id)}
+                      disabled={syncBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-50"
+                    >
+                      {syncBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Sincronizar backups
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isConnected && integration.id === 'whatsapp' && (
+                <div className="mt-4 space-y-3 rounded-[18px] border border-border bg-bg/45 p-4">
+                  <div>
+                    <label
+                      htmlFor={`${integration.id}-phone-number`}
+                      className="text-xs uppercase tracking-[0.24em] text-mute"
+                    >
+                      Número de destino
+                    </label>
+                    <input
+                      id={`${integration.id}-phone-number`}
+                      value={integration.phoneNumber ?? ''}
+                      onChange={(event) =>
+                        patchIntegration(integration.id, { phoneNumber: event.target.value })
+                      }
+                      placeholder="+55 11 99999-9999"
+                      className="mt-2 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+                    />
+                  </div>
+                  <div className="rounded-[16px] border border-border bg-surfaceAlt/50 p-3 text-xs leading-5 text-mute">
+                    <div className="font-semibold text-text">Webhook de entrada</div>
+                    <p className="mt-1">
+                      Configure sua automação para enviar áudios recebidos ao endpoint abaixo com o
+                      token informado no header <code>x-gravador-integration-token</code>.
+                    </p>
+                    {integration.receiveUrl && (
+                      <div className="mt-3 flex items-center gap-2 rounded-[12px] bg-bg/80 px-3 py-2">
+                        <span className="truncate">{integration.receiveUrl}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(integration.receiveUrl!, 'Endpoint')}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    {integration.receiveToken && (
+                      <div className="mt-2 flex items-center gap-2 rounded-[12px] bg-bg/80 px-3 py-2">
+                        <span className="truncate">{integration.receiveToken}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(integration.receiveToken!, 'Token')}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSettings(integration)}
+                      disabled={saveBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-4 py-2.5 text-sm font-medium text-text transition hover:bg-surfaceAlt disabled:opacity-50"
+                    >
+                      {saveBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      Salvar número
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSync(integration.id)}
+                      disabled={syncBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-50"
+                    >
+                      {syncBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      Enviar último payload
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isConnected &&
+                (integration.lastSyncedAt ||
+                  integration.lastSyncError ||
+                  integration.lastSentAt) && (
+                  <div className="mt-4 rounded-[16px] border border-border bg-surfaceAlt/45 px-4 py-3 text-xs leading-5 text-mute">
+                    {integration.lastSyncedAt && (
+                      <div>
+                        Última ação: {new Date(integration.lastSyncedAt).toLocaleString('pt-BR')}
+                      </div>
+                    )}
+                    {integration.lastSentAt && (
+                      <div>
+                        Último envio WhatsApp:{' '}
+                        {new Date(integration.lastSentAt).toLocaleString('pt-BR')}
+                      </div>
+                    )}
+                    {integration.lastSyncStatus && (
+                      <div>
+                        Status: <span className="text-text">{integration.lastSyncStatus}</span>
+                      </div>
+                    )}
+                    {integration.lastSyncError && (
+                      <div className="text-danger">Erro recente: {integration.lastSyncError}</div>
+                    )}
+                  </div>
+                )}
+
+              <div className="mt-5 flex flex-wrap gap-2">
                 {isConnected ? (
                   <button
                     type="button"
                     onClick={() => handleDisconnect(integration.id)}
-                    className="flex items-center gap-2 rounded-full border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition hover:bg-danger/20"
+                    disabled={disconnectBusy}
+                    className="inline-flex items-center gap-2 rounded-full border border-danger/30 bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger transition hover:bg-danger/20 disabled:opacity-50"
                   >
-                    <Unplug className="h-4 w-4" />
+                    {disconnectBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Unplug className="h-4 w-4" />
+                    )}
                     Desconectar
                   </button>
                 ) : (
@@ -314,7 +558,7 @@ export default function IntegrationsPage() {
                     type="button"
                     disabled={isConnecting}
                     onClick={() => handleConnect(integration.id)}
-                    className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-50"
                   >
                     {isConnecting ? (
                       <>

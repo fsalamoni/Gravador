@@ -9,41 +9,37 @@ interface WebRecorderButtonProps {
 }
 
 export function WebRecorderButton({ workspaceId }: WebRecorderButtonProps) {
-  const { isRecording, isUploading, durationMs, startRecording, stopRecording } = useWebRecorder({
-    workspaceId,
-  });
+  const { isRecording, isUploading, durationMs, statusMessage, startRecording, stopRecording } =
+    useWebRecorder({
+      workspaceId,
+    });
 
   return (
-    <div className="flex items-center gap-4">
-      {isRecording && (
-        <div className="text-sm font-mono text-danger animate-pulse">
-          {formatDurationMs(durationMs)}
-        </div>
-      )}
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex items-center gap-3">
+        {isRecording && (
+          <div className="animate-pulse text-sm font-mono text-danger">
+            {formatDurationMs(durationMs)}
+          </div>
+        )}
 
-      {isUploading && <div className="text-sm text-mute">Enviando...</div>}
-
-      {isRecording ? (
         <button
           type="button"
-          onClick={stopRecording}
+          onClick={isRecording ? stopRecording : startRecording}
           disabled={isUploading}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/10 text-danger transition hover:bg-danger/20 disabled:opacity-50"
-          title="Parar gravação"
+          className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-50 ${
+            isRecording
+              ? 'bg-danger text-white hover:bg-danger/90'
+              : 'bg-accent text-onAccent hover:bg-accentSoft'
+          }`}
+          title={isRecording ? 'Parar gravação' : 'Iniciar gravação'}
         >
-          <StopCircle className="h-6 w-6" />
+          {isRecording ? <StopCircle className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          {isRecording ? 'Parar gravação' : 'Gravar'}
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={startRecording}
-          disabled={isUploading}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent transition hover:bg-accent/20 disabled:opacity-50"
-          title="Iniciar gravação"
-        >
-          <Mic className="h-6 w-6" />
-        </button>
-      )}
+      </div>
+
+      {statusMessage && <div className="text-right text-xs text-mute">{statusMessage}</div>}
     </div>
   );
 }

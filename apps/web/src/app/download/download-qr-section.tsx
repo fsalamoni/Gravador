@@ -17,8 +17,12 @@ export function DownloadQRSection({ androidUrl, webAppUrl }: DownloadQRSectionPr
             <p className="text-xs uppercase tracking-[0.24em] text-mute">Android</p>
             <h3 className="mt-2 text-xl font-semibold text-text">Escaneie para instalar o APK</h3>
           </div>
-          <span className="rounded-full bg-ok/15 px-3 py-1 text-xs font-medium text-ok">
-            Disponível
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              androidUrl ? 'bg-ok/15 text-ok' : 'bg-accent/15 text-accent'
+            }`}
+          >
+            {androidUrl ? 'Disponível' : 'Em preparação'}
           </span>
         </div>
         <div className="mt-5 flex flex-col items-center gap-4">

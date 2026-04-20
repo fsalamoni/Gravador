@@ -12,7 +12,7 @@
 - 💬 **Chat with any recording** via RAG (Firestore vector embeddings) with streaming responses.
 - 🌐 **Web workspace** — synced transcript player (wavesurfer.js), semantic + keyword search, folders/tags, multi-user workspaces.
 - 🔗 **Share** public links with password and expiration, export to PDF / Markdown / DOCX / Notion / Obsidian.
-- ☁️ **Cloud connectors** — Google Drive, Dropbox, OneDrive, Notion.
+- ☁️ **Cloud connectors** — Google Drive, Dropbox e OneDrive com backup operacional, além de WhatsApp via webhook.
 - 🧩 **BYOK** — bring your own OpenAI / Anthropic / Groq / Google keys, or run fully local with Ollama.
 - 🐳 **Self-host** via a single `docker compose up` (Firebase emulators + faster-whisper + Ollama).
 
@@ -79,6 +79,7 @@ The web app can now be deployed to Firebase Hosting from this monorepo.
 
 - The live website now has public routes `/download` and `/docs`.
 - `/download` can surface the latest Android APK when the Cloud Run runtime env `ANDROID_PREVIEW_URL` is set.
+- The same page also exposes an iOS QR placeholder with the public “Em construção” warning until TestFlight/App Store distribution is ready.
 - The GitHub Action `EAS preview` now builds the Android `preview` profile instead of a dev client, matching the immediate test flow.
 - `/login` is the single entry point for web access and exchanges only Google-authenticated Firebase sessions for the platform cookie.
 - The mobile preview app now blocks protected routes until Firebase Google sign-in succeeds.
@@ -88,9 +89,16 @@ The web app can now be deployed to Firebase Hosting from this monorepo.
 
 - Development path: feature branch -> pull request -> `main`.
 - Required checks: `CI` and, when mobile files change, `EAS preview`.
+- Manual one-shot release: run `Release Platform` from GitHub Actions to validate the monorepo, build Android/iOS with EAS and deploy the web stack in one workflow when the required secrets are configured.
 - Production web publish: merge to `main` triggers `firebase-hosting.yml`, deploys Firestore indexes/rules/storage, waits for required indexes, then deploys Cloud Run + Hosting rewrite.
 - Mobile preview handoff: after `EAS preview`, copy the generated APK artifact URL into the repository variable `ANDROID_PREVIEW_URL`, then re-run or merge the web deploy to expose the build on `/download`. The workflow can now also be triggered manually from GitHub Actions when the Expo token is configured remotely.
 - Rollback: redeploy the previous known-good Cloud Run image revision, then re-run the hosting workflow to keep the public routes pinned to the correct service state.
+
+## Integrations
+
+- `/workspace/integrations` now supports real backup sync for Google Drive, Dropbox and OneDrive.
+- Each sync uploads the raw audio plus JSON and Markdown exports into the configured folder structure.
+- WhatsApp uses a webhook-based operational model: the platform can POST recording payloads to your automation and can also ingest incoming audio through the generated inbound webhook/token.
 
 ## Open-source references
 

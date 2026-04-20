@@ -33,9 +33,10 @@ export default async function DownloadPage() {
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-[24px] border border-border bg-bg/55 p-4">
               <div className="text-xs uppercase tracking-[0.24em] text-mute">Route</div>
-              <div className="mt-2 text-2xl font-semibold text-text">Web + Android</div>
+              <div className="mt-2 text-2xl font-semibold text-text">Web + APK + iOS</div>
               <p className="mt-2 text-sm leading-6 text-mute">
-                Acesso imediato no navegador e, quando disponível, download direto do APK.
+                Acesso imediato no navegador, QR code para APK Android e trilha pública do iOS em
+                construção.
               </p>
             </div>
             <div className="rounded-[24px] border border-border bg-bg/55 p-4">
@@ -133,6 +134,10 @@ export default async function DownloadPage() {
           <p className="mt-4 max-w-3xl leading-8 text-mute">{t('download.iosBody')}</p>
           <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-2 text-sm font-medium text-accent">
             🚧 Em construção — em breve disponível
+          </div>
+          <div className="mt-4 rounded-[20px] border border-border bg-bg/55 px-4 py-4 text-sm leading-6 text-mute">
+            O QR code do bloco iOS já está preparado como placeholder operacional para a futura
+            distribuição via TestFlight/App Store.
           </div>
         </article>
       </div>

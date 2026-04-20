@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { buildWhatsAppReceiveUrl } from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -120,6 +121,7 @@ export async function POST(req: Request) {
     }
 
     const db = getServerDb();
+    const inboundToken = crypto.randomUUID().replace(/-/g, '');
     await db
       .collection('users')
       .doc(user.uid)
@@ -131,11 +133,16 @@ export async function POST(req: Request) {
           type: 'webhook',
           webhookUrl: parsedUrl.toString(),
           phoneNumber: body.phoneNumber ?? null,
+          inboundToken,
           connectedAt: new Date().toISOString(),
         },
         { merge: true },
       );
-    return NextResponse.json({ status: 'connected' });
+    return NextResponse.json({
+      status: 'connected',
+      receiveUrl: buildWhatsAppReceiveUrl(getAppBaseUrl(req)),
+      inboundToken,
+    });
   }
 
   const providerConfig = OAUTH_CONFIG[integrationId as Exclude<IntegrationId, 'whatsapp'>];
