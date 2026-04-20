@@ -75,26 +75,29 @@ The web app also supports **in-browser audio recording** via the Web Audio API:
 
 ## Theme / Color Skin System
 
-The web app supports **8 color themes** that the user can pick from Settings → Aparência:
+The web app supports **9 color themes**. **Claro** is the default (light theme); the remaining 8 are dark skins. Users pick from Settings → Aparência.
 
-| ID        | Label    | Accent color   |
-|-----------|----------|----------------|
-| terra     | Terra    | Warm orange    |
-| oceano    | Oceano   | Navy / cyan    |
-| floresta  | Floresta | Green / emerald|
-| noite     | Noite    | Charcoal / purple |
-| aurora    | Aurora   | Rose-pink      |
-| artico    | Ártico   | Cool gray / ice blue |
-| vulcao    | Vulcão   | Crimson red    |
-| solaris   | Solaris  | Golden         |
+| ID        | Label    | Accent color   | Mode  |
+|-----------|----------|----------------|-------|
+| claro     | Claro    | Sky blue       | Light (default) |
+| terra     | Terra    | Warm orange    | Dark  |
+| oceano    | Oceano   | Navy / cyan    | Dark  |
+| floresta  | Floresta | Green / emerald| Dark  |
+| noite     | Noite    | Charcoal / purple | Dark |
+| aurora    | Aurora   | Rose-pink      | Dark  |
+| artico    | Ártico   | Cool gray / ice blue | Dark |
+| vulcao    | Vulcão   | Crimson red    | Dark  |
+| solaris   | Solaris  | Golden         | Dark  |
 
 ### How it works
 
 1. **CSS custom properties** — 11 channelised RGB triplet tokens (e.g. `--color-accent: 243 138 55`) plus 4 auxiliary rgba vars (`--glow1`, `--glow2`, `--selection-bg`, `--accent-shadow`). Defined in `globals.css` under `@layer base` with `[data-theme="<id>"]` selectors.
 2. **Tailwind mapping** — `tailwind.config.ts` maps each token to `rgb(var(--color-X) / <alpha-value>)` so opacity modifiers like `bg-accent/10` work.
-3. **ThemeProvider** (`components/theme-provider.tsx`) — React context reads from `localStorage('gravador-theme')` on mount, applies `data-theme` attribute to `<html>`, and persists to Firestore via `PUT /api/settings { theme }` on change.
-4. **Settings UI** — The "Aparência" tab in `settings-tabs.tsx` shows a responsive grid of theme cards with live swatches + a preview card.
-5. **Server sync** — Theme choice is stored in the workspace Firestore document under `theme` field and loaded on first mount for cross-device consistency.
+3. **Bootstrap script** — `app/layout.tsx` injects an inline `<script>` that runs **before hydration**. It reads `localStorage('nexus-theme')`, validates the value against the whitelist, and sets `data-theme` on `<html>`. Missing/unknown values fall back to `claro`. This avoids a FOUC (flash of unstyled content) and ensures Claro renders for first-time visitors.
+4. **ThemeProvider** (`components/theme-provider.tsx`) — React context reads from `localStorage('nexus-theme')` on mount (matching the bootstrap key), applies `data-theme` attribute to `<html>`, and persists to Firestore via `PUT /api/settings { theme }` on change.
+5. **Settings UI** — The "Aparência" tab in `settings-tabs.tsx` shows a responsive grid of theme cards with live swatches + a preview card. The tab bar itself uses the same card-tile layout (5 cards: Conta, Aparência, Provedores de IA, Agentes, Segurança) to match the platform's visual language.
+6. **Server sync** — Theme choice is stored in the workspace Firestore document under `theme` field and loaded on first mount for cross-device consistency.
+7. **Mobile default** — `apps/mobile/tailwind.config.js` ships the Claro palette (light bg, dark text, sky-blue accent) as its default, keeping web and mobile visually consistent on first run.
 
 ## AI Pipelines
 
@@ -171,9 +174,9 @@ The AI pipeline worker (`process-recording.ts`) implements:
 
 The web app supports a **dynamic model catalog** via OpenRouter's API:
 
-- **API route**: `GET /api/models?provider=openrouter` — fetches all text-capable models from `https://openrouter.ai/api/v1/models`.
-- **Firestore cache**: Models stored in `model_catalog` collection with 6-hour TTL. Refresh triggered automatically when stale.
-- **Live fallback**: If Firestore index query fails, falls back to direct OpenRouter API call.
+- **API route**: `GET /api/models?provider=openrouter` — fetches **every model** OpenRouter advertises (paid + free, text + multimodal, chat + reasoning) from `https://openrouter.ai/api/v1/models`. No modality filter is applied; the personal-catalog UI is expected to surface the full list so users can curate it themselves.
+- **Firestore cache**: Models stored in `model_catalog` collection with 6-hour TTL. Refresh triggered automatically when stale. Upsert keeps all returned entries; removed models are marked `available: false` instead of deleted.
+- **Live fallback**: If the Firestore index query fails or the cache is empty, the route falls back to a direct live call to the OpenRouter API and returns the same un-filtered shape (`source: 'openrouter-live'`).
 - **Settings UI**: `settings-tabs.tsx` loads the full catalog. When no models are manually selected, **all available models** are shown in agent selection dropdowns. Users can optionally narrow the list via the catalog modal.
 - **Agent assignment**: Each AI agent (summary, mindmap, chapters, etc.) can be assigned a specific model from the catalog.
 
@@ -196,6 +199,22 @@ Configuration: `aiSettings.transcribeProvider` + `aiSettings.transcribeModel` in
 - **Cloud Build** (`infra/cloudbuild/web.yaml`): Builds Docker image with all `NEXT_PUBLIC_*` env vars baked in, pushes to Artifact Registry.
 - **Cloud Run**: Serves the web app at `anotes.web.app` via custom domain mapping. Deployed manually via `gcloud run deploy`.
 - **EAS Build** (`.github/workflows/eas-preview.yml`): Builds Android APK on PRs touching mobile code. Manual builds via `eas build --profile preview`.
+
+## Integrations (OAuth + Webhook)
+
+`apps/web/src/app/api/integrations/` implements end-to-end integrations for storage/backup and messaging:
+
+- **OAuth flows** (`connect/route.ts` → `callback/route.ts`): Google Drive, Google Calendar, OneDrive (Microsoft Graph), Dropbox. `connect` builds the provider-specific authorization URL with a base64url-encoded `state` (uid + integrationId + timestamp, 15 min TTL). `callback` validates state, exchanges the code for tokens, fetches the connected account email, and persists `{ status: 'connected', accessToken, refreshToken, scope, connectedEmail, ... }` to `users/{uid}/integrations/{integrationId}`.
+- **WhatsApp**: webhook-based (not OAuth). Incoming audio messages are transcribed and stored as recordings owned by the user whose WhatsApp number is linked.
+- **Env vars**: `GOOGLE_OAUTH_CLIENT_ID/SECRET`, `MICROSOFT_OAUTH_CLIENT_ID/SECRET`, `DROPBOX_OAUTH_CLIENT_ID/SECRET`. `NEXT_PUBLIC_APP_URL` overrides the redirect origin when set.
+
+## Download Page & QR Code
+
+`/download` serves the mobile app download page:
+
+- **Android**: APK hosted on Firebase Storage; displayed with a scannable QR code for one-tap install from a phone camera.
+- **iOS**: Marked "em construção" (under construction) — no download link yet, pending TestFlight / App Store submission.
+- **QR component** (`components/qr-code.tsx`): Real QR encoding backed by the [`qrcode`](https://www.npmjs.com/package/qrcode) npm package (`QR.toCanvas`, error-correction level M, 1-module margin). Replaced a prior hash-based placeholder that rendered unscannable pixel art.
 
 ## Command Palette (⌘K)
 
