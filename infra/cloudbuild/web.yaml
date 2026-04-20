@@ -35,5 +35,13 @@ images:
   - ${_IMAGE_URI}:${BUILD_ID}
   - ${_IMAGE_URI}:latest
 
+substitutions:
+  _NEXT_PUBLIC_FIRESTORE_DATABASE_ID: ''
+  _NEXT_PUBLIC_APP_URL: ''
+  _NEXT_PUBLIC_ADMIN_EMAILS: ''
+  _NEXT_PUBLIC_COMMIT_SHA: ''
+  _NEXT_PUBLIC_BUILD_TIME: ''
+
 options:
   logging: CLOUD_LOGGING_ONLY
+  substitution_option: ALLOW_LOOSE
