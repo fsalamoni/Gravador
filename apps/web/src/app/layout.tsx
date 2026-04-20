@@ -21,9 +21,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} className={theme === 'dark' ? 'dark' : ''} suppressHydrationWarning>
       <body className="bg-bg text-text min-h-screen font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider initialTheme={theme as 'light' | 'dark'}>
-            {children}
-          </ThemeProvider>
+          <ThemeProvider initialTheme={theme as 'light' | 'dark'}>{children}</ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

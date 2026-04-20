@@ -72,10 +72,7 @@ export async function POST(request: Request) {
     .single();
 
   if (insertError) {
-    return NextResponse.json(
-      { error: `Insert failed: ${insertError.message}` },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: `Insert failed: ${insertError.message}` }, { status: 500 });
   }
 
   return NextResponse.json({ id: recording.id }, { status: 201 });

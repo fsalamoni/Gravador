@@ -83,7 +83,9 @@ const integrations: Integration[] = [
   },
 ];
 
-export function IntegrationCards({ category }: { category: 'storage' | 'messaging' | 'productivity' }) {
+export function IntegrationCards({
+  category,
+}: { category: 'storage' | 'messaging' | 'productivity' }) {
   const filtered = integrations.filter((i) => i.category === category);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

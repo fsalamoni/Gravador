@@ -4,7 +4,11 @@ import { useTheme } from '@/app/theme-provider';
 
 const themes = [
   { value: 'light' as const, label: 'Claro', preview: 'bg-white text-gray-900 border-gray-200' },
-  { value: 'dark' as const, label: 'Escuro', preview: 'bg-[#0b0e14] text-[#e6e8ef] border-[#262b3c]' },
+  {
+    value: 'dark' as const,
+    label: 'Escuro',
+    preview: 'bg-[#0b0e14] text-[#e6e8ef] border-[#262b3c]',
+  },
 ];
 
 export function AppearanceSection() {

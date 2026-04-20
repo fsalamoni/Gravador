@@ -5,13 +5,14 @@ export default function IntegrationsPage() {
     <div className="max-w-3xl">
       <h1 className="text-3xl font-semibold mb-2">Integrações</h1>
       <p className="text-mute text-sm mb-6">
-        Conecte seus serviços favoritos ao Gravador para backup automático, sincronização e
-        troca de áudios.
+        Conecte seus serviços favoritos ao Gravador para backup automático, sincronização e troca de
+        áudios.
       </p>
 
       <h2 className="text-lg font-medium mb-3">Armazenamento e Backup</h2>
       <p className="text-mute text-sm mb-4">
-        Configure backups automáticos das suas gravações e transcrições nos serviços de nuvem abaixo.
+        Configure backups automáticos das suas gravações e transcrições nos serviços de nuvem
+        abaixo.
       </p>
       <IntegrationCards category="storage" />
 

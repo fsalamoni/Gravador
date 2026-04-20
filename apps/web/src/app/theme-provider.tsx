@@ -28,9 +28,5 @@ export function ThemeProvider({
     document.cookie = `theme=${t};path=/;max-age=${365 * 24 * 60 * 60};samesite=lax`;
   }, []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
 }

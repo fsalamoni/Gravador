@@ -33,9 +33,7 @@ export default function DownloadPage() {
           >
             Baixar APK
           </a>
-          <p className="text-mute text-xs mt-3">
-            Requer Android 8.0 ou superior
-          </p>
+          <p className="text-mute text-xs mt-3">Requer Android 8.0 ou superior</p>
         </div>
 
         {/* iOS */}
@@ -58,9 +56,7 @@ export default function DownloadPage() {
           <span className="bg-mute/20 text-mute px-6 py-2.5 rounded-xl font-medium mt-2 cursor-not-allowed">
             Em breve
           </span>
-          <p className="text-mute text-xs mt-3">
-            Requer iOS 16.0 ou superior
-          </p>
+          <p className="text-mute text-xs mt-3">Requer iOS 16.0 ou superior</p>
         </div>
       </div>
 
@@ -116,9 +112,7 @@ function QrCode({ value, size = 180 }: { value: string; size?: number }) {
     for (let x = 0; x < gridSize; x++) {
       // Skip finder pattern areas
       const inFinder =
-        (x < 8 && y < 8) ||
-        (x >= gridSize - 8 && y < 8) ||
-        (x < 8 && y >= gridSize - 8);
+        (x < 8 && y < 8) || (x >= gridSize - 8 && y < 8) || (x < 8 && y >= gridSize - 8);
       if (inFinder) continue;
 
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;

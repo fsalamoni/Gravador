@@ -48,7 +48,7 @@ export function WebRecorder({ onRecorded }: { onRecorded?: () => void }) {
       };
 
       recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        for (const track of stream.getTracks()) track.stop();
         stopTimer();
 
         const blob = new Blob(chunksRef.current, { type: mimeType });
