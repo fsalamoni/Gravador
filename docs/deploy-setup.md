@@ -264,6 +264,8 @@ If the web release fails after deployment:
 
 - `firebase-hosting.yml` now writes the ready Cloud Run revision and service URL into the GitHub step summary.
 - `firebase-hosting.yml` now deploys Firestore indexes/rules/storage before the web rollout and waits for declared composite indexes to reach `READY`.
+- `firebase-hosting.yml` **fails loudly** when any of the 8 required GitHub secrets is missing. The deploy job will turn red and the error message lists the exact missing names. Previously it skipped silently with a warning, which allowed commits to merge into `main` without ever reaching the live site — the failure mode that caused the `b61fd69` incident.
+- Every built image embeds the source `COMMIT_SHA` and the ISO `BUILD_TIME` as `NEXT_PUBLIC_COMMIT_SHA` / `NEXT_PUBLIC_BUILD_TIME`. Verify what is actually live with `curl https://anotes.web.app/api/health` — the response includes `commitSha` and `buildTime`, so you can confirm a deploy from the browser.
 - `eas-preview.yml` now writes the Android build ID, details URL, and artifact URL into the GitHub step summary.
 - `/api/health` now verifies the Firestore recordings query path used by the live workspace, not just process liveness.
 - `ANDROID_PREVIEW_URL` is intentionally a deploy-time runtime variable, so the website can expose a new APK without another code change.

@@ -30,7 +30,6 @@ jobs:
       contents: read
     steps:
       - name: Check deploy secrets
-        id: firebase
         shell: bash
         env:
           HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
@@ -42,48 +41,49 @@ jobs:
           HAS_SENDER_ID: ${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] != '' }}
           HAS_APP_ID: ${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] != '' }}
         run: |
-          if [[ "$HAS_SA" == "true" && "$HAS_PID" == "true" && "$HAS_API_KEY" == "true" && "$HAS_AUTH_DOMAIN" == "true" && "$HAS_WEB_PID" == "true" && "$HAS_STORAGE_BUCKET" == "true" && "$HAS_SENDER_ID" == "true" && "$HAS_APP_ID" == "true" ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Skipping deploy — set FIREBASE_SERVICE_ACCOUNT, FIREBASE_PROJECT_ID, and all required NEXT_PUBLIC_FIREBASE_* secrets to enable web deployment."
+          missing=()
+          [[ "$HAS_SA"             == "true" ]] || missing+=("FIREBASE_SERVICE_ACCOUNT")
+          [[ "$HAS_PID"            == "true" ]] || missing+=("FIREBASE_PROJECT_ID")
+          [[ "$HAS_API_KEY"        == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_API_KEY")
+          [[ "$HAS_AUTH_DOMAIN"    == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN")
+          [[ "$HAS_WEB_PID"        == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_PROJECT_ID")
+          [[ "$HAS_STORAGE_BUCKET" == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET")
+          [[ "$HAS_SENDER_ID"      == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID")
+          [[ "$HAS_APP_ID"         == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_APP_ID")
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing required GitHub secrets for deploy: ${missing[*]}. See docs/deploy-setup.md §1."
+            exit 1
           fi
+          echo "All deploy secrets present — proceeding with web deploy."
 
       - name: Checkout repository
-        if: steps.firebase.outputs.enabled == 'true'
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        if: steps.firebase.outputs.enabled == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 10.9.0
 
       - name: Setup Node.js
-        if: steps.firebase.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
 
       - name: Authenticate to Google Cloud
-        if: steps.firebase.outputs.enabled == 'true'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Setup gcloud
-        if: steps.firebase.outputs.enabled == 'true'
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
 
       - name: Install dependencies
-        if: steps.firebase.outputs.enabled == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Validate workspace
-        if: steps.firebase.outputs.enabled == 'true'
         env:
           NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }}
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }}
@@ -98,7 +98,6 @@ jobs:
           pnpm typecheck
 
       - name: Deploy Firebase platform config
-        if: steps.firebase.outputs.enabled == 'true'
         env:
           FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
@@ -109,7 +108,6 @@ jobs:
             --force
 
       - name: Wait for Firestore indexes
-        if: steps.firebase.outputs.enabled == 'true'
         env:
           FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
@@ -119,7 +117,6 @@ jobs:
             --timeout-ms 900000
 
       - name: Ensure Artifact Registry repository
-        if: steps.firebase.outputs.enabled == 'true'
         run: |
           gcloud artifacts repositories describe gravador-web \
             --location us-central1 \
@@ -131,18 +128,19 @@ jobs:
             --project "${{ secrets.FIREBASE_PROJECT_ID }}"
 
       - name: Build and publish web container
-        if: steps.firebase.outputs.enabled == 'true'
+        env:
+          COMMIT_SHA: ${{ github.sha }}
         run: |
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           gcloud builds submit \
             --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
             --region us-central1 \
             --service-account "projects/${{ secrets.FIREBASE_PROJECT_ID }}/serviceAccounts/hocapp-44760@appspot.gserviceaccount.com" \
             --config infra/cloudbuild/web.yaml \
-            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/${{ secrets.FIREBASE_PROJECT_ID }}/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app \
+            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/${{ secrets.FIREBASE_PROJECT_ID }}/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app,_NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA},_NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME} \
             .
 
       - name: Deploy Cloud Run service
-        if: steps.firebase.outputs.enabled == 'true'
         id: deploy_cloud_run
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -199,7 +197,6 @@ jobs:
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
 
       - name: Deploy Hosting rewrite
-        if: steps.firebase.outputs.enabled == 'true'
         env:
           FIREBASE_PID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
@@ -210,7 +207,6 @@ jobs:
             --force
 
       - name: Health check public routes
-        if: steps.firebase.outputs.enabled == 'true'
         run: |
           curl --fail --silent --show-error https://anotes.web.app >/dev/null
           curl --fail --silent --show-error https://anotes.web.app/download >/dev/null
@@ -218,7 +214,6 @@ jobs:
           curl --fail --silent --show-error https://anotes.web.app/login >/dev/null
 
       - name: Publish deploy summary
-        if: steps.firebase.outputs.enabled == 'true'
         env:
           ANDROID_PREVIEW_URL: ${{ vars['ANDROID_PREVIEW_URL'] }}
         shell: bash
