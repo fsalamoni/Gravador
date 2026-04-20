@@ -70,3 +70,8 @@ coverage
 # misc
 .eslintcache
 *.pem
+
+# GCP / Firebase credentials (never commit)
+gha-creds-*.json
+application_default_credentials.json
+*service-account*.json
