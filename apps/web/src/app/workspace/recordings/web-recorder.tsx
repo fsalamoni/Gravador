@@ -91,8 +91,14 @@ export function WebRecorder({ onRecorded }: { onRecorded?: () => void }) {
       mediaRecorderRef.current = recorder;
       setPhase('recording');
       startTimer();
-    } catch {
-      setError('Permissão de microfone negada ou não disponível.');
+    } catch (err) {
+      const msg =
+        err instanceof DOMException && err.name === 'NotAllowedError'
+          ? 'Permissão de microfone negada pelo navegador.'
+          : err instanceof DOMException && err.name === 'NotFoundError'
+            ? 'Nenhum dispositivo de áudio encontrado.'
+            : 'Erro ao acessar o microfone. Verifique as permissões do navegador.';
+      setError(msg);
     }
   }, [startTimer, stopTimer, onRecorded]);
 

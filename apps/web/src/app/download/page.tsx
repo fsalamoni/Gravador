@@ -6,6 +6,11 @@ export const metadata: Metadata = {
 };
 
 export default function DownloadPage() {
+  const apkUrl =
+    process.env.NEXT_PUBLIC_APK_DOWNLOAD_URL ??
+    'https://github.com/fsalamoni/Gravador/releases/latest/download/gravador.apk';
+  const iosUrl = process.env.NEXT_PUBLIC_IOS_DOWNLOAD_URL ?? 'https://gravador.app/ios';
+
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col items-center justify-center px-6 py-16">
       <h1 className="text-4xl font-bold mb-2">Gravador</h1>
@@ -22,13 +27,10 @@ export default function DownloadPage() {
             Escaneie o QR code abaixo com a câmera do seu celular para baixar o APK.
           </p>
           <div className="bg-white p-4 rounded-xl mb-4">
-            <QrCode
-              value="https://github.com/fsalamoni/Gravador/releases/latest/download/gravador.apk"
-              size={180}
-            />
+            <QrCode value={apkUrl} size={180} />
           </div>
           <a
-            href="https://github.com/fsalamoni/Gravador/releases/latest/download/gravador.apk"
+            href={apkUrl}
             className="bg-accent hover:bg-accentSoft text-white px-6 py-2.5 rounded-xl font-medium transition mt-2"
           >
             Baixar APK
@@ -51,7 +53,7 @@ export default function DownloadPage() {
             Escaneie o QR code com a câmera do iPhone para instalar via TestFlight.
           </p>
           <div className="bg-white p-4 rounded-xl mb-4">
-            <QrCode value="https://gravador.app/ios" size={180} />
+            <QrCode value={iosUrl} size={180} />
           </div>
           <span className="bg-mute/20 text-mute px-6 py-2.5 rounded-xl font-medium mt-2 cursor-not-allowed">
             Em breve
