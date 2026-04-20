@@ -77,6 +77,7 @@ export async function POST(req: Request) {
     chatProvider?: string;
     chatModel?: string;
     byokKeys?: Record<string, string>;
+    ollamaUrl?: string;
     agentModels?: Record<string, { provider?: string; model?: string }>;
   };
   const chatAgent = aiSettings.agentModels?.chat;
@@ -89,13 +90,16 @@ export async function POST(req: Request) {
     | undefined;
   const model = chatAgent?.model ?? aiSettings.chatModel;
 
+  const keys = { ...(aiSettings.byokKeys ?? {}) };
+  if (aiSettings.ollamaUrl) keys.ollamaBaseUrl = aiSettings.ollamaUrl;
+
   const result = chatWithRecording({
     messages,
     context,
     locale,
     ...(provider ? { provider } : {}),
     ...(model ? { model } : {}),
-    keys: aiSettings.byokKeys,
+    keys,
   });
 
   return result.toDataStreamResponse();

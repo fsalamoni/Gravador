@@ -16,12 +16,7 @@ export async function POST(req: Request) {
   }
 
   const db = getServerDb();
-  await db
-    .collection('users')
-    .doc(user.uid)
-    .collection('integrations')
-    .doc(integrationId)
-    .delete();
+  await db.collection('users').doc(user.uid).collection('integrations').doc(integrationId).delete();
 
   return NextResponse.json({ status: 'disconnected' });
 }

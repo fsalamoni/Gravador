@@ -26,6 +26,14 @@ export interface ProviderKeys {
   ollamaBaseUrl?: string;
 }
 
+function normalizeOllamaBaseUrl(raw: string | undefined): string {
+  const fallback = 'http://127.0.0.1:11434';
+  const value = (raw ?? '').trim();
+  if (!value) return fallback;
+  const withoutSlash = value.replace(/\/+$/, '');
+  return withoutSlash.endsWith('/api') ? withoutSlash.slice(0, -4) : withoutSlash;
+}
+
 /**
  * Resolve a chat model across providers. Keys are layered:
  * workspace BYOK → env vars → fail.
@@ -65,10 +73,9 @@ export function resolveChatModel(
       })(model);
     }
     case 'ollama': {
-      const baseURL =
-        keys.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434/api';
+      const baseRoot = normalizeOllamaBaseUrl(keys.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL);
       // Ollama provider ships its own @ai-sdk/provider copy; cast to unblock the version gap
-      return createOllama({ baseURL })(model) as unknown as LanguageModel;
+      return createOllama({ baseURL: `${baseRoot}/api` })(model) as unknown as LanguageModel;
     }
   }
 }
@@ -78,6 +85,12 @@ export interface TranscribeOptions {
   audioBytes?: ArrayBuffer;
   locale?: 'pt-BR' | 'en' | 'auto';
   provider?: 'groq' | 'openai' | 'local-faster-whisper';
+  model?: string;
+  keys?: {
+    groq?: string;
+    openai?: string;
+    localBaseUrl?: string;
+  };
   diarize?: boolean;
 }
 
@@ -111,8 +124,9 @@ export async function transcribe(opts: TranscribeOptions): Promise<TranscribeRes
 }
 
 async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = opts.keys?.groq ?? process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('Missing GROQ_API_KEY for Groq transcription');
+  const model = opts.model ?? process.env.AI_TRANSCRIBE_MODEL ?? 'whisper-large-v3';
   const form = new FormData();
   if (opts.audioBytes) {
     form.append('file', new Blob([opts.audioBytes]), 'audio.m4a');
@@ -122,7 +136,7 @@ async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult
   } else {
     throw new Error('audioUrl or audioBytes required');
   }
-  form.append('model', 'whisper-large-v3');
+  form.append('model', model);
   form.append('response_format', 'verbose_json');
   form.append('timestamp_granularities[]', 'segment');
   if (opts.locale && opts.locale !== 'auto') {
@@ -143,7 +157,7 @@ async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult
 
   return {
     provider: 'groq',
-    model: 'whisper-large-v3',
+    model,
     detectedLocale: json.language?.startsWith('pt')
       ? 'pt-BR'
       : json.language === 'en'
@@ -161,8 +175,9 @@ async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult
 }
 
 async function transcribeOpenAI(opts: TranscribeOptions): Promise<TranscribeResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = opts.keys?.openai ?? process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
+  const model = opts.model ?? process.env.AI_TRANSCRIBE_MODEL ?? 'whisper-1';
   const form = new FormData();
   if (opts.audioBytes) {
     form.append('file', new Blob([opts.audioBytes]), 'audio.m4a');
@@ -172,7 +187,7 @@ async function transcribeOpenAI(opts: TranscribeOptions): Promise<TranscribeResu
   } else {
     throw new Error('audioUrl or audioBytes required');
   }
-  form.append('model', 'whisper-1');
+  form.append('model', model);
   form.append('response_format', 'verbose_json');
   if (opts.locale && opts.locale !== 'auto') {
     form.append('language', opts.locale === 'pt-BR' ? 'pt' : 'en');
@@ -192,7 +207,7 @@ async function transcribeOpenAI(opts: TranscribeOptions): Promise<TranscribeResu
 
   return {
     provider: 'openai',
-    model: 'whisper-1',
+    model,
     detectedLocale: json.language?.startsWith('pt')
       ? 'pt-BR'
       : json.language === 'en'
@@ -214,12 +229,14 @@ async function transcribeOpenAI(opts: TranscribeOptions): Promise<TranscribeResu
  * See workers/ai-pipeline and infra/docker/Dockerfile.worker.
  */
 async function transcribeLocal(opts: TranscribeOptions): Promise<TranscribeResult> {
-  const baseUrl = process.env.LOCAL_WHISPER_URL ?? 'http://localhost:9000';
+  const baseUrl =
+    opts.keys?.localBaseUrl ?? process.env.LOCAL_WHISPER_URL ?? 'http://localhost:9000';
   const res = await fetch(`${baseUrl}/transcribe`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       audio_url: opts.audioUrl,
+      model: opts.model,
       language: opts.locale === 'auto' ? undefined : opts.locale === 'pt-BR' ? 'pt' : 'en',
       diarize: opts.diarize ?? false,
     }),
@@ -253,11 +270,10 @@ export async function embedTexts(
   }
 
   // Ollama
-  const baseURL =
-    opts.keys?.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434';
+  const baseRoot = normalizeOllamaBaseUrl(opts.keys?.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL);
   const out: number[][] = [];
   for (const input of texts) {
-    const res = await fetch(`${baseURL}/api/embeddings`, {
+    const res = await fetch(`${baseRoot}/api/embeddings`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model, prompt: input }),

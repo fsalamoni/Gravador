@@ -83,6 +83,12 @@ export async function processRecording(payload: { recordingId: string; locale?: 
         audioUrl,
         locale: payload.locale ?? recording.locale ?? 'auto',
         provider: workspaceAI.transcribeProvider,
+        model: workspaceAI.transcribeModel,
+        keys: {
+          groq: workspaceAI.keys.groq,
+          openai: workspaceAI.keys.openai,
+          localBaseUrl: process.env.LOCAL_WHISPER_URL,
+        },
       }),
     );
     const segments = await persistTranscript(db, recordingId, tx);
@@ -386,20 +392,25 @@ async function loadWorkspaceAI(db: Firestore, workspaceId: string) {
   const wsDoc = await db.collection('workspaces').doc(workspaceId).get();
   const s = (wsDoc.data()?.aiSettings ?? {}) as {
     transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
+    transcribeModel?: string;
     chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
     chatModel?: string;
     embeddingProvider?: 'openai' | 'ollama';
     embeddingModel?: string;
     byokKeys?: Record<string, string>;
+    ollamaUrl?: string;
     agentModels?: Record<string, { provider?: string; model?: string }>;
   };
+  const keys = { ...(s.byokKeys ?? {}) };
+  if (s.ollamaUrl) keys.ollamaBaseUrl = s.ollamaUrl;
   return {
     transcribeProvider: s.transcribeProvider,
+    transcribeModel: s.transcribeModel,
     chatProvider: s.chatProvider ?? ('anthropic' as const),
     chatModel: s.chatModel,
     embeddingProvider: s.embeddingProvider,
     embeddingModel: s.embeddingModel,
-    keys: s.byokKeys ?? {},
+    keys,
     agentModels: s.agentModels ?? {},
   };
 }

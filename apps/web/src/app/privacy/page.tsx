@@ -66,9 +66,8 @@ export default function PrivacyPage() {
               3. Processamento por Provedores de IA
             </h2>
             <p>
-              Para fornecer funcionalidades de transcrição, resumo e busca, o Nexus envia dados
-              de áudio e texto para provedores de IA terceirizados. Os provedores utilizados
-              incluem:
+              Para fornecer funcionalidades de transcrição, resumo e busca, o Nexus envia dados de
+              áudio e texto para provedores de IA terceirizados. Os provedores utilizados incluem:
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>
@@ -119,8 +118,8 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-text">6. Compartilhamento de Dados</h2>
             <p>
-              O Nexus não vende dados pessoais. Dados são compartilhados apenas com provedores de
-              IA para processamento (conforme seção 3) e com o Google Cloud para infraestrutura de
+              O Nexus não vende dados pessoais. Dados são compartilhados apenas com provedores de IA
+              para processamento (conforme seção 3) e com o Google Cloud para infraestrutura de
               armazenamento e autenticação.
             </p>
           </section>

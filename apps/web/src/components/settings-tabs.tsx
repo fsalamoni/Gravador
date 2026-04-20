@@ -10,7 +10,6 @@ import {
   formatTokens,
   getModelById,
   getModelsForProvider,
-  inferFitScore,
 } from '@/lib/model-registry';
 import {
   AlertTriangle,
@@ -70,6 +69,29 @@ interface ApiCatalogModel {
   } | null;
 }
 
+function normalizeOllamaBaseUrl(raw: string | undefined): string {
+  const fallback = 'http://127.0.0.1:11434';
+  if (!raw?.trim()) return fallback;
+  const withoutSlash = raw.trim().replace(/\/+$/, '');
+  return withoutSlash.endsWith('/api') ? withoutSlash.slice(0, -4) : withoutSlash;
+}
+
+function toModelSpec(m: ApiCatalogModel, provider: AIProvider): ModelSpec {
+  const inputPerM = m.pricing.prompt * 1_000_000;
+  return {
+    id: m.modelId,
+    provider,
+    name: m.name,
+    description: m.description || '',
+    contextTokens: m.contextLength || 0,
+    pricing: {
+      input: inputPerM,
+      output: m.pricing.completion * 1_000_000,
+    },
+    ratings: estimateRatingsFromApi(m.qualityScores, inputPerM),
+  };
+}
+
 // ── Tabs ──
 
 type Tab = 'account' | 'appearance' | 'providers' | 'agents' | 'security';
@@ -113,7 +135,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const { theme: currentTheme, setTheme: applyTheme } = useTheme();
+  const { setTheme: applyTheme } = useTheme();
 
   // Modal states
   const [catalogModalProvider, setCatalogModalProvider] = useState<string | null>(null);
@@ -124,8 +146,14 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   const [orLoading, setOrLoading] = useState(false);
   const [orError, setOrError] = useState<string | null>(null);
 
+  // Ollama API models (loaded on demand)
+  const [ollamaApiModels, setOllamaApiModels] = useState<ModelSpec[]>([]);
+  const [ollamaLoading, setOllamaLoading] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+
   // Personal catalog as Set for O(1) lookups
   const selectedModelIds = new Set(settings.selectedModels ?? []);
+  const selectedProvider = (settings.chatProvider as AIProvider) || 'openrouter';
 
   // Load settings on mount
   useEffect(() => {
@@ -134,86 +162,96 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       .then((data) => {
         if (data.aiSettings) setSettings(data.aiSettings);
         if (data.theme && THEMES.includes(data.theme as ThemeId)) {
-          const stored = localStorage.getItem('gravador-theme');
+          const stored = localStorage.getItem('nexus-theme');
           if (!stored) applyTheme(data.theme as ThemeId);
         }
       })
       .catch(() => {});
   }, [applyTheme]);
 
-  // Fetch OpenRouter full catalog from API when user visits providers/agents
-  useEffect(() => {
-    if (
-      (tab === 'providers' || tab === 'agents') &&
-      openRouterApiModels.length === 0 &&
-      !orLoading &&
-      !orError
-    ) {
-      setOrLoading(true);
-      setOrError(null);
-      fetch('/api/models?provider=openrouter')
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then((data) => {
-          if (data.models && data.models.length > 0) {
-            const specs: ModelSpec[] = data.models.map((m: ApiCatalogModel) => ({
-              id: m.modelId,
-              provider: 'openrouter',
-              name: m.name,
-              description: m.description || '',
-              contextTokens: m.contextLength || 0,
-              pricing: {
-                input: m.pricing.prompt * 1_000_000,
-                output: m.pricing.completion * 1_000_000,
-              },
-              ratings: estimateRatingsFromApi(m.qualityScores, m.pricing.prompt * 1_000_000),
-            }));
-            setOpenRouterApiModels(specs);
-          } else {
-            // No remote models — try force refresh
-            return fetch('/api/models?provider=openrouter&force=true')
-              .then((r2) => {
-                if (!r2.ok) throw new Error(`HTTP ${r2.status}`);
-                return r2.json();
-              })
-              .then((data2) => {
-                if (data2.models && data2.models.length > 0) {
-                  const specs2: ModelSpec[] = data2.models.map((m: ApiCatalogModel) => ({
-                    id: m.modelId,
-                    provider: 'openrouter',
-                    name: m.name,
-                    description: m.description || '',
-                    contextTokens: m.contextLength || 0,
-                    pricing: {
-                      input: m.pricing.prompt * 1_000_000,
-                      output: m.pricing.completion * 1_000_000,
-                    },
-                    ratings: estimateRatingsFromApi(
-                      m.qualityScores,
-                      m.pricing.prompt * 1_000_000,
-                    ),
-                  }));
-                  setOpenRouterApiModels(specs2);
-                } else {
-                  setOrError('empty');
-                }
-              });
-          }
-        })
-        .catch((err: unknown) => {
-          setOrError(err instanceof Error ? err.message : 'Erro de rede');
-        })
-        .finally(() => setOrLoading(false));
+  const loadOpenRouterCatalog = useCallback(async (force = false) => {
+    setOrLoading(true);
+    setOrError(null);
+    try {
+      const res = await fetch(
+        force ? '/api/models?provider=openrouter&force=true' : '/api/models?provider=openrouter',
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { models?: ApiCatalogModel[] };
+      const specs = (data.models ?? []).map((m) => toModelSpec(m, 'openrouter'));
+      if (specs.length === 0 && !force) {
+        await loadOpenRouterCatalog(true);
+        return;
+      }
+      if (specs.length === 0) {
+        setOrError('empty');
+      }
+      setOpenRouterApiModels(specs);
+    } catch (err: unknown) {
+      setOrError(err instanceof Error ? err.message : 'Erro de rede');
+    } finally {
+      setOrLoading(false);
     }
-  }, [tab, openRouterApiModels.length, orLoading, orError]);
+  }, []);
+
+  const loadOllamaCatalog = useCallback(
+    async (baseUrl?: string) => {
+      setOllamaLoading(true);
+      setOllamaError(null);
+      try {
+        const normalized = normalizeOllamaBaseUrl(baseUrl ?? settings.ollamaUrl);
+        const params = new URLSearchParams({ baseUrl: normalized });
+        const res = await fetch(`/api/models/ollama?${params.toString()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as {
+          models?: ApiCatalogModel[];
+          error?: string;
+          message?: string;
+        };
+        const specs = (data.models ?? []).map((m) => toModelSpec(m, 'ollama'));
+        if (data.error) {
+          setOllamaError(data.message ?? data.error);
+        }
+        setOllamaApiModels(specs);
+      } catch (err: unknown) {
+        setOllamaError(err instanceof Error ? err.message : 'Erro de rede');
+      } finally {
+        setOllamaLoading(false);
+      }
+    },
+    [settings.ollamaUrl],
+  );
+
+  // Fetch provider catalogs on demand
+  useEffect(() => {
+    if (tab !== 'providers' && tab !== 'agents') return;
+
+    if (openRouterApiModels.length === 0 && !orLoading) {
+      loadOpenRouterCatalog().catch(() => undefined);
+    }
+
+    if (selectedProvider === 'ollama' && ollamaApiModels.length === 0 && !ollamaLoading) {
+      loadOllamaCatalog().catch(() => undefined);
+    }
+  }, [
+    tab,
+    selectedProvider,
+    openRouterApiModels.length,
+    ollamaApiModels.length,
+    orLoading,
+    ollamaLoading,
+    loadOpenRouterCatalog,
+    loadOllamaCatalog,
+  ]);
 
   /** Retry loading OpenRouter models after error */
   const retryOpenRouter = useCallback(() => {
-    setOrError(null);
-    setOpenRouterApiModels([]);
-  }, []);
+    loadOpenRouterCatalog(true).catch(() => undefined);
+  }, [loadOpenRouterCatalog]);
+
+  const retryOllama = useCallback(() => {
+    loadOllamaCatalog().catch(() => undefined);
+  }, [loadOllamaCatalog]);
 
   const save = useCallback(async (newSettings: AISettings) => {
     setSaving(true);
@@ -234,8 +272,6 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
     }
   }, []);
 
-  const selectedProvider = (settings.chatProvider as AIProvider) || 'openrouter';
-
   const toggleCatalogModel = useCallback(
     (modelId: string) => {
       const current = new Set(settings.selectedModels ?? []);
@@ -250,18 +286,23 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   /** Resolve models for a provider — OpenRouter uses API, others use static registry */
   const getProviderModels = useCallback(
     (provider: string): ModelSpec[] => {
-      if (provider === 'openrouter' && openRouterApiModels.length > 0) return openRouterApiModels;
+      if (provider === 'openrouter') return openRouterApiModels;
+      if (provider === 'ollama' && ollamaApiModels.length > 0) return ollamaApiModels;
       return getModelsForProvider(provider);
     },
-    [openRouterApiModels],
+    [openRouterApiModels, ollamaApiModels],
   );
 
   /** Lookup a model by ID — searches both static registry and API models */
   const findModelById = useCallback(
     (id: string): ModelSpec | undefined => {
-      return getModelById(id) ?? openRouterApiModels.find((m) => m.id === id);
+      return (
+        getModelById(id) ??
+        openRouterApiModels.find((m) => m.id === id) ??
+        ollamaApiModels.find((m) => m.id === id)
+      );
     },
-    [openRouterApiModels],
+    [openRouterApiModels, ollamaApiModels],
   );
 
   /** All personal catalog models for the current provider (for agent selection) */
@@ -302,7 +343,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
       </section>
 
       {/* Tabs */}
-      <div className="card px-4 py-3 sm:px-5">
+      <section className="card bg-surface px-4 py-3 sm:px-5">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {TABS.map((t) => {
             const Icon = t.icon;
@@ -324,7 +365,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Tab Content */}
       {tab === 'account' && <AccountTab email={email} uid={uid} />}
@@ -341,6 +382,12 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           onProviderChange={(provider) => {
             const newSettings = { ...settings, chatProvider: provider };
             save(newSettings);
+            if (provider === 'openrouter') {
+              loadOpenRouterCatalog().catch(() => undefined);
+            }
+            if (provider === 'ollama') {
+              loadOllamaCatalog(settings.ollamaUrl).catch(() => undefined);
+            }
           }}
           onKeyChange={(key) => {
             const newSettings = {
@@ -354,6 +401,12 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           onOllamaUrlChange={(url) => {
             setSettings((prev) => ({ ...prev, ollamaUrl: url }));
           }}
+          openRouterLoading={orLoading}
+          openRouterError={orError}
+          onRetryOpenRouter={retryOpenRouter}
+          ollamaLoading={ollamaLoading}
+          ollamaError={ollamaError}
+          onRetryOllama={retryOllama}
         />
       )}
       {tab === 'agents' && (
@@ -374,9 +427,24 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
             PROVIDERS.find((p) => p.id === catalogModalProvider)?.label ?? catalogModalProvider
           }
           models={getProviderModels(catalogModalProvider)}
-          loading={catalogModalProvider === 'openrouter' && orLoading}
-          error={catalogModalProvider === 'openrouter' ? orError : null}
-          onRetry={catalogModalProvider === 'openrouter' ? retryOpenRouter : undefined}
+          loading={
+            (catalogModalProvider === 'openrouter' && orLoading) ||
+            (catalogModalProvider === 'ollama' && ollamaLoading)
+          }
+          error={
+            catalogModalProvider === 'openrouter'
+              ? orError
+              : catalogModalProvider === 'ollama'
+                ? ollamaError
+                : null
+          }
+          onRetry={
+            catalogModalProvider === 'openrouter'
+              ? retryOpenRouter
+              : catalogModalProvider === 'ollama'
+                ? retryOllama
+                : undefined
+          }
           selectedIds={selectedModelIds}
           onToggle={toggleCatalogModel}
           onClose={() => setCatalogModalProvider(null)}
@@ -450,6 +518,12 @@ function ProvidersTab({
   onKeySave,
   onOpenCatalog,
   onOllamaUrlChange,
+  openRouterLoading,
+  openRouterError,
+  onRetryOpenRouter,
+  ollamaLoading,
+  ollamaError,
+  onRetryOllama,
 }: {
   settings: AISettings;
   selectedProvider: AIProvider;
@@ -463,6 +537,12 @@ function ProvidersTab({
   onKeySave: () => void;
   onOpenCatalog: (provider: string) => void;
   onOllamaUrlChange: (url: string) => void;
+  openRouterLoading: boolean;
+  openRouterError: string | null;
+  onRetryOpenRouter: () => void;
+  ollamaLoading: boolean;
+  ollamaError: string | null;
+  onRetryOllama: () => void;
 }) {
   const currentKey = settings.byokKeys?.[selectedProvider] ?? '';
   const providerModels = getProviderModels(selectedProvider);
@@ -485,6 +565,8 @@ function ProvidersTab({
           {PROVIDERS.map((p) => {
             const pModels = getProviderModels(p.id);
             const pSelected = pModels.filter((m) => selectedModelIds.has(m.id)).length;
+            const isProviderLoading =
+              (p.id === 'openrouter' && openRouterLoading) || (p.id === 'ollama' && ollamaLoading);
             return (
               <button
                 key={p.id}
@@ -503,13 +585,40 @@ function ProvidersTab({
                 </div>
                 <div className="mt-1 text-xs leading-5 text-mute">{p.description}</div>
                 <div className="mt-2 text-xs text-mute">
-                  {pModels.length} modelos •{' '}
+                  {isProviderLoading ? 'Carregando modelos…' : `${pModels.length} modelos`} •{' '}
                   <span className="text-accent">{pSelected} no catálogo</span>
                 </div>
               </button>
             );
           })}
         </div>
+
+        {selectedProvider === 'openrouter' && openRouterError && (
+          <div className="mt-4 rounded-[18px] border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+            Não foi possível carregar o catálogo completo do OpenRouter ({openRouterError}).
+            <button
+              type="button"
+              onClick={onRetryOpenRouter}
+              className="ml-2 font-semibold underline underline-offset-2"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {selectedProvider === 'ollama' && ollamaError && (
+          <div className="mt-4 rounded-[18px] border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+            Falha ao consultar o Ollama ({ollamaError}). Verifique a URL e se o servidor está
+            acessível.
+            <button
+              type="button"
+              onClick={onRetryOllama}
+              className="ml-2 font-semibold underline underline-offset-2"
+            >
+              Atualizar
+            </button>
+          </div>
+        )}
 
         {/* API Key input */}
         {selectedProvider === 'ollama' ? (
@@ -525,9 +634,7 @@ function ProvidersTab({
                 id="ollama-url-input"
                 type="url"
                 value={settings.ollamaUrl ?? 'http://localhost:11434'}
-                onChange={(e) =>
-                  onOllamaUrlChange(e.target.value)
-                }
+                onChange={(e) => onOllamaUrlChange(e.target.value)}
                 placeholder="http://localhost:11434"
                 className="flex-1 rounded-[18px] border border-border bg-bg/70 px-4 py-3 font-mono text-sm text-text placeholder:text-mute/50 focus:border-accent focus:outline-none"
               />
@@ -538,10 +645,17 @@ function ProvidersTab({
               >
                 Salvar
               </button>
+              <button
+                type="button"
+                onClick={onRetryOllama}
+                className="rounded-[18px] border border-border bg-bg/60 px-5 py-3 text-sm font-semibold text-text transition hover:border-accent/40"
+              >
+                {ollamaLoading ? 'Atualizando…' : 'Atualizar modelos'}
+              </button>
             </div>
             <p className="mt-2 text-xs text-mute">
               Certifique-se de que o Ollama está rodando e acessível nesse endereço. Modelos
-              disponíveis são detectados automaticamente via <code>/api/tags</code>.
+              disponíveis são detectados automaticamente via /api/tags.
             </p>
           </div>
         ) : (
@@ -690,6 +804,10 @@ function AgentsTab({
   const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
   const [reprocessing, setReprocessing] = useState(false);
   const [healthChecking, setHealthChecking] = useState(false);
+  const transcribeProvider =
+    settings.transcribeProvider === 'local'
+      ? 'local-faster-whisper'
+      : (settings.transcribeProvider ?? 'groq');
 
   const togglePrompt = (key: string) =>
     setExpandedPrompts((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -776,18 +894,21 @@ function AgentsTab({
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-            <label htmlFor="transcribe-provider" className="text-xs uppercase tracking-[0.24em] text-mute">
+            <label
+              htmlFor="transcribe-provider"
+              className="text-xs uppercase tracking-[0.24em] text-mute"
+            >
               Provedor
             </label>
             <select
               id="transcribe-provider"
-              value={settings.transcribeProvider ?? 'groq'}
+              value={transcribeProvider}
               onChange={(e) => {
                 const provider = e.target.value;
                 const defaultModels: Record<string, string> = {
                   groq: 'whisper-large-v3',
                   openai: 'whisper-1',
-                  local: 'self-hosted',
+                  'local-faster-whisper': 'faster-whisper-large-v3',
                 };
                 onSave({
                   ...settings,
@@ -799,12 +920,14 @@ function AgentsTab({
             >
               <option value="groq">Groq (Whisper v3 — rápido)</option>
               <option value="openai">OpenAI (Whisper — referência)</option>
-              <option value="google">Google (Chirp / Speech-to-Text)</option>
-              <option value="local">Local / Self-hosted</option>
+              <option value="local-faster-whisper">Local (faster-whisper self-hosted)</option>
             </select>
           </div>
           <div>
-            <label htmlFor="transcribe-model" className="text-xs uppercase tracking-[0.24em] text-mute">
+            <label
+              htmlFor="transcribe-model"
+              className="text-xs uppercase tracking-[0.24em] text-mute"
+            >
               Modelo
             </label>
             <input
@@ -815,24 +938,25 @@ function AgentsTab({
                 onSave({ ...settings, transcribeModel: e.target.value });
               }}
               placeholder={
-                settings.transcribeProvider === 'openai'
+                transcribeProvider === 'openai'
                   ? 'whisper-1'
-                  : settings.transcribeProvider === 'google'
-                    ? 'chirp'
-                    : settings.transcribeProvider === 'local'
-                      ? 'http://localhost:8080'
-                      : 'whisper-large-v3'
+                  : transcribeProvider === 'local-faster-whisper'
+                    ? 'faster-whisper-large-v3'
+                    : 'whisper-large-v3'
               }
               className="mt-1.5 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 font-mono text-sm text-text outline-none placeholder:text-mute/50 focus:border-accent/50"
             />
           </div>
         </div>
         <p className="mt-2 text-xs text-mute">
-          {settings.transcribeProvider === 'groq' && 'Usa sua API key do Groq. Whisper v3 é gratuito no tier free.'}
-          {settings.transcribeProvider === 'openai' && 'Usa sua API key da OpenAI. Whisper-1 cobra $0.006/minuto.'}
-          {settings.transcribeProvider === 'google' && 'Usa sua API key do Google Cloud. Verifique preços no console.'}
-          {settings.transcribeProvider === 'local' && 'Aponte para seu servidor Whisper local (ex: whisper-server.py da infra Docker).'}
-          {!settings.transcribeProvider && 'Usa sua API key do Groq. Whisper v3 é gratuito no tier free.'}
+          {transcribeProvider === 'groq' &&
+            'Usa sua API key Groq (BYOK): custo cobrado na sua própria conta Groq.'}
+          {transcribeProvider === 'openai' &&
+            'Usa sua API key OpenAI (BYOK): custo cobrado na sua própria conta OpenAI.'}
+          {transcribeProvider === 'local-faster-whisper' &&
+            'Usa seu servidor local (self-hosted): custo de infraestrutura é seu, sem cobrança por token.'}
+          {!transcribeProvider &&
+            'Usa sua API key Groq (BYOK): custo cobrado na sua própria conta Groq.'}
         </p>
       </div>
 

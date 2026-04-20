@@ -9,11 +9,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = getServerDb();
-  const snap = await db
-    .collection('users')
-    .doc(user.uid)
-    .collection('integrations')
-    .get();
+  const snap = await db.collection('users').doc(user.uid).collection('integrations').get();
 
   const integrations = snap.docs.map((doc) => ({
     id: doc.id,

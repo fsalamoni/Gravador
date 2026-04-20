@@ -7,6 +7,7 @@ import {
   formatCost,
   formatTokens,
   inferFitScore,
+  isModelCompatibleWithAgent,
 } from '@/lib/model-registry';
 import { Check, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -68,10 +69,6 @@ export function AgentModelModal({
           m.id.toLowerCase().includes(q) ||
           m.description.toLowerCase().includes(q),
       );
-    }
-    // Filter out models with fit score < 4 when agentKey is available
-    if (agentKey) {
-      list = list.filter((m) => inferFitScore(m, agentKey) >= 4);
     }
     return [...list].sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
@@ -243,14 +240,22 @@ export function AgentModelModal({
                 </tr>
                 {filtered.map((m) => {
                   const selected = currentModelId === m.id;
+                  const compatible = agentKey ? isModelCompatibleWithAgent(m, agentKey) : true;
                   return (
                     <tr
                       key={m.id}
                       onClick={() => {
+                        if (!compatible) return;
                         onSelect(m);
                       }}
-                      className={`cursor-pointer border-b border-border/50 transition ${
-                        selected ? 'bg-accent/8 hover:bg-accent/12' : 'hover:bg-surfaceAlt/50'
+                      className={`border-b border-border/50 transition ${
+                        compatible ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'
+                      } ${
+                        selected
+                          ? 'bg-accent/8 hover:bg-accent/12'
+                          : compatible
+                            ? 'hover:bg-surfaceAlt/50'
+                            : ''
                       }`}
                     >
                       <td className="px-3 py-2.5 text-center">
@@ -265,6 +270,11 @@ export function AgentModelModal({
                       <td className="max-w-[200px] px-3 py-2.5">
                         <div className="font-medium text-text">{m.name}</div>
                         <div className="mt-0.5 truncate text-xs text-mute">{m.description}</div>
+                        {!compatible && (
+                          <div className="mt-1 text-[11px] font-medium text-danger">
+                            Incompatível com este agente
+                          </div>
+                        )}
                       </td>
                       {agentKey && (
                         <td className="px-3 py-2.5">
@@ -306,8 +316,9 @@ export function AgentModelModal({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           <p className="text-sm text-mute">
-            {filtered.length} modelos compatíveis
-            {agentKey && filtered.length < models.length && ` (${models.length - filtered.length} ocultos por baixa compatibilidade)`}
+            {filtered.length} modelos no catálogo
+            {agentKey &&
+              ` • ${filtered.filter((m) => isModelCompatibleWithAgent(m, agentKey)).length} habilitados`}
             {currentModelId &&
               ` • Selecionado: ${models.find((m) => m.id === currentModelId)?.name ?? currentModelId}`}
           </p>

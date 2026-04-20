@@ -609,6 +609,25 @@ export function inferFitScore(model: ModelSpec, agentKey: AgentFitKey): number {
   return Math.max(1, Math.min(10, Math.round(raw / 10)));
 }
 
+export function isModelCompatibleWithAgent(model: ModelSpec, agentKey: AgentFitKey): boolean {
+  const haystack = `${model.id} ${model.name} ${model.description}`.toLowerCase();
+
+  if (agentKey === 'embed') {
+    return haystack.includes('embed') || haystack.includes('embedding');
+  }
+
+  if (agentKey === 'transcribe') {
+    return (
+      haystack.includes('whisper') ||
+      haystack.includes('transcribe') ||
+      haystack.includes('speech') ||
+      haystack.includes('stt')
+    );
+  }
+
+  return inferFitScore(model, agentKey) >= 5;
+}
+
 /**
  * Convert an OpenRouter API model to a ModelSpec.
  * Ported from Lexio's `openRouterToModelOption()`.

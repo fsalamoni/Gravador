@@ -2,14 +2,7 @@
 
 import { CommandPalette } from '@/components/command-palette';
 import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
-import {
-  AudioWaveform,
-  LayoutDashboard,
-  LogOut,
-  Search,
-  Settings,
-  Sparkles,
-} from 'lucide-react';
+import { AudioWaveform, LayoutDashboard, LogOut, Search, Settings, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -65,8 +58,7 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
           {/* Nav links */}
           <nav className="ml-4 flex items-center gap-1 overflow-x-auto" aria-label="Main">
             {NAV_ITEMS.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(item.href + '/');
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
               return (
                 <Link

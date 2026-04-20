@@ -4,6 +4,20 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
+const VALID_THEMES = [
+  'terra',
+  'oceano',
+  'floresta',
+  'noite',
+  'aurora',
+  'artico',
+  'vulcao',
+  'solaris',
+  'claro',
+] as const;
+
+const VALID_TRANSCRIBE_PROVIDERS = new Set(['groq', 'openai', 'local-faster-whisper']);
+
 async function getUserWorkspace(db: FirebaseFirestore.Firestore, uid: string) {
   const snap = await db.collection('workspaces').where('ownerId', '==', uid).limit(1).get();
   if (snap.empty) return null;
@@ -40,17 +54,7 @@ export async function PUT(req: Request) {
 
   // Handle theme update
   if (body.theme && typeof body.theme === 'string') {
-    const validThemes = [
-      'terra',
-      'oceano',
-      'floresta',
-      'noite',
-      'aurora',
-      'artico',
-      'vulcao',
-      'solaris',
-    ];
-    if (validThemes.includes(body.theme)) {
+    if (VALID_THEMES.includes(body.theme as (typeof VALID_THEMES)[number])) {
       const db = getServerDb();
       const ws = await getUserWorkspace(db, user.uid);
       if (ws) {
@@ -72,10 +76,12 @@ export async function PUT(req: Request) {
   // Sanitize: only allow known fields
   const allowed = [
     'transcribeProvider',
+    'transcribeModel',
     'chatProvider',
     'chatModel',
     'embeddingProvider',
     'embeddingModel',
+    'ollamaUrl',
     'byokKeys',
     'agentModels',
     'agentPrompts',
@@ -86,6 +92,30 @@ export async function PUT(req: Request) {
     if (key in body.aiSettings) {
       sanitized[key] = body.aiSettings[key];
     }
+  }
+
+  if (typeof sanitized.transcribeProvider === 'string') {
+    const mapped =
+      sanitized.transcribeProvider === 'local'
+        ? 'local-faster-whisper'
+        : sanitized.transcribeProvider;
+    if (VALID_TRANSCRIBE_PROVIDERS.has(mapped)) {
+      sanitized.transcribeProvider = mapped;
+    } else {
+      sanitized.transcribeProvider = undefined;
+    }
+  }
+
+  if (typeof sanitized.transcribeModel === 'string') {
+    const model = sanitized.transcribeModel.trim();
+    if (model) sanitized.transcribeModel = model;
+    else sanitized.transcribeModel = undefined;
+  }
+
+  if (typeof sanitized.ollamaUrl === 'string') {
+    const url = sanitized.ollamaUrl.trim();
+    if (url) sanitized.ollamaUrl = url;
+    else sanitized.ollamaUrl = undefined;
   }
 
   // Sanitize byokKeys: only allow known provider keys, strip empty strings

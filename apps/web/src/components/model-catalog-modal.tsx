@@ -161,7 +161,7 @@ export function ModelCatalogModal({
                     {error === 'empty'
                       ? 'Nenhum modelo encontrado no catálogo remoto.'
                       : `Erro ao carregar catálogo completo: ${error}`}
-                    {allModels.length > 0 && ' Exibindo modelos offline.'}
+                    {allModels.length > 0 && ' Exibindo os modelos recuperados até o momento.'}
                   </p>
                   {onRetry && (
                     <button

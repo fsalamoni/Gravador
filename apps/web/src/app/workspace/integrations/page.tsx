@@ -12,6 +12,7 @@ import {
   Unplug,
   X,
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 /* ── Types ─────────────────────────────────────────────────── */
@@ -30,6 +31,7 @@ interface Integration {
 /* ── Page component ────────────────────────────────────────── */
 
 export default function IntegrationsPage() {
+  const searchParams = useSearchParams();
   const [integrations, setIntegrations] = useState<Integration[]>([
     {
       id: 'google-drive',
@@ -80,6 +82,24 @@ export default function IntegrationsPage() {
 
   const [toast, setToast] = useState<string | null>(null);
 
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    if (!connected && !error) return;
+
+    if (connected) {
+      setToast(`Integração ${connected} conectada com sucesso.`);
+    }
+    if (error) {
+      setToast(`Falha na conexão: ${error}`);
+    }
+
+    const cleaned = new URL(window.location.href);
+    cleaned.searchParams.delete('connected');
+    cleaned.searchParams.delete('error');
+    window.history.replaceState({}, '', cleaned.toString());
+  }, [searchParams]);
+
   // Load integration statuses from server
   useEffect(() => {
     fetch('/api/integrations')
@@ -124,10 +144,23 @@ export default function IntegrationsPage() {
       );
 
       try {
+        let payload: { integrationId: string; webhookUrl?: string; phoneNumber?: string } = {
+          integrationId,
+        };
+
+        if (integrationId === 'whatsapp') {
+          const webhookUrl = window.prompt('Informe a URL do webhook do WhatsApp:')?.trim();
+          if (!webhookUrl) throw new Error('Conexão cancelada: webhook é obrigatório.');
+          const phoneNumber =
+            window.prompt('Informe o número (opcional, ex: +55 11 99999-9999):')?.trim() ||
+            undefined;
+          payload = { integrationId, webhookUrl, phoneNumber };
+        }
+
         const res = await fetch('/api/integrations/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ integrationId }),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
@@ -161,9 +194,7 @@ export default function IntegrationsPage() {
         showToast(`${integrationId} conectado com sucesso!`);
       } catch (err) {
         setIntegrations((prev) =>
-          prev.map((i) =>
-            i.id === integrationId ? { ...i, status: 'disconnected' as const } : i,
-          ),
+          prev.map((i) => (i.id === integrationId ? { ...i, status: 'disconnected' as const } : i)),
         );
         showToast(err instanceof Error ? err.message : 'Erro ao conectar. Tente novamente.');
       }
@@ -182,7 +213,12 @@ export default function IntegrationsPage() {
         setIntegrations((prev) =>
           prev.map((i) =>
             i.id === integrationId
-              ? { ...i, status: 'disconnected' as const, connectedAt: undefined, connectedEmail: undefined }
+              ? {
+                  ...i,
+                  status: 'disconnected' as const,
+                  connectedAt: undefined,
+                  connectedEmail: undefined,
+                }
               : i,
           ),
         );
@@ -288,7 +324,7 @@ export default function IntegrationsPage() {
                     ) : (
                       <>
                         <ExternalLink className="h-4 w-4" />
-                        Conectar
+                        {integration.id === 'whatsapp' ? 'Configurar e conectar' : 'Conectar'}
                       </>
                     )}
                   </button>

@@ -1,4 +1,4 @@
-import { ArrowUpRight, AudioWaveform, Mic, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Mic, ShieldCheck, Sparkles } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -10,7 +10,13 @@ export default async function LandingPage() {
       <div className="mx-auto flex max-w-7xl flex-col gap-5">
         <header className="ambient-shell card flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Nexus" width={44} height={44} className="rounded-2xl shadow-[0_12px_32px_var(--accent-shadow)]" />
+            <Image
+              src="/logo.png"
+              alt="Nexus"
+              width={44}
+              height={44}
+              className="rounded-2xl shadow-[0_12px_32px_var(--accent-shadow)]"
+            />
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-mute">
                 AI Audio Workspace

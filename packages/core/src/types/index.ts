@@ -6,6 +6,8 @@ export type AIProvider = 'openai' | 'anthropic' | 'groq' | 'google' | 'ollama' |
 
 export type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
 
+export type TranscribeModel = string;
+
 export type EmbeddingProvider = 'openai' | 'ollama';
 
 export type RecordingStatus =

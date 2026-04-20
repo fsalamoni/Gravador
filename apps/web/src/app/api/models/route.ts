@@ -78,6 +78,7 @@ export async function GET(req: Request) {
   }
 
   let models: Array<Record<string, unknown>> = [];
+  let queryFailed = false;
   try {
     const modelsSnap = await db
       .collection('model_catalog')
@@ -105,15 +106,67 @@ export async function GET(req: Request) {
     });
   } catch (err) {
     console.error('[models] Firestore query failed (missing index?):', err);
-    // Return empty with error flag so UI can show offline models
-    return NextResponse.json(
-      { provider, count: 0, models: [], error: 'catalog_query_failed' },
-      { status: 200 },
-    );
+    queryFailed = true;
+  }
+
+  if (models.length === 0) {
+    try {
+      const liveModels = await fetchOpenRouterLiveModels();
+      if (liveModels.length > 0) {
+        console.log(`[models] returning ${liveModels.length} live models for ${provider}`);
+        return NextResponse.json({
+          provider,
+          source: 'openrouter-live',
+          count: liveModels.length,
+          models: liveModels,
+          ...(queryFailed ? { warning: 'catalog_query_failed' } : {}),
+        });
+      }
+    } catch (err) {
+      console.error('[models] live OpenRouter fallback failed:', err);
+      if (queryFailed) {
+        return NextResponse.json(
+          { provider, count: 0, models: [], error: 'catalog_query_failed' },
+          { status: 200 },
+        );
+      }
+    }
   }
 
   console.log(`[models] returning ${models.length} models for ${provider}`);
   return NextResponse.json({ provider, count: models.length, models });
+}
+
+async function fetchOpenRouterLiveModels(): Promise<Array<Record<string, unknown>>> {
+  const res = await fetch('https://openrouter.ai/api/v1/models', {
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`OpenRouter API returned ${res.status}`);
+
+  const json = (await res.json()) as { data: OpenRouterModel[] };
+  return (json.data ?? [])
+    .filter((m) => m.architecture?.output_modalities?.includes('text'))
+    .map((m) => ({
+      id: m.id.replace(/\//g, '__'),
+      modelId: m.id,
+      name: m.name,
+      description: m.description ?? '',
+      contextLength: m.context_length ?? 0,
+      maxCompletionTokens: m.top_provider?.max_completion_tokens ?? 0,
+      pricing: {
+        prompt: Number.parseFloat(m.pricing?.prompt ?? '0'),
+        completion: Number.parseFloat(m.pricing?.completion ?? '0'),
+        request: Number.parseFloat(m.pricing?.request ?? '0'),
+        image: Number.parseFloat(m.pricing?.image ?? '0'),
+      },
+      inputModalities: m.architecture?.input_modalities ?? ['text'],
+      outputModalities: m.architecture?.output_modalities ?? ['text'],
+      supportedParameters: m.supported_parameters ?? [],
+      qualityScores: m.quality_scores ?? null,
+      expirationDate: null,
+    }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 }
 
 async function refreshOpenRouterCatalog(db: FirebaseFirestore.Firestore, catalogProvider: string) {

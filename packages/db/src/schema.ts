@@ -41,16 +41,19 @@ export type AgentModelConfig = {
 
 export type WorkspaceAISettings = {
   transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
+  transcribeModel?: string;
   chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
   chatModel?: string;
   embeddingProvider?: 'openai' | 'ollama';
   embeddingModel?: string;
+  ollamaUrl?: string;
   byokKeys?: {
     openai?: string;
     anthropic?: string;
     groq?: string;
     google?: string;
     openrouter?: string;
+    ollamaBaseUrl?: string;
   };
   /** Per-agent/pipeline model overrides */
   agentModels?: {
