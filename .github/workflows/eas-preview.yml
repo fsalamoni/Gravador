@@ -43,7 +43,26 @@ jobs:
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
         run: |
           eas build --profile preview --platform android --non-interactive --json > eas-build.json
-          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('eas-build.json','utf8')); const build=Array.isArray(payload)?payload[0]:payload; if(!build){process.exit(1);} const buildId=build.id ?? ''; const detailsUrl=build.detailsPageUrl ?? build.artifacts?.buildUrl ?? ''; const artifactUrl=build.artifacts?.buildUrl ?? ''; fs.appendFileSync(process.env.GITHUB_OUTPUT, `build_id=${buildId}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `details_url=${detailsUrl}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact_url=${artifactUrl}\n`);"
+          node -e "
+            const fs = require('node:fs');
+            const out = process.env.GITHUB_OUTPUT;
+            const raw = fs.readFileSync('eas-build.json', 'utf8').trim();
+            let build = {};
+            try {
+              const payload = JSON.parse(raw);
+              build = Array.isArray(payload) ? (payload[0] ?? {}) : (payload ?? {});
+            } catch (e) {
+              console.error('Failed to parse eas-build.json:', e.message);
+            }
+            const buildId      = String(build.id ?? '');
+            const detailsUrl   = String(build.detailsPageUrl ?? build.artifacts?.buildUrl ?? '');
+            const artifactUrl  = String(build.artifacts?.buildUrl ?? '');
+            if (out) {
+              fs.appendFileSync(out, 'build_id=' + buildId + '\n');
+              fs.appendFileSync(out, 'details_url=' + detailsUrl + '\n');
+              fs.appendFileSync(out, 'artifact_url=' + artifactUrl + '\n');
+            }
+          "
       - name: Publish preview summary
         if: always()
         shell: bash
