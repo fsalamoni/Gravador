@@ -2,6 +2,7 @@ import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-se
 import { ArrowLeft, Clock3, FileAudio, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { PipelinePanel } from './pipeline-panel';
 import { Player } from './player';
 import { RecordingTabs } from './tabs';
 
@@ -39,6 +40,7 @@ export default async function RecordingPage({
     durationMs: number;
     storagePath: string;
     storageBucket: string;
+    pipelineResults?: Record<string, 'ok' | 'failed'>;
   };
 
   const [transcriptSnap, segmentsSnap, outputsSnap, actionItemsSnap] = await Promise.all([
@@ -144,6 +146,14 @@ export default async function RecordingPage({
 
       <section className="card p-5 sm:p-6">
         <Player src={audioUrl} />
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <PipelinePanel
+          recordingId={id}
+          hasTranscript={!!transcript}
+          initialPipelineResults={recording.pipelineResults ?? {}}
+        />
       </section>
 
       <section className="card p-5 sm:p-6">

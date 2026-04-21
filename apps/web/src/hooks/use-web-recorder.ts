@@ -103,10 +103,10 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
       const storageRef = ref(storage, storagePath);
       await uploadBytes(storageRef, blob, { contentType: mimeType });
 
-      const recordingRef = await addDoc(collection(db, 'recordings'), {
+      await addDoc(collection(db, 'recordings'), {
         workspaceId,
         createdBy: userId,
-        status: 'transcribing',
+        status: 'uploaded',
         durationMs: finalDurationMs,
         sizeBytes: blob.size,
         mimeType,
@@ -116,16 +116,11 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         deletedAt: null,
+        pipelineResults: {},
       });
 
-      void fetch('/api/integrations/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recordingId: recordingRef.id }),
-      }).catch(() => undefined);
-
       setDurationMs(0);
-      setStatusMessage('Gravação salva. O processamento já foi iniciado.');
+      setStatusMessage('Gravação salva. Use os botões de IA na página para iniciar o processamento.');
     } catch (error) {
       console.error('Error uploading recording:', error);
       setStatusMessage('Falha ao salvar a gravação. Tente novamente.');

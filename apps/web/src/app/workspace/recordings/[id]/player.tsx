@@ -7,13 +7,19 @@ import WaveSurfer from 'wavesurfer.js';
 
 export function Player({ src }: { src: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [waveReady, setWaveReady] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !src) return;
+    if (!containerRef.current || !src || !audioRef.current) return;
+
+    const audio = audioRef.current;
+    audio.src = src;
+
     const ws = WaveSurfer.create({
       container: containerRef.current,
       waveColor: 'rgb(var(--color-mute) / 0.4)',
@@ -23,18 +29,29 @@ export function Player({ src }: { src: string }) {
       barGap: 2,
       barRadius: 999,
       height: 104,
-      url: src,
+      // Use our own audio element so the browser handles decoding
+      // (avoids AudioContext CORS restrictions with signed URLs)
+      media: audio,
     });
-    ws.on('ready', () => setDuration(ws.getDuration() * 1000));
+
+    ws.on('ready', () => {
+      setDuration(ws.getDuration() * 1000);
+      setWaveReady(true);
+    });
     ws.on('audioprocess', (t) => setCurrent(t * 1000));
     ws.on('seeking', (t) => setCurrent(t * 1000));
     ws.on('play', () => setPlaying(true));
     ws.on('pause', () => setPlaying(false));
+    ws.on('finish', () => setPlaying(false));
+
     wsRef.current = ws;
-    return () => ws.destroy();
+    return () => {
+      ws.destroy();
+      setWaveReady(false);
+    };
   }, [src]);
 
-  // Expose a global seek hook used by the transcript + chat to jump around
+  // Expose global seek hook for transcript/chat
   useEffect(() => {
     (window as unknown as { gravadorSeek?: (ms: number) => void }).gravadorSeek = (ms) => {
       const ws = wsRef.current;
@@ -44,8 +61,29 @@ export function Player({ src }: { src: string }) {
     };
   }, []);
 
+  const handlePlayPause = () => {
+    const ws = wsRef.current;
+    const audio = audioRef.current;
+    if (ws && waveReady) {
+      ws.playPause();
+    } else if (audio) {
+      // Fallback: use native audio element directly if WaveSurfer not ready
+      if (audio.paused) {
+        void audio.play();
+        setPlaying(true);
+      } else {
+        audio.pause();
+        setPlaying(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-5">
+      {/* Hidden native audio element - handles actual playback without CORS issues */}
+      {/* biome-ignore lint/a11y/useMediaCaption: recording playback */}
+      <audio ref={audioRef} preload="metadata" className="hidden" />
+
       <div className="rounded-[28px] border border-border bg-bg/55 p-5">
         {src ? (
           <div ref={containerRef} />
@@ -62,7 +100,7 @@ export function Player({ src }: { src: string }) {
         </div>
         <button
           type="button"
-          onClick={() => wsRef.current?.playPause()}
+          onClick={handlePlayPause}
           className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-onAccent transition hover:bg-accentSoft disabled:opacity-60"
           disabled={!src}
           aria-label={playing ? 'Pause audio' : 'Play audio'}

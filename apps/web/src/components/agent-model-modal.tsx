@@ -9,8 +9,49 @@ import {
   inferFitScore,
   isModelCompatibleWithAgent,
 } from '@/lib/model-registry';
-import { Check, ChevronDown, ChevronUp, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Info, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+
+const AGENT_TIPS: Record<
+  AgentFitKey,
+  { type: string; why: string; recommended: string }
+> = {
+  transcribe: {
+    type: 'Modelo de Fala-para-Texto (STT)',
+    why: 'Exige modelo especializado em reconhecimento de fala. Não funciona com LLMs genéricos.',
+    recommended: 'Whisper Large v3 (Groq) · Whisper-1 (OpenAI) · Faster-Whisper local',
+  },
+  summarize: {
+    type: 'LLM com alta Síntese e Redação',
+    why: 'Precisa condensar longos trascritos preservando nuances. Síntese e escrita fluente são essenciais.',
+    recommended: 'Claude Sonnet 4.6 · GPT-4.1 · Gemini 2.5 Pro',
+  },
+  actionItems: {
+    type: 'LLM com alta Extração e Raciocínio',
+    why: 'Deve identificar compromissos implícitos e atribuir responsáveis com precisão. Temperatura baixa.',
+    recommended: 'Claude Sonnet 4.6 · GPT-4.1 · GPT-4.1-mini',
+  },
+  mindmap: {
+    type: 'LLM com Extração estruturada e Síntese',
+    why: 'Precisa organizar hierarquias de tópicos de forma coerente a partir de conteúdo extenso.',
+    recommended: 'Claude Sonnet 4.6 · Gemini 2.5 Flash · GPT-4.1-mini',
+  },
+  chapters: {
+    type: 'LLM com alta Extração temporal',
+    why: 'Segmenta o conteúdo por timestamps; prioriza extração sobre criatividade. Modelos compactos bastam.',
+    recommended: 'GPT-4.1-mini · Claude Haiku 3.5 · Gemma 2.5 Flash',
+  },
+  chat: {
+    type: 'LLM com alto Raciocínio conversacional (RAG)',
+    why: 'Combina recuperação de contexto com geração fluente. Raciocínio e escrita são o diferencial.',
+    recommended: 'Claude Opus 4 · GPT-4o · Gemini 2.5 Pro',
+  },
+  embed: {
+    type: 'Modelo de Embedding vetorial',
+    why: 'Gera vetores semânticos para busca por similaridade. Apenas modelos de embedding são compatíveis.',
+    recommended: 'text-embedding-3-small (OpenAI) · text-embedding-3-large · nomic-embed (Ollama)',
+  },
+};
 
 type SortKey =
   | 'name'
@@ -149,6 +190,24 @@ export function AgentModelModal({
             />
           </div>
         </div>
+
+        {/* Agent recommendation banner */}
+        {agentKey && AGENT_TIPS[agentKey] && (
+          <div className="border-b border-border bg-accent/5 px-6 py-3">
+            <div className="flex items-start gap-3">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <div className="space-y-0.5 text-sm">
+                <span className="font-semibold text-text">{AGENT_TIPS[agentKey].type}</span>
+                <span className="mx-2 text-mute">—</span>
+                <span className="text-mute">{AGENT_TIPS[agentKey].why}</span>
+                <div className="mt-1 text-xs text-accent/80">
+                  <span className="font-medium text-text/70">Recomendado: </span>
+                  {AGENT_TIPS[agentKey].recommended}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         <div className="flex-1 overflow-auto">
