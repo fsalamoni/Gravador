@@ -1,4 +1,5 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
 import { getDefaultTargetFolder } from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
 
@@ -86,8 +87,8 @@ async function fetchConnectedEmail(integrationId: IntegrationId, accessToken: st
 }
 
 export async function GET(req: Request) {
-  const user = await getSessionUser();
-  if (!user) return redirectToIntegrations(req, { error: 'unauthorized' });
+  const maybeSessionUser = await getApiSessionUser(req);
+  const db = getServerDb();
 
   const url = new URL(req.url);
   const oauthError = url.searchParams.get('error');
@@ -101,24 +102,59 @@ export async function GET(req: Request) {
     return redirectToIntegrations(req, { error: 'missing_code_or_state' });
   }
 
-  let stateData: { uid: string; integrationId: IntegrationId; ts?: number };
+  let stateData: { uid: string; integrationId: IntegrationId; ts?: number; nonce?: string };
   try {
     stateData = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as {
       uid: string;
       integrationId: IntegrationId;
       ts?: number;
+      nonce?: string;
     };
   } catch {
     return redirectToIntegrations(req, { error: 'invalid_state' });
   }
 
-  if (stateData.uid !== user.uid) {
-    return redirectToIntegrations(req, { error: 'state_uid_mismatch' });
-  }
-
   if (typeof stateData.ts === 'number' && Date.now() - stateData.ts > 15 * 60 * 1000) {
     return redirectToIntegrations(req, { error: 'state_expired' });
   }
+
+  if (!stateData.uid || !stateData.integrationId || !stateData.nonce) {
+    return redirectToIntegrations(req, { error: 'invalid_state_payload' });
+  }
+
+  if (maybeSessionUser && maybeSessionUser.uid !== stateData.uid) {
+    return redirectToIntegrations(req, { error: 'state_uid_mismatch' });
+  }
+
+  const stateRef = db
+    .collection('users')
+    .doc(stateData.uid)
+    .collection('integration_oauth_state')
+    .doc(stateData.nonce);
+  const stateDoc = await stateRef.get();
+  if (!stateDoc.exists) {
+    return redirectToIntegrations(req, { error: 'invalid_state_nonce' });
+  }
+
+  const stateRecord = stateDoc.data() as {
+    integrationId?: IntegrationId;
+    expiresAt?: string;
+  };
+
+  if (!stateRecord.integrationId || stateRecord.integrationId !== stateData.integrationId) {
+    await stateRef.delete().catch(() => undefined);
+    return redirectToIntegrations(req, { error: 'state_integration_mismatch' });
+  }
+
+  if (stateRecord.expiresAt) {
+    const expiresAt = new Date(stateRecord.expiresAt).getTime();
+    if (!Number.isNaN(expiresAt) && expiresAt <= Date.now()) {
+      await stateRef.delete().catch(() => undefined);
+      return redirectToIntegrations(req, { error: 'state_expired' });
+    }
+  }
+
+  await stateRef.delete().catch(() => undefined);
 
   const config = OAUTH_CONFIG[stateData.integrationId];
   if (!config) {
@@ -168,10 +204,9 @@ export async function GET(req: Request) {
     token.access_token,
   ).catch(() => null);
 
-  const db = getServerDb();
   await db
     .collection('users')
-    .doc(user.uid)
+    .doc(stateData.uid)
     .collection('integrations')
     .doc(stateData.integrationId)
     .set(

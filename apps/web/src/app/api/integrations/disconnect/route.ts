@@ -1,11 +1,12 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
 /** POST /api/integrations/disconnect — remove integration connection */
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = (await req.json()) as { integrationId?: string };

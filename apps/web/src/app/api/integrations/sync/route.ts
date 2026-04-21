@@ -1,4 +1,5 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
 import {
   type IntegrationId,
   type StorageSyncResult,
@@ -19,7 +20,7 @@ type SyncBody = {
 const STORAGE_INTEGRATIONS: IntegrationId[] = ['google-drive', 'onedrive', 'dropbox'];
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as SyncBody;

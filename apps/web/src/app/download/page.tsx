@@ -2,6 +2,7 @@ import { ArrowUpRight, Download, FileText, Globe, Smartphone } from 'lucide-reac
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { DownloadQRSection } from './download-qr-section';
+import { IosWaitlistForm } from './ios-waitlist-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,6 +140,7 @@ export default async function DownloadPage() {
             O QR code do bloco iOS já está preparado como placeholder operacional para a futura
             distribuição via TestFlight/App Store.
           </div>
+          <IosWaitlistForm />
         </article>
       </div>
     </main>

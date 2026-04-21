@@ -84,7 +84,7 @@ const INITIAL_INTEGRATIONS: Integration[] = [
     id: 'whatsapp',
     name: 'WhatsApp',
     description:
-      'Envie resumos/links para o seu webhook de automação e receba áudios de volta criando gravações reais no banco.',
+      'Envie gravações pelo WhatsApp Cloud API oficial e, se quiser, adicione um webhook para automações personalizadas.',
     icon: MessageCircle,
     iconColor: 'text-[#25d366]',
     status: 'disconnected',
@@ -161,15 +161,22 @@ export default function IntegrationsPage() {
         };
 
         if (integrationId === 'whatsapp') {
-          const webhookUrl = window
-            .prompt('Informe a URL do webhook do WhatsApp/automação:')
+          const phoneNumber = window
+            .prompt('Informe o número de destino no formato internacional (ex: +55 11 99999-9999):')
             ?.trim();
-          if (!webhookUrl) throw new Error('Conexão cancelada: webhook é obrigatório.');
-          const phoneNumber =
-            window
-              .prompt('Informe o número de destino (opcional, ex: +55 11 99999-9999):')
-              ?.trim() || undefined;
-          payload = { integrationId, webhookUrl, phoneNumber };
+          if (!phoneNumber) throw new Error('Conexão cancelada: número de destino é obrigatório.');
+
+          const webhookUrl = window
+            .prompt(
+              'Webhook opcional para automação (deixe em branco para usar só WhatsApp Cloud API oficial):',
+            )
+            ?.trim();
+
+          payload = {
+            integrationId,
+            phoneNumber,
+            ...(webhookUrl ? { webhookUrl } : {}),
+          };
         }
 
         const res = await fetch('/api/integrations/connect', {
@@ -287,7 +294,7 @@ export default function IntegrationsPage() {
         });
         showToast(
           integrationId === 'whatsapp'
-            ? 'Payload enviado ao webhook do WhatsApp.'
+            ? 'Sincronização do WhatsApp concluída.'
             : 'Sincronização concluída com sucesso.',
         );
       } catch (error) {

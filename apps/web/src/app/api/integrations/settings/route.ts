@@ -1,7 +1,9 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
 import {
   type IntegrationClientView,
   type IntegrationId,
+  normalizePhoneNumber,
   normalizeTargetFolder,
 } from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
@@ -15,7 +17,7 @@ type SettingsBody = {
 };
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = (await req.json()) as SettingsBody;
@@ -44,7 +46,9 @@ export async function POST(req: Request) {
   }
 
   if (body.integrationId === 'whatsapp' && typeof body.phoneNumber === 'string') {
-    updates.phoneNumber = body.phoneNumber.trim() || null;
+    const normalizedPhoneNumber = normalizePhoneNumber(body.phoneNumber);
+    updates.phoneNumber = normalizedPhoneNumber;
+    updates.phoneNumberNormalized = normalizedPhoneNumber;
   }
 
   if (Object.keys(updates).length === 0) {

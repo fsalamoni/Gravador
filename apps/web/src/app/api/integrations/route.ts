@@ -1,4 +1,5 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
 import { type IntegrationId, sanitizeIntegrationForClient } from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
 
@@ -14,7 +15,7 @@ const INTEGRATIONS: IntegrationId[] = [
 
 /** GET /api/integrations — returns user's integration connection statuses */
 export async function GET(req: Request) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = getServerDb();

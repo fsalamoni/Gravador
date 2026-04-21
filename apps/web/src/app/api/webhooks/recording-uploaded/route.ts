@@ -1,5 +1,5 @@
 import { getServerDb } from '@/lib/firebase-server';
-import { FieldValue } from 'firebase-admin/firestore';
+import { enqueueFullPipelineJob } from '@/lib/jobs';
 import { NextResponse } from 'next/server';
 
 /** Webhook: fires when a new audio file lands. Kicks off the AI job. */
@@ -14,13 +14,10 @@ export async function POST(req: Request) {
   };
 
   const db = getServerDb();
-  await db.collection('jobs').add({
+  await enqueueFullPipelineJob(db, {
     recordingId: body.recordingId,
     workspaceId: body.workspaceId,
-    kind: 'full-pipeline',
-    status: 'queued',
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
+    source: 'storage-webhook',
   });
 
   // TODO: Trigger Cloud Function for AI pipeline processing

@@ -1,5 +1,6 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
-import { buildWhatsAppReceiveUrl } from '@/lib/integration-sync';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
+import { buildWhatsAppReceiveUrl, normalizePhoneNumber } from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -81,8 +82,9 @@ function getAppBaseUrl(req: Request): string {
 
 /** POST /api/integrations/connect — initiate OAuth or webhook connection */
 export async function POST(req: Request) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const db = getServerDb();
 
   const body = (await req.json()) as {
     integrationId?: IntegrationId;
@@ -98,30 +100,52 @@ export async function POST(req: Request) {
     );
   }
 
-  // WhatsApp uses webhook-based connection
+  // WhatsApp supports Meta Cloud API by default and optional webhook fallback.
   if (integrationId === 'whatsapp') {
-    if (!body.webhookUrl) {
+    const webhookUrl = body.webhookUrl?.trim() ?? '';
+    const hasWebhook = Boolean(webhookUrl);
+    const phoneNumberNormalized = normalizePhoneNumber(body.phoneNumber);
+    const hasMetaCloudConfig = Boolean(
+      process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim() &&
+        process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim(),
+    );
+
+    if (!phoneNumberNormalized) {
       return NextResponse.json(
         {
-          error: 'missing_webhook_url',
-          message: 'Informe a URL do webhook do WhatsApp para concluir a conexão.',
+          error: 'missing_phone_number',
+          message: 'Informe o número de destino do WhatsApp em formato internacional.',
         },
         { status: 400 },
       );
     }
 
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(body.webhookUrl);
-    } catch {
+    if (!hasWebhook && !hasMetaCloudConfig) {
       return NextResponse.json(
-        { error: 'invalid_webhook_url', message: 'URL de webhook inválida.' },
-        { status: 400 },
+        {
+          error: 'not_configured',
+          message:
+            'Configure WHATSAPP_CLOUD_ACCESS_TOKEN e WHATSAPP_CLOUD_PHONE_NUMBER_ID ou informe um webhook.',
+        },
+        { status: 501 },
       );
     }
 
-    const db = getServerDb();
+    let parsedUrl: URL | null = null;
+    if (hasWebhook) {
+      try {
+        parsedUrl = new URL(webhookUrl);
+      } catch {
+        return NextResponse.json(
+          { error: 'invalid_webhook_url', message: 'URL de webhook inválida.' },
+          { status: 400 },
+        );
+      }
+    }
+
     const inboundToken = crypto.randomUUID().replace(/-/g, '');
+    const deliveryMode = parsedUrl ? 'webhook' : 'meta-cloud';
+
     await db
       .collection('users')
       .doc(user.uid)
@@ -131,8 +155,10 @@ export async function POST(req: Request) {
         {
           status: 'connected',
           type: 'webhook',
-          webhookUrl: parsedUrl.toString(),
-          phoneNumber: body.phoneNumber ?? null,
+          deliveryMode,
+          webhookUrl: parsedUrl?.toString() ?? null,
+          phoneNumber: phoneNumberNormalized,
+          phoneNumberNormalized,
           inboundToken,
           connectedAt: new Date().toISOString(),
         },
@@ -140,6 +166,7 @@ export async function POST(req: Request) {
       );
     return NextResponse.json({
       status: 'connected',
+      deliveryMode,
       receiveUrl: buildWhatsAppReceiveUrl(getAppBaseUrl(req)),
       inboundToken,
     });
@@ -168,8 +195,23 @@ export async function POST(req: Request) {
 
   const appBaseUrl = getAppBaseUrl(req);
   const redirectUri = `${appBaseUrl}/api/integrations/callback`;
+  const nonce = crypto.randomUUID().replace(/-/g, '');
+  const now = Date.now();
+  await db
+    .collection('users')
+    .doc(user.uid)
+    .collection('integration_oauth_state')
+    .doc(nonce)
+    .set({
+      uid: user.uid,
+      integrationId,
+      nonce,
+      createdAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + 15 * 60 * 1000).toISOString(),
+    });
+
   const state = Buffer.from(
-    JSON.stringify({ uid: user.uid, integrationId, ts: Date.now() }),
+    JSON.stringify({ uid: user.uid, integrationId, ts: now, nonce }),
   ).toString('base64url');
 
   const params = new URLSearchParams({

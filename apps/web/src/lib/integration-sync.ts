@@ -19,6 +19,7 @@ type StorageIntegrationId = Extract<IntegrationId, 'google-drive' | 'onedrive' |
 type StoredIntegrationDoc = {
   status?: string;
   type?: 'oauth' | 'webhook';
+  deliveryMode?: 'webhook' | 'meta-cloud';
   provider?: string;
   connectedAt?: string | null;
   connectedEmail?: string | null;
@@ -30,6 +31,7 @@ type StoredIntegrationDoc = {
   scope?: string | null;
   targetFolder?: string | null;
   phoneNumber?: string | null;
+  phoneNumberNormalized?: string | null;
   webhookUrl?: string | null;
   inboundToken?: string | null;
   lastSyncedAt?: string | null;
@@ -49,6 +51,7 @@ type RecordingStorageDoc = {
 export interface IntegrationClientView {
   id: IntegrationId;
   status: 'disconnected' | 'connected';
+  deliveryMode?: 'webhook' | 'meta-cloud' | null;
   connectedAt?: string | null;
   connectedEmail?: string | null;
   targetFolder?: string | null;
@@ -125,6 +128,15 @@ export function buildWhatsAppReceiveUrl(appBaseUrl: string) {
   return `${trimTrailingSlashes(appBaseUrl)}/api/integrations/whatsapp/inbound`;
 }
 
+export function normalizePhoneNumber(input: string | null | undefined) {
+  const raw = input?.trim() ?? '';
+  if (!raw) return null;
+
+  const digits = raw.replace(/[^\d]/g, '');
+  if (!digits) return null;
+  return `+${digits}`;
+}
+
 export function sanitizeIntegrationForClient(
   integrationId: IntegrationId,
   raw: StoredIntegrationDoc | undefined,
@@ -155,6 +167,7 @@ export function sanitizeIntegrationForClient(
   if (integrationId === 'whatsapp') {
     return {
       ...common,
+      deliveryMode: raw.deliveryMode ?? null,
       receiveUrl: buildWhatsAppReceiveUrl(appBaseUrl),
       receiveToken: raw.inboundToken ?? null,
     };
@@ -251,7 +264,18 @@ export async function sendRecordingToWhatsAppWebhook(params: {
   recordingId: string;
 }): Promise<WhatsAppSendResult> {
   const integration = await getConnectedIntegration(params.db, params.userId, 'whatsapp');
-  if (!integration.webhookUrl) {
+  const normalizedPhone = normalizePhoneNumber(integration.phoneNumber);
+  if (!normalizedPhone) {
+    throw new Error('Número do WhatsApp não configurado para envio.');
+  }
+
+  const hasMetaCloudConfig = Boolean(
+    process.env.WHATSAPP_CLOUD_ACCESS_TOKEN && process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID,
+  );
+  const shouldUseMetaCloud =
+    integration.deliveryMode === 'meta-cloud' || (!integration.webhookUrl && hasMetaCloudConfig);
+
+  if (!shouldUseMetaCloud && !integration.webhookUrl) {
     throw new Error('Webhook do WhatsApp não configurado.');
   }
 
@@ -266,29 +290,38 @@ export async function sendRecordingToWhatsAppWebhook(params: {
   const summary =
     (bundle.outputs.summary as { tldr?: string; bullets?: string[] } | undefined) ?? undefined;
 
-  const res = await fetch(integration.webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(integration.inboundToken
-        ? { 'x-gravador-integration-token': integration.inboundToken }
-        : {}),
-    },
-    body: JSON.stringify({
-      event: 'recording.ready',
-      phoneNumber: integration.phoneNumber ?? null,
-      recording: bundle.recording,
-      transcript: bundle.transcript,
-      markdown,
+  if (shouldUseMetaCloud) {
+    await sendRecordingToWhatsAppCloud({
+      phoneNumber: normalizedPhone,
+      title: bundle.recording.title ?? params.recordingId,
       summary: summary?.tldr ?? null,
-      bullets: summary?.bullets ?? [],
       audioUrl,
-    }),
-  });
+    });
+  } else {
+    const res = await fetch(integration.webhookUrl!, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(integration.inboundToken
+          ? { 'x-gravador-integration-token': integration.inboundToken }
+          : {}),
+      },
+      body: JSON.stringify({
+        event: 'recording.ready',
+        phoneNumber: normalizedPhone,
+        recording: bundle.recording,
+        transcript: bundle.transcript,
+        markdown,
+        summary: summary?.tldr ?? null,
+        bullets: summary?.bullets ?? [],
+        audioUrl,
+      }),
+    });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Webhook do WhatsApp respondeu ${res.status}: ${body || 'sem detalhes'}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Webhook do WhatsApp respondeu ${res.status}: ${body || 'sem detalhes'}`);
+    }
   }
 
   await params.db
@@ -308,8 +341,69 @@ export async function sendRecordingToWhatsAppWebhook(params: {
   return {
     integrationId: 'whatsapp',
     recordingId: params.recordingId,
-    target: integration.phoneNumber ?? null,
+    target: normalizedPhone,
   };
+}
+
+async function sendRecordingToWhatsAppCloud(params: {
+  phoneNumber: string;
+  title: string;
+  summary: string | null;
+  audioUrl: string;
+}) {
+  const accessToken = process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim();
+  const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
+  if (!accessToken || !phoneNumberId) {
+    throw new Error('WhatsApp Cloud API não configurada no ambiente.');
+  }
+
+  const endpoint = `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`;
+  const recipient = params.phoneNumber.replace(/[^\d]/g, '');
+  if (!recipient) {
+    throw new Error('Número de destino inválido para WhatsApp Cloud API.');
+  }
+
+  const text = [
+    `🎙️ ${params.title}`,
+    params.summary ? `Resumo: ${params.summary}` : 'Seu áudio foi processado com sucesso.',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+    .slice(0, 4096);
+
+  await sendWhatsAppCloudPayload(endpoint, accessToken, {
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'text',
+    text: { body: text },
+  });
+
+  await sendWhatsAppCloudPayload(endpoint, accessToken, {
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'audio',
+    audio: { link: params.audioUrl },
+  });
+}
+
+async function sendWhatsAppCloudPayload(
+  endpoint: string,
+  accessToken: string,
+  payload: Record<string, unknown>,
+) {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`WhatsApp Cloud API respondeu ${res.status}: ${body || 'sem detalhes'}`);
+  }
 }
 
 export async function receiveWhatsAppAudio(params: {
@@ -322,9 +416,76 @@ export async function receiveWhatsAppAudio(params: {
   capturedAt?: string | null;
   phoneNumber?: string | null;
 }): Promise<{ recordingId: string; workspaceId: string; userId: string }> {
-  const match = await params.db
+  const resolved = await resolveWhatsAppIntegrationByToken(params.db, params.token);
+
+  const remoteRes = await fetch(params.audioUrl);
+  if (!remoteRes.ok) {
+    throw new Error(`Falha ao baixar o áudio remoto (${remoteRes.status}).`);
+  }
+
+  const contentType =
+    params.mimeType?.trim() || remoteRes.headers.get('content-type') || 'audio/mpeg';
+  const arrayBuffer = await remoteRes.arrayBuffer();
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error('O áudio recebido está vazio.');
+  }
+
+  return createRecordingFromAudioBytes({
+    db: params.db,
+    userId: resolved.userId,
+    integration: resolved.integration,
+    audioBytes: Buffer.from(arrayBuffer),
+    mimeType: contentType,
+    durationMs: params.durationMs,
+    title: params.title,
+    capturedAt: params.capturedAt,
+    phoneNumber: params.phoneNumber,
+    source: 'whatsapp-webhook',
+    fallbackPath: params.audioUrl,
+  });
+}
+
+export async function receiveWhatsAppCloudAudio(params: {
+  db: Firestore;
+  phoneNumber: string;
+  audioBytes: Buffer;
+  mimeType?: string | null;
+  durationMs?: number | null;
+  title?: string | null;
+  capturedAt?: string | null;
+}): Promise<{ recordingId: string; workspaceId: string; userId: string }> {
+  const normalizedPhone = normalizePhoneNumber(params.phoneNumber);
+  if (!normalizedPhone) {
+    throw new Error('Número de origem inválido no WhatsApp Cloud API.');
+  }
+
+  const resolved = await resolveWhatsAppIntegrationByPhone(params.db, normalizedPhone);
+  return createRecordingFromAudioBytes({
+    db: params.db,
+    userId: resolved.userId,
+    integration: resolved.integration,
+    audioBytes: params.audioBytes,
+    mimeType: params.mimeType?.trim() || 'audio/ogg',
+    durationMs: params.durationMs,
+    title: params.title,
+    capturedAt: params.capturedAt,
+    phoneNumber: normalizedPhone,
+    source: 'whatsapp-cloud',
+  });
+}
+
+type ResolvedWhatsAppIntegration = {
+  userId: string;
+  integration: StoredIntegrationDoc;
+};
+
+async function resolveWhatsAppIntegrationByToken(
+  db: Firestore,
+  token: string,
+): Promise<ResolvedWhatsAppIntegration> {
+  const match = await db
     .collectionGroup('integrations')
-    .where('inboundToken', '==', params.token)
+    .where('inboundToken', '==', token)
     .limit(1)
     .get();
 
@@ -343,34 +504,86 @@ export async function receiveWhatsAppAudio(params: {
     throw new Error('Não foi possível identificar o usuário da integração.');
   }
 
-  const workspaceId = await resolvePrimaryWorkspaceId(params.db, userId);
+  return { userId, integration };
+}
+
+async function resolveWhatsAppIntegrationByPhone(
+  db: Firestore,
+  phoneNumberNormalized: string,
+): Promise<ResolvedWhatsAppIntegration> {
+  const matchByNormalized = await db
+    .collectionGroup('integrations')
+    .where('phoneNumberNormalized', '==', phoneNumberNormalized)
+    .limit(5)
+    .get();
+
+  const normalizedDoc = matchByNormalized.docs.find(
+    (doc) => doc.ref.id === 'whatsapp' && doc.data().status === 'connected',
+  );
+
+  const fallbackDoc =
+    normalizedDoc ??
+    (
+      await db
+        .collectionGroup('integrations')
+        .where('phoneNumber', '==', phoneNumberNormalized)
+        .limit(5)
+        .get()
+    ).docs.find((doc) => doc.ref.id === 'whatsapp' && doc.data().status === 'connected');
+
+  const integrationDoc = fallbackDoc;
+  if (!integrationDoc) {
+    throw new Error('Nenhuma integração WhatsApp ativa encontrada para este número.');
+  }
+
+  const userId = integrationDoc.ref.parent.parent?.id;
+  if (!userId) {
+    throw new Error('Não foi possível identificar o usuário da integração WhatsApp.');
+  }
+
+  return {
+    userId,
+    integration: integrationDoc.data() as StoredIntegrationDoc,
+  };
+}
+
+async function createRecordingFromAudioBytes(params: {
+  db: Firestore;
+  userId: string;
+  integration: StoredIntegrationDoc;
+  audioBytes: Buffer;
+  mimeType: string;
+  durationMs?: number | null;
+  title?: string | null;
+  capturedAt?: string | null;
+  phoneNumber?: string | null;
+  source: 'whatsapp-webhook' | 'whatsapp-cloud';
+  fallbackPath?: string | null;
+}) {
+  if (params.audioBytes.byteLength === 0) {
+    throw new Error('O áudio recebido está vazio.');
+  }
+
+  const workspaceId = await resolvePrimaryWorkspaceId(params.db, params.userId);
   if (!workspaceId) {
     throw new Error('Nenhum workspace encontrado para a integração.');
   }
 
-  const remoteRes = await fetch(params.audioUrl);
-  if (!remoteRes.ok) {
-    throw new Error(`Falha ao baixar o áudio remoto (${remoteRes.status}).`);
-  }
-
-  const contentType =
-    params.mimeType?.trim() || remoteRes.headers.get('content-type') || 'audio/mpeg';
-  const arrayBuffer = await remoteRes.arrayBuffer();
-  if (arrayBuffer.byteLength === 0) {
-    throw new Error('O áudio recebido está vazio.');
-  }
-
   const id = shortId();
-  const ext = fileExtensionFromMime(contentType, params.audioUrl);
+  const ext = fileExtensionFromMime(params.mimeType, params.fallbackPath);
   const storagePath = `anotes/audio-raw/${workspaceId}/${id}${ext}`;
   const bucket = getServerStorage().bucket();
-  await bucket.file(storagePath).save(Buffer.from(arrayBuffer), {
+  const normalizedPhone = normalizePhoneNumber(
+    params.phoneNumber ?? params.integration.phoneNumber,
+  );
+
+  await bucket.file(storagePath).save(params.audioBytes, {
     resumable: false,
-    contentType,
+    contentType: params.mimeType,
     metadata: {
       metadata: {
-        source: 'whatsapp',
-        phoneNumber: params.phoneNumber ?? integration.phoneNumber ?? '',
+        source: params.source,
+        phoneNumber: normalizedPhone ?? '',
       },
     },
   });
@@ -378,7 +591,7 @@ export async function receiveWhatsAppAudio(params: {
   const capturedAt = params.capturedAt ? new Date(params.capturedAt) : new Date();
   const title =
     params.title?.trim() ||
-    `WhatsApp ${params.phoneNumber ?? integration.phoneNumber ?? ''}`.trim() ||
+    `WhatsApp ${normalizedPhone ?? ''}`.trim() ||
     `WhatsApp ${capturedAt.toISOString()}`;
 
   await params.db
@@ -386,12 +599,12 @@ export async function receiveWhatsAppAudio(params: {
     .doc(id)
     .set({
       workspaceId,
-      createdBy: userId,
+      createdBy: params.userId,
       status: 'transcribing',
       title,
       durationMs: params.durationMs ?? 0,
-      sizeBytes: arrayBuffer.byteLength,
-      mimeType: contentType,
+      sizeBytes: params.audioBytes.byteLength,
+      mimeType: params.mimeType,
       storagePath,
       storageBucket: 'default',
       capturedAt,
@@ -399,10 +612,11 @@ export async function receiveWhatsAppAudio(params: {
       updatedAt: new Date(),
       deletedAt: null,
       source: 'whatsapp',
-      sourcePhoneNumber: params.phoneNumber ?? integration.phoneNumber ?? null,
+      sourceChannel: params.source,
+      sourcePhoneNumber: normalizedPhone,
     });
 
-  return { recordingId: id, workspaceId, userId };
+  return { recordingId: id, workspaceId, userId: params.userId };
 }
 
 async function getConnectedIntegration(

@@ -1,4 +1,5 @@
-import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb } from '@/lib/firebase-server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
@@ -27,8 +28,8 @@ async function getUserWorkspace(db: FirebaseFirestore.Firestore, uid: string) {
 /**
  * GET /api/settings — returns the current workspace AI settings
  */
-export async function GET() {
-  const user = await getSessionUser();
+export async function GET(req: Request) {
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = getServerDb();
@@ -47,7 +48,7 @@ export async function GET() {
  * Body: { aiSettings: WorkspaceAISettings }
  */
 export async function PUT(req: Request) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const body = (await req.json()) as { aiSettings?: Record<string, unknown>; theme?: string };
