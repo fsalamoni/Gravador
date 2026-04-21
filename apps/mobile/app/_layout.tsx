@@ -6,7 +6,6 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../src/global.css';
-import { StudioPanel, StudioScreen } from '../src/components/StudioScreen';
 import { useAuthSession, useSyncAuthSession } from '../src/features/auth/session';
 import { registerBackgroundUploadTask } from '../src/features/recorder/background-task';
 import { t } from '../src/lib/i18n';
@@ -27,19 +26,17 @@ class AppErrorBoundary extends Component<
         <View
           style={{
             flex: 1,
-            backgroundColor: '#120d0a',
+            backgroundColor: '#f8fafc',
             justifyContent: 'center',
             alignItems: 'center',
             padding: 32,
           }}
         >
           <ScrollView contentContainerStyle={{ alignItems: 'center', paddingVertical: 40 }}>
-            <Text
-              style={{ color: '#f38a37', fontSize: 18, fontWeight: '600', marginBottom: 12 }}
-            >
+            <Text style={{ color: '#ef4444', fontSize: 18, fontWeight: '600', marginBottom: 12 }}>
               Erro ao iniciar o app
             </Text>
-            <Text style={{ color: '#baa390', textAlign: 'center', lineHeight: 22, fontSize: 14 }}>
+            <Text style={{ color: '#64748b', textAlign: 'center', lineHeight: 22, fontSize: 14 }}>
               {this.state.error.message}
             </Text>
           </ScrollView>
@@ -75,20 +72,59 @@ function AppNavigator() {
 
   if (!authReady || (!user && !isAuthRoute) || (user && isAuthRoute)) {
     return (
-      <StudioScreen className="justify-center" edges={['top', 'left', 'right', 'bottom']}>
-        <StudioPanel className="items-center gap-4 py-8">
-          <View className="h-20 w-20 items-center justify-center rounded-full bg-accent/15">
-            <ActivityIndicator size="large" color="#f38a37" />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#f8fafc',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 24,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 30,
+            borderWidth: 1,
+            borderColor: '#cbd5e1',
+            padding: 32,
+            alignItems: 'center',
+            width: '100%',
+            gap: 16,
+          }}
+        >
+          <View
+            style={{
+              height: 80,
+              width: 80,
+              borderRadius: 40,
+              backgroundColor: 'rgba(59,130,246,0.12)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <ActivityIndicator size="large" color="#3b82f6" />
           </View>
-          <Text className="text-xs uppercase tracking-[0.28em] text-mute">Workspace boot</Text>
-          <Text className="text-center text-2xl font-semibold text-text">
+          <Text
+            style={{
+              fontSize: 11,
+              color: '#64748b',
+              letterSpacing: 4,
+              textTransform: 'uppercase',
+            }}
+          >
+            Workspace boot
+          </Text>
+          <Text
+            style={{ fontSize: 22, fontWeight: '600', color: '#0f172a', textAlign: 'center' }}
+          >
             {t('auth.mobilePreparing')}
           </Text>
-          <Text className="text-center leading-6 text-mute">
-            Restaurando sessão, registrando tarefas de fundo e preparando a camada visual do app.
+          <Text style={{ fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 22 }}>
+            Restaurando sessão e preparando o app.
           </Text>
-        </StudioPanel>
-      </StudioScreen>
+        </View>
+      </View>
     );
   }
 
@@ -96,7 +132,7 @@ function AppNavigator() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#120d0a' },
+        contentStyle: { backgroundColor: '#f8fafc' },
       }}
     />
   );
@@ -114,7 +150,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
             <AppNavigator />
           </QueryClientProvider>
         </SafeAreaProvider>

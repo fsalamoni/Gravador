@@ -26,22 +26,23 @@ export function StudioScreen({
   edges = ['top', 'left', 'right', 'bottom'],
 }: StudioScreenProps) {
   return (
-    <View className="flex-1 bg-bg">
+    <View className="flex-1 bg-bg" style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       <View className="absolute -right-12 -top-24 h-72 w-72 rounded-full bg-accent/15" />
       <View className="absolute left-[-96px] top-[32%] h-64 w-64 rounded-full bg-[#68d7ca]/10" />
       <View className="absolute bottom-[-120px] right-[10%] h-72 w-72 rounded-full bg-white/5" />
 
-      <SafeAreaView edges={edges} className="flex-1">
+      <SafeAreaView edges={edges} className="flex-1" style={{ flex: 1 }}>
         {scroll ? (
           <ScrollView
             className="flex-1"
+            style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 40 }}
             showsVerticalScrollIndicator={false}
           >
-            <View className={`flex-1 px-5 ${className}`}>{children}</View>
+            <View className={`flex-1 px-5 ${className}`} style={{ flex: 1, paddingHorizontal: 20 }}>{children}</View>
           </ScrollView>
         ) : (
-          <View className={`flex-1 px-5 ${className}`}>{children}</View>
+          <View className={`flex-1 px-5 ${className}`} style={{ flex: 1, paddingHorizontal: 20 }}>{children}</View>
         )}
       </SafeAreaView>
     </View>
@@ -50,7 +51,10 @@ export function StudioScreen({
 
 export function StudioPanel({ children, className = '' }: StudioPanelProps) {
   return (
-    <View className={`rounded-[30px] border border-border bg-surface px-5 py-5 ${className}`}>
+    <View
+      className={`rounded-[30px] border border-border bg-surface px-5 py-5 ${className}`}
+      style={{ borderRadius: 30, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#ffffff', paddingHorizontal: 20, paddingVertical: 20 }}
+    >
       {children}
     </View>
   );
