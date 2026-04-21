@@ -12,10 +12,7 @@ import {
 import { Check, ChevronDown, ChevronUp, Info, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-const AGENT_TIPS: Record<
-  AgentFitKey,
-  { type: string; why: string; recommended: string }
-> = {
+const AGENT_TIPS: Record<AgentFitKey, { type: string; why: string; recommended: string }> = {
   transcribe: {
     type: 'Modelo de Fala-para-Texto (STT)',
     why: 'Exige modelo especializado em reconhecimento de fala. Não funciona com LLMs genéricos.',

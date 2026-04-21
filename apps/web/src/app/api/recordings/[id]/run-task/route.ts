@@ -56,8 +56,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const workspaceAI = await loadWorkspaceAI(db, recording.workspaceId as string);
 
   const resolve = (agent: string) => ({
-    provider: (workspaceAI.agentModels[agent]?.provider ??
-      workspaceAI.chatProvider) as 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter',
+    provider: (workspaceAI.agentModels[agent]?.provider ?? workspaceAI.chatProvider) as
+      | 'anthropic'
+      | 'openai'
+      | 'google'
+      | 'ollama'
+      | 'openrouter',
     model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
   });
 
@@ -114,7 +118,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (transcriptSnap.empty) {
       return NextResponse.json(
-        { error: 'no_transcript', message: 'Transcrição não encontrada. Execute a transcrição primeiro.' },
+        {
+          error: 'no_transcript',
+          message: 'Transcrição não encontrada. Execute a transcrição primeiro.',
+        },
         { status: 400 },
       );
     }
@@ -132,15 +139,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         startMs: data.startMs as number,
         endMs: data.endMs as number,
         text: data.text as string,
-        speakerId: (data.speakerId as string | undefined) ?? undefined,
-        confidence: (data.confidence as number | undefined) ?? undefined,
+        speakerId: (data.speakerId as string | null) ?? null,
+        confidence: (data.confidence as number | null) ?? null,
       };
     });
 
-    const outputsCollection = db
-      .collection('recordings')
-      .doc(recordingId)
-      .collection('ai_outputs');
+    const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
 
     if (task === 'summary') {
       const result = await runSummary({
@@ -247,10 +251,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
 
       if (chunks.length) {
-        const embCollection = db
-          .collection('recordings')
-          .doc(recordingId)
-          .collection('embeddings');
+        const embCollection = db.collection('recordings').doc(recordingId).collection('embeddings');
 
         const oldEmbs = await embCollection.get();
         if (!oldEmbs.empty) {
@@ -287,10 +288,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: 'unknown_task' }, { status: 400 });
     }
 
-    await db.collection('recordings').doc(recordingId).update({
-      [`pipelineResults.${resultKey}`]: 'ok',
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await db
+      .collection('recordings')
+      .doc(recordingId)
+      .update({
+        [`pipelineResults.${resultKey}`]: 'ok',
+        updatedAt: FieldValue.serverTimestamp(),
+      });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
@@ -349,8 +353,8 @@ async function persistTranscript(
       startMs: number;
       endMs: number;
       text: string;
-      speakerId?: string;
-      confidence?: number;
+      speakerId: string | null;
+      confidence: number | null;
     }>;
   },
 ) {

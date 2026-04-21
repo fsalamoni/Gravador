@@ -17,6 +17,7 @@ import {
   RefreshCw,
   TrendingUp,
 } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { useCallback, useState } from 'react';
 
 type TaskKind =
@@ -36,7 +37,7 @@ interface TaskDef {
   id: TaskKind;
   label: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   requiresTranscript: boolean;
   pipelineKey: string;
 }
@@ -122,6 +123,8 @@ interface Props {
   initialPipelineResults?: Record<string, 'ok' | 'failed'>;
 }
 
+type ApiResponse = { ok?: boolean; message?: string; error?: string };
+
 export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResults = {} }: Props) {
   const [taskStatus, setTaskStatus] = useState<Record<TaskKind, TaskStatus>>(() => {
     const init = {} as Record<TaskKind, TaskStatus>;
@@ -138,43 +141,49 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
 
   const [taskErrors, setTaskErrors] = useState<Partial<Record<TaskKind, string>>>({});
 
+  // Returns true on success, false on failure
   const callTask = useCallback(
-    async (taskId: TaskKind) => {
+    async (taskId: TaskKind): Promise<boolean> => {
       setTaskStatus((prev) => ({ ...prev, [taskId]: 'running' }));
-      setTaskErrors((prev) => { const n = { ...prev }; delete n[taskId]; return n; });
+      setTaskErrors((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
       try {
         const res = await fetch(`/api/recordings/${recordingId}/run-task`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ task: taskId }),
         });
-        const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+        const data = (await res.json()) as ApiResponse;
         if (!res.ok) throw new Error(data.message ?? data.error ?? 'Falha na tarefa');
         setTaskStatus((prev) => ({ ...prev, [taskId]: 'done' }));
+        return true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erro inesperado';
         setTaskStatus((prev) => ({ ...prev, [taskId]: 'failed' }));
         setTaskErrors((prev) => ({ ...prev, [taskId]: msg }));
+        return false;
       }
     },
     [recordingId],
   );
 
   const runAll = useCallback(async () => {
+    // Check if transcript is available (read from current closed-over state or hasTranscript prop)
     const transcriptReady = hasTranscript || taskStatus.transcribe === 'done';
 
     if (!transcriptReady) {
-      // Transcription must finish first before everything else
-      await callTask('transcribe');
-      // Check updated status via ref to avoid stale closure issues
+      const ok = await callTask('transcribe');
+      if (!ok) return; // Can't run AI tasks without transcript
     }
 
+    // Queue all AI tasks visually then fire them in parallel
     const aiTasks = TASKS.filter((t) => t.requiresTranscript);
     setTaskStatus((prev) => {
       const next = { ...prev };
-      for (const t of aiTasks) {
-        if (next[t.id] !== 'running') next[t.id] = 'running';
-      }
+      for (const t of aiTasks) next[t.id] = 'running';
       return next;
     });
     setTaskErrors({});
@@ -187,7 +196,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ task: t.id }),
           });
-          const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+          const data = (await res.json()) as ApiResponse;
           if (!res.ok) throw new Error(data.message ?? data.error ?? 'Falha');
           setTaskStatus((prev) => ({ ...prev, [t.id]: 'done' }));
         } catch (err) {
@@ -201,9 +210,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
 
   const anyRunning = Object.values(taskStatus).some((s) => s === 'running');
   const transcriptAvailable = hasTranscript || taskStatus.transcribe === 'done';
-
   const doneCount = Object.values(taskStatus).filter((s) => s === 'done').length;
-  const totalCount = TASKS.length;
 
   return (
     <div className="space-y-5">
@@ -212,12 +219,13 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
         <div>
           <h2 className="text-lg font-semibold text-text">Processamento com IA</h2>
           <p className="mt-0.5 text-sm text-mute">
-            Inicie cada tarefa individualmente ou todas de uma vez. As tarefas de IA rodam em paralelo.
+            Inicie cada tarefa individualmente ou todas de uma vez. As tarefas de IA rodam em
+            paralelo.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-mute">
-            {doneCount}/{totalCount} concluídas
+            {doneCount}/{TASKS.length} concluídas
           </span>
           <button
             type="button"
@@ -235,12 +243,12 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Overall progress bar */}
       {doneCount > 0 && (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-surfaceAlt">
           <div
             className="h-full rounded-full bg-accent transition-all duration-500"
-            style={{ width: `${(doneCount / totalCount) * 100}%` }}
+            style={{ width: `${(doneCount / TASKS.length) * 100}%` }}
           />
         </div>
       )}
@@ -267,7 +275,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                {/* Icon + text */}
+                {/* Icon + labels */}
                 <div className="flex min-w-0 items-start gap-3">
                   <div
                     className={`mt-0.5 shrink-0 rounded-xl p-2 ${
@@ -303,7 +311,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
                   ) : status === 'failed' ? (
                     <button
                       type="button"
-                      onClick={() => canRun && callTask(task.id)}
+                      onClick={() => canRun && void callTask(task.id)}
                       disabled={!canRun}
                       title="Tentar novamente"
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-danger/15 transition hover:bg-danger/25 disabled:cursor-not-allowed disabled:opacity-40"
@@ -313,7 +321,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
                   ) : (
                     <button
                       type="button"
-                      onClick={() => canRun && callTask(task.id)}
+                      onClick={() => canRun && void callTask(task.id)}
                       disabled={!canRun}
                       title={
                         task.requiresTranscript && !transcriptAvailable
@@ -328,7 +336,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
                 </div>
               </div>
 
-              {/* Running state: indeterminate progress */}
+              {/* Per-task progress bar while running */}
               {status === 'running' && (
                 <div className="mt-3 space-y-1">
                   <div className="h-1 w-full overflow-hidden rounded-full bg-accent/20">
@@ -338,15 +346,15 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
                 </div>
               )}
 
-              {/* Error message */}
+              {/* Error detail */}
               {status === 'failed' && errorMsg && (
                 <div className="mt-2 flex items-start gap-1.5">
                   <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-danger" />
-                  <p className="text-[11px] text-danger line-clamp-2">{errorMsg}</p>
+                  <p className="line-clamp-2 text-[11px] text-danger">{errorMsg}</p>
                 </div>
               )}
 
-              {/* Blocked: needs transcript */}
+              {/* Dependency hint */}
               {status === 'idle' && task.requiresTranscript && !transcriptAvailable && (
                 <p className="mt-2 text-[11px] text-mute/60">Requer transcrição primeiro</p>
               )}

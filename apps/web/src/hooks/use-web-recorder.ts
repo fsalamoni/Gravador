@@ -120,7 +120,9 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
       });
 
       setDurationMs(0);
-      setStatusMessage('Gravação salva. Use os botões de IA na página para iniciar o processamento.');
+      setStatusMessage(
+        'Gravação salva. Use os botões de IA na página para iniciar o processamento.',
+      );
     } catch (error) {
       console.error('Error uploading recording:', error);
       setStatusMessage('Falha ao salvar a gravação. Tente novamente.');
