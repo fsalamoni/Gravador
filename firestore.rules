@@ -16,10 +16,17 @@ service cloud.firestore {
       return isAuth() && wsId == uid();
     }
 
+    function isWorkspaceOwnerByDoc(wsId) {
+      return isAuth()
+        && exists(/databases/$(database)/documents/workspaces/$(wsId))
+        && get(/databases/$(database)/documents/workspaces/$(wsId)).data.ownerId == uid();
+    }
+
     function isWorkspaceMember(wsId) {
       return isAuth() &&
         (
           isSelfWorkspace(wsId) ||
+          isWorkspaceOwnerByDoc(wsId) ||
           exists(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid()))
         );
     }
@@ -28,6 +35,7 @@ service cloud.firestore {
       return isAuth() &&
         (
           isSelfWorkspace(wsId) ||
+          isWorkspaceOwnerByDoc(wsId) ||
           get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid())).data.role in ['owner', 'admin']
         );
     }
@@ -36,6 +44,7 @@ service cloud.firestore {
       return isAuth() &&
         (
           isSelfWorkspace(wsId) ||
+          isWorkspaceOwnerByDoc(wsId) ||
           get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(uid())).data.role == 'owner'
         );
     }
