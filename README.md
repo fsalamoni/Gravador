@@ -98,7 +98,7 @@ The web app can now be deployed to Firebase Hosting from this monorepo.
 
 - `/workspace/integrations` now supports real backup sync for Google Drive, Dropbox and OneDrive.
 - Each sync uploads the raw audio plus JSON and Markdown exports into the configured folder structure.
-- WhatsApp uses a webhook-based operational model: the platform can POST recording payloads to your automation and can also ingest incoming audio through the generated inbound webhook/token.
+- WhatsApp now supports official Meta Cloud API send/receive flow and can still use webhook mode as an optional fallback for custom automations.
 
 ## Open-source references
 

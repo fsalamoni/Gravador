@@ -42,6 +42,10 @@ Add these only if you use the corresponding features in production:
 | `ANTHROPIC_API_KEY` | Anthropic-backed AI pipelines |
 | `GROQ_API_KEY` | Groq-backed AI pipelines |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google-backed AI pipelines |
+| `WHATSAPP_CLOUD_ACCESS_TOKEN` | Meta WhatsApp Cloud API access token for outbound + media download |
+| `WHATSAPP_CLOUD_PHONE_NUMBER_ID` | Meta phone number ID used by `/messages` Graph endpoint |
+| `WHATSAPP_CLOUD_VERIFY_TOKEN` | Verify token used by webhook GET challenge (`hub.verify_token`) |
+| `WHATSAPP_CLOUD_APP_SECRET` | Optional webhook signature validation (`x-hub-signature-256`) |
 
 ### Where to find the Firebase config values
 
