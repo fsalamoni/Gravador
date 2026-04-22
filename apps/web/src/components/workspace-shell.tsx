@@ -2,7 +2,16 @@
 
 import { CommandPalette } from '@/components/command-palette';
 import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts';
-import { AudioWaveform, LayoutDashboard, LogOut, Search, Settings, Sparkles } from 'lucide-react';
+import { featureFlags } from '@/lib/feature-flags';
+import {
+  AudioWaveform,
+  Download,
+  LayoutDashboard,
+  LogOut,
+  Search,
+  Settings,
+  Sparkles,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -15,13 +24,6 @@ type WorkspaceShellProps = {
 };
 
 const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? '').split(',').filter(Boolean);
-
-const NAV_ITEMS = [
-  { href: '/workspace/recordings', labelKey: 'recordings', icon: AudioWaveform },
-  { href: '/workspace/search', labelKey: 'search', icon: Search },
-  { href: '/workspace/integrations', labelKey: 'integrations', icon: Sparkles },
-  { href: '/workspace/settings', labelKey: 'settings', icon: Settings },
-] as const;
 
 function getInitials(email: string | null | undefined, uid: string) {
   const source = email?.trim() || uid;
@@ -36,10 +38,21 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
 
   const isAdmin = !!(email && ADMIN_EMAILS.includes(email));
 
+  const navItems = [
+    { href: '/workspace/recordings', labelKey: 'recordings', icon: AudioWaveform },
+    { href: '/workspace/search', labelKey: 'search', icon: Search },
+    { href: '/workspace/integrations', labelKey: 'integrations', icon: Sparkles },
+    ...(featureFlags.workspaceDownloads
+      ? [{ href: '/workspace/downloads', labelKey: 'download', icon: Download }]
+      : []),
+    { href: '/workspace/settings', labelKey: 'settings', icon: Settings },
+  ] as const;
+
   const navLabels: Record<string, string> = {
     '/workspace/recordings': tNav('recordings'),
     '/workspace/search': tNav('search'),
     '/workspace/integrations': tNav('integrations'),
+    '/workspace/downloads': tNav('download'),
     '/workspace/settings': tNav('settings'),
     '/workspace/admin': 'Dashboard',
   };
@@ -57,7 +70,7 @@ export function WorkspaceShell({ children, email, uid }: WorkspaceShellProps) {
 
           {/* Nav links */}
           <nav className="ml-4 flex items-center gap-1 overflow-x-auto" aria-label="Main">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
               return (

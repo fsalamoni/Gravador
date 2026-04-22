@@ -1,9 +1,11 @@
 'use client';
 
+import { featureFlags } from '@/lib/feature-flags';
 import { formatDurationMs } from '@gravador/core';
 import {
   AudioWaveform,
   Bot,
+  Download,
   Home,
   LayoutDashboard,
   Loader2,
@@ -56,6 +58,17 @@ const STATIC_COMMANDS: Omit<CommandItem, 'action'>[] = [
     sublabel: 'Provedores, modelos, agentes',
     icon: Settings,
   },
+  ...(featureFlags.workspaceDownloads
+    ? [
+        {
+          id: 'nav-downloads',
+          group: 'Navegação',
+          label: 'Downloads',
+          sublabel: 'Baixar APK e acompanhar iOS',
+          icon: Download,
+        } as const,
+      ]
+    : []),
   { id: 'nav-admin', group: 'Navegação', label: 'Dashboard Admin', icon: LayoutDashboard },
   { id: 'nav-trash', group: 'Navegação', label: 'Lixeira', icon: Trash2 },
   {
@@ -73,6 +86,7 @@ const ROUTES: Record<string, string> = {
   'nav-search': '/workspace/search',
   'nav-integrations': '/workspace/integrations',
   'nav-settings': '/workspace/settings',
+  'nav-downloads': '/workspace/downloads',
   'nav-admin': '/workspace/admin',
   'nav-trash': '/workspace/recordings/trash',
   'nav-agents': '/workspace/settings',
