@@ -13,6 +13,7 @@ import { ArrowLeft, Clock3, FileAudio, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { LifecyclePanel } from './lifecycle-panel';
+import { MergeExecutionControls } from './merge-execution-controls';
 import { PipelinePanel } from './pipeline-panel';
 import { Player } from './player';
 import { RecordingTabs } from './tabs';
@@ -22,7 +23,7 @@ export default async function RecordingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ mergeWith?: string }>;
+  searchParams: Promise<{ mergeWith?: string; mergedFrom?: string; mergeOperationId?: string }>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect('/login');
@@ -195,6 +196,9 @@ export default async function RecordingPage({
   );
 
   const mergeWithId = typeof query.mergeWith === 'string' ? query.mergeWith : null;
+  const mergedFromId = typeof query.mergedFrom === 'string' ? query.mergedFrom : null;
+  const mergeOperationId =
+    typeof query.mergeOperationId === 'string' ? query.mergeOperationId : null;
   const mergeComparison =
     mergeWithId && mergeWithId !== id
       ? await (async () => {
@@ -289,6 +293,22 @@ export default async function RecordingPage({
         <Player src={audioUrl} expectedDurationMs={recording.durationMs} />
       </section>
 
+      {mergedFromId ? (
+        <section className="rounded-[24px] border border-ok/35 bg-ok/10 px-5 py-4 text-sm text-ok">
+          <p className="font-semibold uppercase tracking-[0.18em]">Merge executado</p>
+          <p className="mt-2 leading-7 text-ok/90">
+            O merge side-by-side foi aplicado com origem em <code>{mergedFromId}</code>
+            {mergeOperationId ? (
+              <>
+                {' '}
+                (op: <code>{mergeOperationId}</code>)
+              </>
+            ) : null}
+            . Artefatos existentes foram preservados e somente lacunas foram reconciliadas.
+          </p>
+        </section>
+      ) : null}
+
       <section className="card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-text">Timeline and waveform parity</h2>
@@ -366,7 +386,13 @@ export default async function RecordingPage({
         <section className="card p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-text">Merge artifact comparison</h2>
-            <span className="text-xs uppercase tracking-[0.2em] text-mute">Side-by-side</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-[0.2em] text-mute">Side-by-side</span>
+              <MergeExecutionControls
+                primaryRecordingId={id}
+                secondaryRecordingId={mergeComparison.compareRecordingId}
+              />
+            </div>
           </div>
           <p className="mt-2 text-sm text-mute">
             Comparando gravação atual com <code>{mergeComparison.compareRecordingId}</code>. O merge

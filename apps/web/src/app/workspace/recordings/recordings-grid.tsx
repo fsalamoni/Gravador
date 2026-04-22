@@ -314,7 +314,7 @@ export function RecordingsGrid({
               className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/25 disabled:opacity-50"
             >
               <GitMerge className="mr-1 inline h-3 w-3" />
-              {preparingMerge ? 'Preparando…' : 'Comparar artefatos (merge)'}
+              {preparingMerge ? 'Preparando…' : 'Preparar merge (comparacao)'}
             </button>
           ) : null}
           <button

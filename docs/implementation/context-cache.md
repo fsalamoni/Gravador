@@ -33,6 +33,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Bulk operations schema contract is versioned in `apps/web/src/lib/bulk-ops.ts` (`schemaVersion: 1`) with explicit merge mode `side_by_side`.
 - Bulk merge/delete audit entries are persisted in `recording_bulk_ops` with actor, scope, and preserve strategy metadata.
 - Recording detail supports side-by-side artifact comparison for merge preparation via `?mergeWith=<recordingId>`.
+- Bulk merge now supports explicit execution modes (`prepare` | `execute`) under `/api/recordings/bulk` with non-destructive reconciliation: copy only missing active artifacts from secondary, never overwrite existing primary artifacts.
+- Merge execution now persists reconciliation plan summary + copied artifact kinds in `recording_bulk_ops.execution` and stamps merge metadata on both primary/secondary recording documents.
+- Recording detail merge comparison now exposes an inline execute action (`MergeExecutionControls`) and a post-merge success banner (`?mergedFrom=<id>&mergeOperationId=<opId>`).
 - Lifecycle/artifact mutation APIs now expose mapped notification event contracts (`recording.lifecycle.*`, `recording.artifact.*`, `recording.pipeline.updated`).
 - EAS preview rerun `24777625944` completed successfully, closing the mobile preview release gate.
 - Audio editing v1 now has initial server contracts under `/api/recordings/[id]/audio-editing` for queue/list/rollback flows (flag-gated).
@@ -65,10 +68,10 @@ This file captures decisions and assumptions that must survive long implementati
 
 ## Current package objective
 
-- Activate newly delivered runner/smoke workflows in staging/prod variables and collect strict-pass evidence.
+- Close remaining operational rollout after Phase 5 merge execution delivery: activate runner/smoke workflows in staging/prod variables and collect strict-pass evidence.
 
 ## Immediate next contracts to lock
 
 - Activation contract for `ENABLE_AUDIO_EDIT_RUNNER=true` with first successful scheduled batches recorded in workflow summaries.
 - End-to-end strict smoke evidence for notifications (`ENABLE_NOTIFICATIONS_SMOKE=true`, providers configured) with no failed checks.
-- Merge execution contract (beyond side-by-side planning) with rollback-safe artifact reconciliation.
+- Add integration-level regression coverage for `/api/recordings/bulk` merge execute transaction semantics (copy-on-missing + no-overwrite guarantees).

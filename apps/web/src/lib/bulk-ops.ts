@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
 export const BULK_OPS_REQUEST_SCHEMA_VERSION = 1;
+export const BULK_MERGE_DEFAULT_MODE = 'prepare';
+
+export type BulkMergeMode = 'prepare' | 'execute';
 
 const recordingIdSchema = z.string().trim().min(1);
 
@@ -14,6 +17,7 @@ const bulkDeleteRequestSchema = z.object({
 const bulkMergeRequestSchema = z.object({
   schemaVersion: z.literal(BULK_OPS_REQUEST_SCHEMA_VERSION),
   operation: z.literal('merge'),
+  mode: z.enum(['prepare', 'execute']).default(BULK_MERGE_DEFAULT_MODE),
   primaryRecordingId: recordingIdSchema,
   secondaryRecordingId: recordingIdSchema,
   preserveArtifacts: z.literal('side_by_side'),
@@ -30,6 +34,7 @@ export type BulkOperationRequest = z.infer<typeof bulkOperationRequestSchema>;
 export interface BulkAuditEntry {
   schemaVersion: number;
   operation: BulkOperationRequest['operation'];
+  mergeMode: BulkMergeMode | null;
   actorId: string;
   reason: string | null;
   recordingIds: string[];
@@ -61,6 +66,7 @@ export function buildBulkAuditEntry(
     return {
       schemaVersion: BULK_OPS_REQUEST_SCHEMA_VERSION,
       operation: 'merge',
+      mergeMode: request.mode,
       actorId,
       reason: request.reason ?? null,
       recordingIds: [request.primaryRecordingId, request.secondaryRecordingId],
@@ -71,6 +77,7 @@ export function buildBulkAuditEntry(
   return {
     schemaVersion: BULK_OPS_REQUEST_SCHEMA_VERSION,
     operation: 'delete',
+    mergeMode: null,
     actorId,
     reason: request.reason ?? null,
     recordingIds: request.recordingIds,

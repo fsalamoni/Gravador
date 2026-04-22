@@ -44,7 +44,7 @@
 ## Phase 5 - bulk operations and reliability hardening
 
 - [~] Multi-select delete flow with safety constraints and clear confirmations (v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
-- [~] Multi-select merge flow with side-by-side artifacts and auditability (prepare/compare path + audit contracts delivered).
+- [x] Multi-select merge flow with side-by-side artifacts and auditability (prepare + execute path delivered with non-destructive reconciliation and execution audit metadata).
 - [x] Add regression checks around permission/auth/path isolation.
 - [x] Harden mobile startup/auth bootstrap to prevent blank-screen deadlocks (auth timeout fallback + startup error boundary + resilient firebase/i18n init).
 - [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; scheduled workflow `audio-edit-runner.yml` delivered, awaiting environment activation.
@@ -61,3 +61,4 @@
 - [x] Web deploy workflow healthy (firebase-hosting run 24805210127 for commit `6e4e1f0` completed with success).
 - [x] CI workflow healthy (run 24805210132 for commit `6e4e1f0` completed with success).
 - [x] New operational workflows validated syntactically (`audio-edit-runner` run 24805361685 and `notifications-smoke` run 24805363134 dispatched and skipped by activation flags as expected).
+- [x] Local package verification green after merge execution delivery (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

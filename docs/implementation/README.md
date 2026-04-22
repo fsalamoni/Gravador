@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded and released on commit `6e4e1f0` (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring)
-- Focus: environment activation closure (enable runner/smoke workflows with strict evidence + provider readiness + Expo capacity plan)
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring) and Phase 5 merge execution contract delivered (`/api/recordings/bulk` prepare+execute)
+- Focus: operational activation closure (enable runner/smoke workflows with strict evidence + provider readiness + Expo capacity plan) plus integration-level merge execute regression coverage
 
 ## Files
 

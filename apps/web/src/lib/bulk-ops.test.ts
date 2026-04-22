@@ -12,6 +12,7 @@ describe('bulk ops schema contracts', () => {
 
     const audit = buildBulkAuditEntry('user-1', parsed);
     expect(audit.operation).toBe('delete');
+    expect(audit.mergeMode).toBeNull();
     expect(audit.recordingIds).toEqual(['rec-a', 'rec-b']);
     expect(audit.preserveArtifacts).toBeNull();
   });
@@ -25,10 +26,34 @@ describe('bulk ops schema contracts', () => {
       preserveArtifacts: 'side_by_side',
     });
 
+    expect(parsed.operation).toBe('merge');
+    if (parsed.operation !== 'merge') {
+      throw new Error('expected merge operation');
+    }
+    expect(parsed.mode).toBe('prepare');
+
     const audit = buildBulkAuditEntry('user-1', parsed);
     expect(audit.operation).toBe('merge');
+    expect(audit.mergeMode).toBe('prepare');
     expect(audit.recordingIds).toEqual(['rec-a', 'rec-b']);
     expect(audit.preserveArtifacts).toBe('side_by_side');
+  });
+
+  it('parses merge execution mode explicitly', () => {
+    const parsed = parseBulkOperationRequest({
+      schemaVersion: 1,
+      operation: 'merge',
+      mode: 'execute',
+      primaryRecordingId: 'rec-a',
+      secondaryRecordingId: 'rec-b',
+      preserveArtifacts: 'side_by_side',
+    });
+
+    expect(parsed.operation).toBe('merge');
+    if (parsed.operation !== 'merge') {
+      throw new Error('expected merge operation');
+    }
+    expect(parsed.mode).toBe('execute');
   });
 
   it('rejects merge payload with duplicated recording ids', () => {

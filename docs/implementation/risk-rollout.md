@@ -38,6 +38,7 @@
 - Updated deploy/release workflows to propagate `INTERNAL_JOBS_SECRET`, notification provider envs, and feature flags to Cloud Run runtime/build.
 - Release verification on commit `6e4e1f0`: `CI` run `24805210132` success, `firebase-hosting` run `24805210127` success, `EAS preview` run `24805231408` success with explicit quota-blocked summary.
 - Operational workflow dispatch checks succeeded (`audio-edit-runner` run `24805361685`, `notifications-smoke` run `24805363134`) with expected `skipped` outcomes while activation vars remain disabled.
+- Upgraded bulk merge from prepare-only to transactional execute mode (`/api/recordings/bulk`, `mode=execute`) with side-by-side reconciliation (copy missing active artifacts only), execution audit payloads, and version bump only when artifacts are copied.
 
 ### Rollback path
 
@@ -50,7 +51,7 @@
 ### Remaining concerns
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
-- Bulk merge endpoint currently prepares side-by-side comparison/audit only (no final artifact reconciliation execution yet).
+- Bulk merge execute path currently has unit coverage for reconciliation planning but still lacks API integration tests for Firestore transaction semantics.
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and first scheduled run evidence.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE` + provider secrets/vars) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.
