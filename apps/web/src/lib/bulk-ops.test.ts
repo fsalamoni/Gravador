@@ -42,4 +42,14 @@ describe('bulk ops schema contracts', () => {
       }),
     ).toThrow();
   });
+
+  it('rejects payloads with unsafe recording id path segments', () => {
+    expect(() =>
+      parseBulkOperationRequest({
+        schemaVersion: 1,
+        operation: 'delete',
+        recordingIds: ['rec-a', '../etc/passwd'],
+      }),
+    ).toThrow();
+  });
 });

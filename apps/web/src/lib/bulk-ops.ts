@@ -38,6 +38,15 @@ export interface BulkAuditEntry {
 
 export function parseBulkOperationRequest(input: unknown): BulkOperationRequest {
   const parsed = bulkOperationRequestSchema.parse(input);
+  const idsToValidate =
+    parsed.operation === 'merge'
+      ? [parsed.primaryRecordingId, parsed.secondaryRecordingId]
+      : parsed.recordingIds;
+  for (const recordingId of idsToValidate) {
+    if (recordingId.includes('/') || recordingId.includes('\\') || recordingId.includes('..')) {
+      throw new Error('invalid_recording_id');
+    }
+  }
   if (parsed.operation === 'merge' && parsed.primaryRecordingId === parsed.secondaryRecordingId) {
     throw new Error('primary_and_secondary_must_differ');
   }

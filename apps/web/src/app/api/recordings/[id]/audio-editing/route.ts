@@ -4,9 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getApiSessionUser } from '@/lib/api-session';
 import {
+  AUDIO_EDITING_MAX_RETRIES,
   AUDIO_EDITING_SCHEMA_VERSION,
+  type AudioEditJobStatus,
   type AudioEditingRequest,
   type AudioVersionRecord,
+  getAudioEditRetryDelayMs,
   getFfmpegFilterForPreset,
   getNextAudioVersionNumber,
   getVersionedAudioStoragePath,
@@ -14,9 +17,11 @@ import {
 } from '@/lib/audio-editing';
 import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb, getServerStorage } from '@/lib/firebase-server';
+import { enqueueAudioEditJob } from '@/lib/jobs';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
+  getNotificationEventForAudioEditState,
   getRecordingLifecycleState,
   toIsoTimestamp,
 } from '@/lib/recording-lifecycle';
@@ -39,8 +44,15 @@ type AudioVersionDoc = {
   sourceVersionId?: string | null;
   editPreset?: 'normalize_loudness' | 'trim_silence' | 'denoise' | null;
   ffmpeg?: {
-    state?: 'queued' | 'processing' | 'completed' | 'failed';
+    state?: AudioEditJobStatus;
     error?: string;
+    attempt?: number;
+    maxAttempts?: number;
+    nextAttemptAt?: { toDate?: () => Date } | Date | string | null;
+    queuedAt?: { toDate?: () => Date } | Date | string | null;
+    startedAt?: { toDate?: () => Date } | Date | string | null;
+    completedAt?: { toDate?: () => Date } | Date | string | null;
+    failedAt?: { toDate?: () => Date } | Date | string | null;
   } | null;
   createdAt?: { toDate?: () => Date } | Date | string | null;
   updatedAt?: { toDate?: () => Date } | Date | string | null;
@@ -118,6 +130,8 @@ async function processQueuedAudioEdit(params: {
   sourceVersionId: string;
   preset: 'normalize_loudness' | 'trim_silence' | 'denoise';
   actorId: string;
+  attempt: number;
+  maxAttempts: number;
 }) {
   const versionsRef = params.recordingRef.collection('audio_versions');
   const queuedRef = versionsRef.doc(params.queuedVersionId);
@@ -144,6 +158,10 @@ async function processQueuedAudioEdit(params: {
           pipeline: 'server-side',
           state: 'processing',
           startedAt: FieldValue.serverTimestamp(),
+          attempt: params.attempt,
+          maxAttempts: params.maxAttempts,
+          nextAttemptAt: null,
+          error: null,
         },
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: params.actorId,
@@ -214,6 +232,10 @@ async function processQueuedAudioEdit(params: {
           pipeline: 'server-side',
           state: 'completed',
           completedAt: FieldValue.serverTimestamp(),
+          attempt: params.attempt,
+          maxAttempts: params.maxAttempts,
+          nextAttemptAt: null,
+          error: null,
         },
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: params.actorId,
@@ -235,35 +257,63 @@ async function processQueuedAudioEdit(params: {
       { merge: true },
     );
 
+    const processingDurationMs = Date.now() - startedAt;
     console.info('[audio-edit] processing completed', {
       recordingId: params.recordingRef.id,
       versionId: params.queuedVersionId,
       preset: params.preset,
-      durationMs: Date.now() - startedAt,
+      durationMs: processingDurationMs,
+      attempt: params.attempt,
     });
+    return {
+      ok: true as const,
+      durationMs: processingDurationMs,
+      error: null,
+      canRetry: false as const,
+      nextAttemptAt: null,
+      nextAttemptDelayMs: null,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'audio_edit_failed';
+    const safeError = truncateErrorMessage(message);
+    const canRetry = params.attempt < params.maxAttempts;
+    const nextAttemptDelayMs = canRetry ? getAudioEditRetryDelayMs(params.attempt) : null;
+    const nextAttemptAt = nextAttemptDelayMs ? new Date(Date.now() + nextAttemptDelayMs) : null;
     await versionsRef.doc(params.queuedVersionId).set(
       {
-        status: 'failed',
+        status: canRetry ? 'queued' : 'failed',
         ffmpeg: {
           pipeline: 'server-side',
-          state: 'failed',
+          state: canRetry ? 'retry_scheduled' : 'failed',
           failedAt: FieldValue.serverTimestamp(),
-          error: truncateErrorMessage(message),
+          nextAttemptAt,
+          attempt: params.attempt,
+          maxAttempts: params.maxAttempts,
+          error: safeError,
         },
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: params.actorId,
       },
       { merge: true },
     );
+    const processingDurationMs = Date.now() - startedAt;
     console.error('[audio-edit] processing failed', {
       recordingId: params.recordingRef.id,
       versionId: params.queuedVersionId,
       preset: params.preset,
-      durationMs: Date.now() - startedAt,
-      error: truncateErrorMessage(message),
+      durationMs: processingDurationMs,
+      attempt: params.attempt,
+      canRetry,
+      error: safeError,
     });
+    return {
+      ok: false as const,
+      durationMs: processingDurationMs,
+      error: safeError,
+      canRetry,
+      nextAttemptAt: nextAttemptAt?.toISOString() ?? null,
+      nextAttemptDelayMs,
+    };
   } finally {
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true }).catch((cleanupError) => {
@@ -383,6 +433,13 @@ async function getContext(req: Request, params: Promise<{ id: string }>) {
   });
 
   return { user, access };
+}
+
+function canRunAudioJob(req: Request): boolean {
+  const expected = process.env.INTERNAL_JOBS_SECRET?.trim();
+  if (!expected) return false;
+  const provided = req.headers.get('x-gravador-job-secret')?.trim();
+  return Boolean(provided && provided === expected);
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -525,11 +582,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     { merge: true },
   );
 
-  await processQueuedAudioEdit({
-    recordingRef: context.access.ref,
-    recordingData: context.access.data as Record<string, unknown>,
-    queuedVersionId: queuedRef.id,
+  const workspaceId = String(context.access.data.workspaceId ?? '');
+  const jobId = await enqueueAudioEditJob(getServerDb(), {
+    recordingId: context.access.ref.id,
+    workspaceId,
     sourceVersionId,
+    queuedVersionId: queuedRef.id,
     preset: parsed.preset,
     actorId: context.user.uid,
   });
@@ -537,9 +595,149 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({
     ok: true,
     action: 'queue_edit',
+    status: 'queued',
+    jobId,
     queuedVersionId: queuedRef.id,
     nextVersionNumber,
     sourceVersionId,
     preset: parsed.preset,
+    notificationEvent: featureFlags.notificationsV1
+      ? getNotificationEventForAudioEditState('queued')
+      : null,
+  });
+}
+
+type AudioEditProcessRequest = {
+  action: 'process_job';
+  queuedVersionId: string;
+  sourceVersionId: string;
+  preset: 'normalize_loudness' | 'trim_silence' | 'denoise';
+  actorId?: string;
+  attempt?: number;
+  maxAttempts?: number;
+  jobId?: string;
+};
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!featureFlags.audioEditingV1) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+  if (!canRunAudioJob(req)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
+  const body = (await req.json().catch(() => null)) as AudioEditProcessRequest | null;
+  if (
+    !body ||
+    body.action !== 'process_job' ||
+    !body.queuedVersionId ||
+    !body.sourceVersionId ||
+    !body.preset
+  ) {
+    return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+  }
+
+  const { id: recordingId } = await params;
+  const db = getServerDb();
+  const recordingRef = db.collection('recordings').doc(recordingId);
+  const recordingSnap = await recordingRef.get();
+  if (!recordingSnap.exists) {
+    return NextResponse.json({ error: 'recording_not_found' }, { status: 404 });
+  }
+  const recordingData = (recordingSnap.data() ?? {}) as Record<string, unknown>;
+  const workspaceId = String(recordingData.workspaceId ?? '');
+  const actorId = body.actorId?.trim() || String(recordingData.createdBy ?? 'system');
+  const attempt = Math.max(1, Math.floor(body.attempt ?? 1));
+  const maxAttempts = Math.max(1, Math.floor(body.maxAttempts ?? AUDIO_EDITING_MAX_RETRIES));
+  const startedAt = Date.now();
+
+  if (body.jobId) {
+    await db
+      .collection('jobs')
+      .doc(body.jobId)
+      .set(
+        {
+          status: 'processing',
+          updatedAt: FieldValue.serverTimestamp(),
+          payload: {
+            queuedVersionId: body.queuedVersionId,
+            sourceVersionId: body.sourceVersionId,
+            preset: body.preset,
+            actorId,
+            attempt,
+            maxAttempts,
+          },
+          metrics: {
+            startedAt: FieldValue.serverTimestamp(),
+            processingLatencyMs: null,
+          },
+        },
+        { merge: true },
+      );
+  }
+
+  const result = await processQueuedAudioEdit({
+    recordingRef,
+    recordingData,
+    queuedVersionId: body.queuedVersionId,
+    sourceVersionId: body.sourceVersionId,
+    preset: body.preset,
+    actorId,
+    attempt,
+    maxAttempts,
+  });
+
+  const processingDurationMs = Date.now() - startedAt;
+  if (body.jobId) {
+    await db
+      .collection('jobs')
+      .doc(body.jobId)
+      .set(
+        {
+          status: result.ok ? 'completed' : result.canRetry ? 'retry_scheduled' : 'failed',
+          updatedAt: FieldValue.serverTimestamp(),
+          metrics: {
+            completedAt: FieldValue.serverTimestamp(),
+            processingDurationMs,
+            errorCode: result.ok ? null : result.error,
+            nextAttemptAt: result.ok ? null : result.nextAttemptAt,
+          },
+        },
+        { merge: true },
+      );
+  }
+
+  if (!result.ok && result.canRetry) {
+    await enqueueAudioEditJob(db, {
+      recordingId,
+      workspaceId,
+      sourceVersionId: body.sourceVersionId,
+      queuedVersionId: body.queuedVersionId,
+      preset: body.preset,
+      actorId,
+      source: 'audio-editing-retry',
+      maxAttempts,
+      attempt: attempt + 1,
+      nextAttemptAt: result.nextAttemptAt,
+    });
+  }
+
+  return NextResponse.json({
+    ok: result.ok,
+    recordingId,
+    queuedVersionId: body.queuedVersionId,
+    sourceVersionId: body.sourceVersionId,
+    preset: body.preset,
+    attempt,
+    maxAttempts,
+    processingDurationMs,
+    retryScheduled: !result.ok && result.canRetry,
+    nextAttemptAt: result.ok ? null : result.nextAttemptAt,
+    error: result.ok ? null : result.error,
+    notificationEvent: featureFlags.notificationsV1
+      ? getNotificationEventForAudioEditState(
+          result.ok ? 'completed' : result.canRetry ? 'retry_scheduled' : 'failed',
+        )
+      : null,
   });
 }

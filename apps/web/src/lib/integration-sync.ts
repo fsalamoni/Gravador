@@ -12,7 +12,8 @@ export type IntegrationId =
   | 'google-calendar'
   | 'onedrive'
   | 'dropbox'
-  | 'whatsapp';
+  | 'whatsapp'
+  | 'email';
 
 type StorageIntegrationId = Extract<IntegrationId, 'google-drive' | 'onedrive' | 'dropbox'>;
 
@@ -32,6 +33,7 @@ type StoredIntegrationDoc = {
   targetFolder?: string | null;
   phoneNumber?: string | null;
   phoneNumberNormalized?: string | null;
+  emailAddress?: string | null;
   webhookUrl?: string | null;
   inboundToken?: string | null;
   lastSyncedAt?: string | null;
@@ -56,6 +58,7 @@ export interface IntegrationClientView {
   connectedEmail?: string | null;
   targetFolder?: string | null;
   phoneNumber?: string | null;
+  emailAddress?: string | null;
   receiveUrl?: string | null;
   receiveToken?: string | null;
   lastSyncedAt?: string | null;
@@ -74,6 +77,12 @@ export interface StorageSyncResult {
 export interface WhatsAppSendResult {
   integrationId: 'whatsapp';
   recordingId: string;
+  target: string | null;
+}
+
+export interface EmailSendResult {
+  integrationId: 'email';
+  recordingId: string | null;
   target: string | null;
 }
 
@@ -158,6 +167,7 @@ export function sanitizeIntegrationForClient(
         ? normalizeTargetFolder(raw.targetFolder, integrationId)
         : null,
     phoneNumber: raw.phoneNumber ?? null,
+    emailAddress: raw.emailAddress ?? null,
     lastSyncedAt: raw.lastSyncedAt ?? null,
     lastSyncStatus: raw.lastSyncStatus ?? null,
     lastSyncError: raw.lastSyncError ?? null,
@@ -170,6 +180,13 @@ export function sanitizeIntegrationForClient(
       deliveryMode: raw.deliveryMode ?? null,
       receiveUrl: buildWhatsAppReceiveUrl(appBaseUrl),
       receiveToken: raw.inboundToken ?? null,
+    };
+  }
+
+  if (integrationId === 'email') {
+    return {
+      ...common,
+      deliveryMode: 'webhook',
     };
   }
 
@@ -342,6 +359,183 @@ export async function sendRecordingToWhatsAppWebhook(params: {
     integrationId: 'whatsapp',
     recordingId: params.recordingId,
     target: normalizedPhone,
+  };
+}
+
+export async function sendWhatsAppNotificationTest(params: {
+  db: Firestore;
+  userId: string;
+}): Promise<WhatsAppSendResult> {
+  const integration = await getConnectedIntegration(params.db, params.userId, 'whatsapp');
+  const normalizedPhone = normalizePhoneNumber(integration.phoneNumber);
+  if (!normalizedPhone) {
+    throw new Error('Número do WhatsApp não configurado para envio de teste.');
+  }
+
+  const hasMetaCloudConfig = Boolean(
+    process.env.WHATSAPP_CLOUD_ACCESS_TOKEN && process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID,
+  );
+  const shouldUseMetaCloud =
+    integration.deliveryMode === 'meta-cloud' || (!integration.webhookUrl && hasMetaCloudConfig);
+
+  if (!shouldUseMetaCloud && !integration.webhookUrl) {
+    throw new Error('Webhook do WhatsApp não configurado.');
+  }
+
+  if (shouldUseMetaCloud) {
+    const accessToken = process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim();
+    const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
+    if (!accessToken || !phoneNumberId) {
+      throw new Error('WhatsApp Cloud API não configurada no ambiente.');
+    }
+    const endpoint = `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`;
+    const recipient = normalizedPhone.replace(/[^\d]/g, '');
+    if (!recipient) {
+      throw new Error('Número de destino inválido para WhatsApp Cloud API.');
+    }
+
+    await sendWhatsAppCloudPayload(endpoint, accessToken, {
+      messaging_product: 'whatsapp',
+      to: recipient,
+      type: 'text',
+      text: { body: '✅ Teste de notificação do Gravador concluído com sucesso.' },
+    });
+  } else {
+    const res = await fetch(integration.webhookUrl!, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(integration.inboundToken
+          ? { 'x-gravador-integration-token': integration.inboundToken }
+          : {}),
+      },
+      body: JSON.stringify({
+        event: 'notification.test',
+        phoneNumber: normalizedPhone,
+        message: 'Teste de notificação do Gravador concluído com sucesso.',
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Webhook do WhatsApp respondeu ${res.status}: ${body || 'sem detalhes'}`);
+    }
+  }
+
+  await params.db
+    .collection('users')
+    .doc(params.userId)
+    .collection('integrations')
+    .doc('whatsapp')
+    .set(
+      {
+        lastSentAt: new Date().toISOString(),
+        lastSyncStatus: 'ok',
+        lastSyncError: null,
+      },
+      { merge: true },
+    );
+
+  return {
+    integrationId: 'whatsapp',
+    recordingId: 'test',
+    target: normalizedPhone,
+  };
+}
+
+export async function sendRecordingToEmailIntegration(params: {
+  db: Firestore;
+  userId: string;
+  recordingId: string;
+}): Promise<EmailSendResult> {
+  const integration = await getConnectedIntegration(params.db, params.userId, 'email');
+  const emailAddress = normalizeEmailAddress(integration.emailAddress);
+  if (!emailAddress) {
+    throw new Error('E-mail de destino não configurado para integração de notificações.');
+  }
+  const webhookUrl = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_URL?.trim();
+  if (!webhookUrl) {
+    throw new Error('Canal de e-mail não configurado no ambiente.');
+  }
+
+  const recordingDoc = await params.db.collection('recordings').doc(params.recordingId).get();
+  if (!recordingDoc.exists) {
+    throw new Error('Gravação não encontrada para envio de e-mail.');
+  }
+
+  const bundle = await getRecordingExportBundle(params.db, params.recordingId, params.userId);
+  const summary =
+    (bundle.outputs.summary as { tldr?: string; bullets?: string[] } | undefined) ?? undefined;
+  const markdown = buildRecordingMarkdown(bundle);
+
+  await sendEmailWebhook(webhookUrl, {
+    event: 'recording.ready',
+    to: emailAddress,
+    subject: `Gravador • ${bundle.recording.title ?? params.recordingId}`,
+    text: summary?.tldr ?? 'Uma nova gravação foi processada no Gravador.',
+    markdown,
+    recordingId: params.recordingId,
+  });
+
+  await params.db
+    .collection('users')
+    .doc(params.userId)
+    .collection('integrations')
+    .doc('email')
+    .set(
+      {
+        lastSentAt: new Date().toISOString(),
+        lastSyncStatus: 'ok',
+        lastSyncError: null,
+      },
+      { merge: true },
+    );
+
+  return {
+    integrationId: 'email',
+    recordingId: params.recordingId,
+    target: emailAddress,
+  };
+}
+
+export async function sendEmailNotificationTest(params: {
+  db: Firestore;
+  userId: string;
+}): Promise<EmailSendResult> {
+  const integration = await getConnectedIntegration(params.db, params.userId, 'email');
+  const emailAddress = normalizeEmailAddress(integration.emailAddress);
+  if (!emailAddress) {
+    throw new Error('E-mail de destino não configurado para teste.');
+  }
+  const webhookUrl = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_URL?.trim();
+  if (!webhookUrl) {
+    throw new Error('Canal de e-mail não configurado no ambiente.');
+  }
+
+  await sendEmailWebhook(webhookUrl, {
+    event: 'notification.test',
+    to: emailAddress,
+    subject: 'Gravador • teste de notificação',
+    text: 'Este é um envio de teste da integração de e-mail.',
+  });
+
+  await params.db
+    .collection('users')
+    .doc(params.userId)
+    .collection('integrations')
+    .doc('email')
+    .set(
+      {
+        lastSentAt: new Date().toISOString(),
+        lastSyncStatus: 'ok',
+        lastSyncError: null,
+      },
+      { merge: true },
+    );
+
+  return {
+    integrationId: 'email',
+    recordingId: null,
+    target: emailAddress,
   };
 }
 
@@ -637,6 +831,41 @@ async function createRecordingFromAudioBytes(params: {
     });
 
   return { recordingId: id, workspaceId, userId: params.userId };
+}
+
+export function normalizeEmailAddress(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase() ?? '';
+  if (!normalized) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  if (normalized.includes('..')) return null;
+  return normalized;
+}
+
+async function sendEmailWebhook(
+  webhookUrl: string,
+  payload: {
+    event: 'recording.ready' | 'notification.test';
+    to: string;
+    subject: string;
+    text: string;
+    markdown?: string;
+    recordingId?: string;
+  },
+) {
+  const token = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN?.trim();
+  const res = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Provider de e-mail respondeu ${res.status}: ${body || 'sem detalhes'}`);
+  }
 }
 
 async function getConnectedIntegration(

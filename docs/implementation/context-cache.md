@@ -40,13 +40,20 @@ This file captures decisions and assumptions that must survive long implementati
 - Audio version writes enforce retention defaults (`keepOriginal`, `keepEditedVersions`, `manualDeleteOnly`) to preserve original + edited media until explicit deletion.
 - Audio editing queue now executes real server-side FFmpeg processing in `/api/recordings/[id]/audio-editing`, publishing versioned media paths and transitioning versions to `ready`/`failed`.
 - Successful audio processing now promotes the processed version to `lifecycle.activeAudioVersionId`; failures are persisted in version metadata for UI visibility.
+- Audio editing queue now enqueues dedicated background jobs (`kind: audio-editing`) and processing is exposed through a decoupled executor contract (`PATCH /api/recordings/[id]/audio-editing` with internal job secret).
+- Audio edit retries now use explicit backoff contracts (`attempt`, `maxAttempts`, `nextAttemptAt`) and terminal/non-terminal failure states (`retry_scheduled` vs `failed`).
+- Audio edit observability contract now persists processing duration/error metadata in job metrics and ffmpeg version metadata for traceability.
+- Notification matrix now includes explicit audio edit events (`recording.audio_edit.queued|processing|retry_scheduled|completed|failed`).
+- Integrations UI now includes guided setup modals for WhatsApp/email and first-wave test/send actions.
+- Notification delivery contract now standardizes status/error handling for WhatsApp/email in `integration-sync` + `notification-delivery`.
+- Bulk operation contract now rejects unsafe recording IDs (`/`, `\\`, `..`) to harden path isolation assumptions.
 
 ## Current package objective
 
-- Move from Phase 3 delivery to hardening (background execution model, retries, and notifications for audio edit state transitions).
+- Complete staging smoke validation for notifications (WhatsApp/email providers configured) and monitor delivery error rates after activation.
 
 ## Immediate next contracts to lock
 
-- Dedicated background execution contract (decoupled from request lifecycle) for long audio edits and retries.
-- Notification contract for audio edit pipeline state transitions.
-- Operational observability contract (processing latency/error telemetry for FFmpeg runs).
+- Worker/cron execution policy for consuming `audio-editing` jobs and honoring `scheduling.nextAttemptAt`.
+- End-to-end staging evidence for first-wave notifications with providers enabled.
+- Merge execution contract (beyond side-by-side planning) with rollback-safe artifact reconciliation.

@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered (Phase 3 with FFmpeg execution + versioned publish + rollback UX behind flag)
-- Focus: hardening and operationalization (background execution model, retries, notifications)
+- Stage: Phase 1/2/3 delivered + hardening bridge to Phase 4 in progress
+- Focus: staging operationalization (audio-edit job consumption policy + notification provider validation)
 
 ## Files
 
