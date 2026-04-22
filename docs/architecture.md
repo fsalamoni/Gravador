@@ -193,6 +193,10 @@ Recordings now include additive lifecycle metadata that supports versioning and 
     - archive, unarchive, trash, restore, and version bump actions
     - artifact-level delete/restore controls
     - lifecycle and retained-version indicators
+- `workspace/recordings/[id]` also renders parity diagnostics for transcript timeline vs waveform/audio duration:
+    - segment count + first-start/last-end markers
+    - duration delta between transcript tail and recording duration
+    - warning classification for invalid segment bounds, overlaps, and long gaps
 
 ## Worker Reliability
 

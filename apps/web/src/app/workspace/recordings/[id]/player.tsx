@@ -5,7 +5,7 @@ import { Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 
-export function Player({ src }: { src: string }) {
+export function Player({ src, expectedDurationMs }: { src: string; expectedDurationMs?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
@@ -13,6 +13,13 @@ export function Player({ src }: { src: string }) {
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [waveReady, setWaveReady] = useState(false);
+
+  const hasExpectedDuration =
+    typeof expectedDurationMs === 'number' &&
+    Number.isFinite(expectedDurationMs) &&
+    expectedDurationMs > 0;
+  const durationDeltaMs = hasExpectedDuration ? Math.abs(duration - expectedDurationMs) : 0;
+  const hasParityWarning = hasExpectedDuration && waveReady && durationDeltaMs > 3000;
 
   useEffect(() => {
     if (!containerRef.current || !src || !audioRef.current) return;
@@ -111,6 +118,19 @@ export function Player({ src }: { src: string }) {
           {formatDurationMs(duration)}
         </div>
       </div>
+
+      {hasExpectedDuration ? (
+        <div
+          className={`rounded-[20px] border px-4 py-3 text-sm ${
+            hasParityWarning
+              ? 'border-warning/45 bg-warning/10 text-warning'
+              : 'border-ok/35 bg-ok/10 text-ok'
+          }`}
+        >
+          Waveform duration {hasParityWarning ? 'differs from' : 'matches'} expected recording
+          duration by {Math.round(durationDeltaMs / 1000)}s.
+        </div>
+      ) : null}
     </div>
   );
 }

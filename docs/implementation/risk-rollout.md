@@ -9,6 +9,7 @@
 - Artifact drift risk: direct pipeline upserts could overwrite lifecycle metadata if not transactional.
 - UX risk: lifecycle operations in detail page can become inconsistent if backend mutation fails silently.
 - CI/CD risk: EAS preview workflow output parsing can fail post-build and mark successful mobile builds as failed.
+- UX signal risk: parity diagnostics can produce false-positive warnings on sparse/noisy segment timelines.
 
 ### Mitigations applied
 
@@ -18,6 +19,7 @@
 - Added lifecycle panel actions that always re-fetch backend state after artifact mutation.
 - Replaced fragile inline `node -e` parser in `.github/workflows/eas-preview.yml` with heredoc Node script and explicit guards for missing fields/output path.
 - Extended centralized recording access guard adoption to legacy API routes (chat, shares, trash, reprocess, tags), reducing owner/member authorization drift.
+- Added threshold-based parity diagnostics in recording detail (gap/overlap/invalid checks with bounded thresholds) so issues are visible without blocking core playback flows.
 
 ### Rollback path
 
@@ -31,3 +33,4 @@
 - No dedicated e2e tests for lifecycle transition matrix yet.
 - Merge-side artifact side-by-side rendering contract still pending Phase 2/5 work.
 - Latest EAS preview rerun for parser validation must complete successfully before closing this release gate.
+- Dedicated automated behavior tests for parity diagnostics are still pending.

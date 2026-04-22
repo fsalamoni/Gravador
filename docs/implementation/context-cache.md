@@ -24,10 +24,11 @@ This file captures decisions and assumptions that must survive long implementati
 - EAS preview workflow patched to use a heredoc Node script with guarded output writes; rerun dispatched for validation.
 - Legacy recording routes now use centralized access checks (`getAccessibleRecording`) across chat, shares, trash, reprocess, and tags endpoints.
 - Shares listing/revoke flows are now authorization-hardened with workspace access checks.
+- Recording detail now includes timeline/waveform parity diagnostics (segment count, first/last segment bounds, duration delta, overlap/gap/invalid alerts).
 
 ## Current package objective
 
-- Keep repo/docs/state synchronized while expanding Phase 2 UX and preparing Phase 3 editing contracts.
+- Keep repo/docs/state synchronized while closing Phase 2 tests/merge UX and preparing Phase 3 editing contracts.
 
 ## Immediate next contracts to lock
 

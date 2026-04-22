@@ -12,6 +12,103 @@ import { PipelinePanel } from './pipeline-panel';
 import { Player } from './player';
 import { RecordingTabs } from './tabs';
 
+interface TimelineSegment {
+  start_ms: number;
+  end_ms: number;
+}
+
+interface TimelineParityReport {
+  segmentCount: number;
+  firstStartMs: number | null;
+  lastEndMs: number | null;
+  durationDeltaMs: number | null;
+  overlapCount: number;
+  gapCount: number;
+  invalidCount: number;
+  warnings: string[];
+}
+
+function getTimelineParityReport(
+  recordingDurationMs: number,
+  segments: TimelineSegment[],
+): TimelineParityReport {
+  if (segments.length === 0) {
+    return {
+      segmentCount: 0,
+      firstStartMs: null,
+      lastEndMs: null,
+      durationDeltaMs: null,
+      overlapCount: 0,
+      gapCount: 0,
+      invalidCount: 0,
+      warnings: ['Transcript segments are missing, so timeline parity cannot be verified yet.'],
+    };
+  }
+
+  const ordered = [...segments].sort((a, b) => a.start_ms - b.start_ms);
+  const firstStartMs = ordered[0]?.start_ms ?? null;
+  const lastEndMs = ordered[ordered.length - 1]?.end_ms ?? null;
+
+  let invalidCount = 0;
+  let overlapCount = 0;
+  let gapCount = 0;
+  let previousEnd = ordered[0]?.end_ms ?? 0;
+
+  for (const [index, segment] of ordered.entries()) {
+    if (segment.end_ms <= segment.start_ms) {
+      invalidCount++;
+    }
+
+    if (index === 0) {
+      previousEnd = segment.end_ms;
+      continue;
+    }
+
+    if (segment.start_ms < previousEnd - 150) {
+      overlapCount++;
+    }
+
+    if (segment.start_ms - previousEnd > 2500) {
+      gapCount++;
+    }
+
+    previousEnd = Math.max(previousEnd, segment.end_ms);
+  }
+
+  const durationDeltaMs =
+    typeof lastEndMs === 'number' ? Math.abs(lastEndMs - recordingDurationMs) : null;
+
+  const warnings: string[] = [];
+  if ((firstStartMs ?? 0) > 1500) {
+    warnings.push('Transcript starts noticeably late compared with the recording start.');
+  }
+  if ((durationDeltaMs ?? 0) > 3000) {
+    warnings.push('Transcript end and recording duration differ by more than 3 seconds.');
+  }
+  if (invalidCount > 0) {
+    warnings.push(
+      `Detected ${invalidCount} transcript segment(s) with invalid start/end boundaries.`,
+    );
+  }
+  if (overlapCount > 0) {
+    warnings.push(`Detected ${overlapCount} overlapping transcript segment transition(s).`);
+  }
+  if (gapCount > 0) {
+    warnings.push(`Detected ${gapCount} gap(s) greater than 2.5s between transcript segments.`);
+  }
+
+  return {
+    segmentCount: ordered.length,
+    firstStartMs,
+    lastEndMs,
+    durationDeltaMs,
+    overlapCount,
+    gapCount,
+    invalidCount,
+    warnings,
+  };
+}
+
 export default async function RecordingPage({
   params,
 }: {
@@ -124,6 +221,8 @@ export default async function RecordingPage({
     // Audio may not be uploaded yet
   }
 
+  const timelineParity = getTimelineParityReport(recording.durationMs, segments);
+
   return (
     <div className="space-y-5">
       <section className="card px-6 py-7 sm:px-7">
@@ -170,7 +269,62 @@ export default async function RecordingPage({
       </section>
 
       <section className="card p-5 sm:p-6">
-        <Player src={audioUrl} />
+        <Player src={audioUrl} expectedDurationMs={recording.durationMs} />
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold text-text">Timeline and waveform parity</h2>
+          <span className="text-xs uppercase tracking-[0.2em] text-mute">Phase 2 checks</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <div className="rounded-[20px] border border-border bg-bg/55 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-mute">Segments</div>
+            <div className="mt-2 text-2xl font-semibold text-text">
+              {timelineParity.segmentCount}
+            </div>
+          </div>
+          <div className="rounded-[20px] border border-border bg-bg/55 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-mute">First Start</div>
+            <div className="mt-2 text-2xl font-semibold text-text">
+              {timelineParity.firstStartMs === null
+                ? 'n/a'
+                : `${Math.round(timelineParity.firstStartMs / 1000)}s`}
+            </div>
+          </div>
+          <div className="rounded-[20px] border border-border bg-bg/55 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-mute">Last End</div>
+            <div className="mt-2 text-2xl font-semibold text-text">
+              {timelineParity.lastEndMs === null
+                ? 'n/a'
+                : `${Math.round(timelineParity.lastEndMs / 1000)}s`}
+            </div>
+          </div>
+          <div className="rounded-[20px] border border-border bg-bg/55 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-mute">Duration Delta</div>
+            <div className="mt-2 text-2xl font-semibold text-text">
+              {timelineParity.durationDeltaMs === null
+                ? 'n/a'
+                : `${Math.round(timelineParity.durationDeltaMs / 1000)}s`}
+            </div>
+          </div>
+        </div>
+
+        {timelineParity.warnings.length > 0 ? (
+          <div className="mt-4 rounded-[20px] border border-warning/45 bg-warning/10 px-4 py-3 text-sm text-warning">
+            <p className="font-medium">Parity alerts</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {timelineParity.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-[20px] border border-ok/35 bg-ok/10 px-4 py-3 text-sm text-ok">
+            Timeline and waveform parity checks look healthy.
+          </div>
+        )}
       </section>
 
       <LifecyclePanel

@@ -25,7 +25,8 @@
 ## Phase 2 - recording detail and artifact UX
 
 - [~] Expand recording detail page for full artifact lifecycle management.
-- [ ] Add timeline/progress/waveform parity checks and behavior tests.
+- [x] Add timeline/waveform parity diagnostics in recording detail page.
+- [~] Add timeline/progress/waveform parity checks and behavior tests.
 - [ ] Implement side-by-side artifact handling for merge operations.
 
 ## Phase 3 - audio editing and enhancement
