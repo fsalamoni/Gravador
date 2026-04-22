@@ -118,6 +118,10 @@ export default async function RecordingPage({
       const data = doc.data() as {
         versionNumber?: number;
         status?: 'ready' | 'queued' | 'failed';
+        ffmpeg?: {
+          state?: 'queued' | 'processing' | 'completed' | 'failed';
+          error?: string;
+        } | null;
         storagePath?: string | null;
         storageBucket?: string | null;
         isOriginal?: boolean;
@@ -133,6 +137,14 @@ export default async function RecordingPage({
           data.status === 'queued' || data.status === 'failed' || data.status === 'ready'
             ? data.status
             : 'ready',
+        processingState:
+          data.ffmpeg?.state === 'queued' ||
+          data.ffmpeg?.state === 'processing' ||
+          data.ffmpeg?.state === 'completed' ||
+          data.ffmpeg?.state === 'failed'
+            ? data.ffmpeg.state
+            : null,
+        failureReason: typeof data.ffmpeg?.error === 'string' ? data.ffmpeg.error : null,
         storagePath: typeof data.storagePath === 'string' ? data.storagePath : null,
         storageBucket: typeof data.storageBucket === 'string' ? data.storageBucket : null,
         isOriginal: data.isOriginal === true,
@@ -151,21 +163,25 @@ export default async function RecordingPage({
   // Get a signed URL for the audio file
   const activeAudioVersion =
     audioVersions.find((version) => version.id === lifecycle.activeAudioVersionId) ?? null;
+  const fallbackStoragePath =
+    typeof recording.storagePath === 'string' ? recording.storagePath : null;
   const playbackStoragePath =
     activeAudioVersion?.status === 'ready' && activeAudioVersion.storagePath
       ? activeAudioVersion.storagePath
-      : recording.storagePath;
+      : fallbackStoragePath;
   let audioUrl = '';
-  try {
-    const storage = getServerStorage();
-    const bucket = storage.bucket();
-    const [url] = await bucket.file(playbackStoragePath).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 3600 * 1000,
-    });
-    audioUrl = url;
-  } catch {
-    // Audio may not be uploaded yet
+  if (playbackStoragePath) {
+    try {
+      const storage = getServerStorage();
+      const bucket = storage.bucket();
+      const [url] = await bucket.file(playbackStoragePath).getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 3600 * 1000,
+      });
+      audioUrl = url;
+    } catch {
+      // Audio may not be uploaded yet
+    }
   }
 
   const timelineParity = getTimelineParityReport(recording.durationMs, segments);

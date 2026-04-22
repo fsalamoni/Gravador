@@ -7,6 +7,8 @@ export interface AudioVersionRecord {
   id: string;
   versionNumber: number;
   status: AudioVersionStatus;
+  processingState: 'queued' | 'processing' | 'completed' | 'failed' | null;
+  failureReason: string | null;
   storagePath: string | null;
   storageBucket: string | null;
   isOriginal: boolean;
@@ -46,4 +48,28 @@ export function getNextAudioVersionNumber(existing: Array<{ versionNumber: numbe
     return Math.max(max, Math.floor(item.versionNumber));
   }, 0);
   return maxVersion + 1;
+}
+
+const FILTER_BY_PRESET: Record<AudioEditPreset, string> = {
+  normalize_loudness: 'loudnorm=I=-16:TP=-1.5:LRA=11',
+  trim_silence:
+    'silenceremove=start_periods=1:start_duration=0.25:start_threshold=-45dB:stop_periods=1:stop_duration=0.25:stop_threshold=-45dB',
+  denoise: 'afftdn=nf=-28',
+};
+
+export function getFfmpegFilterForPreset(preset: AudioEditPreset): string {
+  return FILTER_BY_PRESET[preset];
+}
+
+export function getVersionedAudioStoragePath(params: {
+  sourcePath: string;
+  versionId: string;
+}): string {
+  const normalized = params.sourcePath.replace(/\\/g, '/').trim();
+  const sourceDir =
+    normalized.includes('/') && normalized.lastIndexOf('/') > 0
+      ? normalized.slice(0, normalized.lastIndexOf('/'))
+      : '';
+  if (!sourceDir) return `audio_versions/${params.versionId}.m4a`;
+  return `${sourceDir}/audio_versions/${params.versionId}.m4a`;
 }

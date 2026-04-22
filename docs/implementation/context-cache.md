@@ -38,13 +38,15 @@ This file captures decisions and assumptions that must survive long implementati
 - Audio editing v1 now has initial server contracts under `/api/recordings/[id]/audio-editing` for queue/list/rollback flows (flag-gated).
 - Recording detail lifecycle panel now surfaces audio version history, active version marker, edit queue action, and rollback action when audio editing flag is enabled.
 - Audio version writes enforce retention defaults (`keepOriginal`, `keepEditedVersions`, `manualDeleteOnly`) to preserve original + edited media until explicit deletion.
+- Audio editing queue now executes real server-side FFmpeg processing in `/api/recordings/[id]/audio-editing`, publishing versioned media paths and transitioning versions to `ready`/`failed`.
+- Successful audio processing now promotes the processed version to `lifecycle.activeAudioVersionId`; failures are persisted in version metadata for UI visibility.
 
 ## Current package objective
 
-- Evolve Phase 3 from initial contract scaffold to actual FFmpeg processing execution path and edited media publication.
+- Move from Phase 3 delivery to hardening (background execution model, retries, and notifications for audio edit state transitions).
 
 ## Immediate next contracts to lock
 
-- Worker/queue execution contract that transitions audio edit versions from `queued` to `ready/failed`.
-- Published edited media path contract and signed playback source switching guarantees.
+- Dedicated background execution contract (decoupled from request lifecycle) for long audio edits and retries.
 - Notification contract for audio edit pipeline state transitions.
+- Operational observability contract (processing latency/error telemetry for FFmpeg runs).

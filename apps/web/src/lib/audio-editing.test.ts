@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getNextAudioVersionNumber, parseAudioEditingRequest } from './audio-editing';
+import {
+  getFfmpegFilterForPreset,
+  getNextAudioVersionNumber,
+  getVersionedAudioStoragePath,
+  parseAudioEditingRequest,
+} from './audio-editing';
 
 describe('audio editing contracts', () => {
   it('parses queue_edit payload', () => {
@@ -29,5 +34,20 @@ describe('audio editing contracts', () => {
     expect(
       getNextAudioVersionNumber([{ versionNumber: 1 }, { versionNumber: 2 }, { versionNumber: 5 }]),
     ).toBe(6);
+  });
+
+  it('maps preset to ffmpeg filter expression', () => {
+    expect(getFfmpegFilterForPreset('normalize_loudness')).toContain('loudnorm');
+    expect(getFfmpegFilterForPreset('trim_silence')).toContain('silenceremove');
+    expect(getFfmpegFilterForPreset('denoise')).toContain('afftdn');
+  });
+
+  it('builds versioned storage path from source path', () => {
+    expect(
+      getVersionedAudioStoragePath({
+        sourcePath: 'workspaces/ws-1/recordings/rec-1/audio.webm',
+        versionId: 'v-2',
+      }),
+    ).toBe('workspaces/ws-1/recordings/rec-1/audio_versions/v-2.m4a');
   });
 });

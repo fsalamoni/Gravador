@@ -1,13 +1,19 @@
+import { spawn } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { getApiSessionUser } from '@/lib/api-session';
 import {
   AUDIO_EDITING_SCHEMA_VERSION,
   type AudioEditingRequest,
   type AudioVersionRecord,
+  getFfmpegFilterForPreset,
   getNextAudioVersionNumber,
+  getVersionedAudioStoragePath,
   parseAudioEditingRequest,
 } from '@/lib/audio-editing';
 import { featureFlags } from '@/lib/feature-flags';
-import { getServerDb } from '@/lib/firebase-server';
+import { getServerDb, getServerStorage } from '@/lib/firebase-server';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
@@ -19,6 +25,10 @@ import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
 export const runtime = 'nodejs';
+export const maxDuration = 300;
+
+// Keep FFmpeg bounded at 180s so route maxDuration=300s keeps ~120s headroom for download/upload/Firestore.
+const FFMPEG_TIMEOUT_MS = 180_000;
 
 type AudioVersionDoc = {
   versionNumber?: number;
@@ -28,9 +38,244 @@ type AudioVersionDoc = {
   isOriginal?: boolean;
   sourceVersionId?: string | null;
   editPreset?: 'normalize_loudness' | 'trim_silence' | 'denoise' | null;
+  ffmpeg?: {
+    state?: 'queued' | 'processing' | 'completed' | 'failed';
+    error?: string;
+  } | null;
   createdAt?: { toDate?: () => Date } | Date | string | null;
   updatedAt?: { toDate?: () => Date } | Date | string | null;
 };
+
+/**
+ * Limits persisted error payload size to keep Firestore documents bounded.
+ */
+function truncateErrorMessage(message: string): string {
+  return message.slice(0, 500);
+}
+
+async function runFfmpegCommand(params: {
+  inputPath: string;
+  outputPath: string;
+  preset: 'normalize_loudness' | 'trim_silence' | 'denoise';
+}) {
+  const filter = getFfmpegFilterForPreset(params.preset);
+  const args = [
+    '-y',
+    '-i',
+    params.inputPath,
+    '-af',
+    filter,
+    '-c:a',
+    'aac',
+    '-b:a',
+    '192k',
+    '-vn',
+    params.outputPath,
+  ];
+
+  const output = await new Promise<{ code: number | null; stderr: string }>((resolve, reject) => {
+    const child = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '';
+    let timedOut = false;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, FFMPEG_TIMEOUT_MS);
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString('utf8');
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (timedOut) {
+        resolve({ code: null, stderr: `${stderr}\nffmpeg timed out` });
+        return;
+      }
+      resolve({ code, stderr });
+    });
+  });
+
+  if (output.code !== 0) {
+    console.error('[audio-edit] ffmpeg execution failed', {
+      code: output.code,
+      stderr: truncateErrorMessage(output.stderr || 'unknown_error'),
+    });
+    throw new Error(output.code === null ? 'ffmpeg_timed_out' : 'ffmpeg_failed');
+  }
+}
+
+async function processQueuedAudioEdit(params: {
+  recordingRef: FirebaseFirestore.DocumentReference;
+  recordingData: Record<string, unknown>;
+  queuedVersionId: string;
+  sourceVersionId: string;
+  preset: 'normalize_loudness' | 'trim_silence' | 'denoise';
+  actorId: string;
+}) {
+  const versionsRef = params.recordingRef.collection('audio_versions');
+  const queuedRef = versionsRef.doc(params.queuedVersionId);
+  const sourceRef = versionsRef.doc(params.sourceVersionId);
+  const storage = getServerStorage();
+  const startedAt = Date.now();
+
+  let tempDir = '';
+  try {
+    const sourceSnap = await sourceRef.get();
+    if (!sourceSnap.exists) {
+      throw new Error('source_version_not_found');
+    }
+    const sourceData = sourceSnap.data() as AudioVersionDoc;
+    const source = serializeVersion(sourceSnap.id, sourceData);
+    if (!source.storagePath || source.status !== 'ready') {
+      throw new Error('source_version_not_ready');
+    }
+
+    await queuedRef.set(
+      {
+        status: 'queued',
+        ffmpeg: {
+          pipeline: 'server-side',
+          state: 'processing',
+          startedAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: params.actorId,
+      },
+      { merge: true },
+    );
+
+    tempDir = await mkdtemp(join(tmpdir(), 'gravador-audio-edit-'));
+    const inputPath = join(tempDir, 'input-audio');
+    const outputPath = join(tempDir, `output-${params.queuedVersionId}.m4a`);
+
+    const sourceBucketName =
+      source.storageBucket ||
+      (typeof params.recordingData.storageBucket === 'string'
+        ? params.recordingData.storageBucket
+        : null);
+    const sourceBucket = sourceBucketName ? storage.bucket(sourceBucketName) : storage.bucket();
+    const [sourceUrl] = await sourceBucket.file(source.storagePath).getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 30 * 60 * 1000,
+    });
+
+    const sourceRes = await fetch(sourceUrl);
+    if (!sourceRes.ok) {
+      throw new Error(`source_download_failed:${sourceRes.status}`);
+    }
+
+    const sourceBuffer = Buffer.from(await sourceRes.arrayBuffer());
+    await writeFile(inputPath, sourceBuffer);
+
+    await runFfmpegCommand({
+      inputPath,
+      outputPath,
+      preset: params.preset,
+    });
+
+    const outputBuffer = await readFile(outputPath);
+    const outputStoragePath = getVersionedAudioStoragePath({
+      sourcePath: source.storagePath,
+      versionId: params.queuedVersionId,
+    });
+    const outputBucketName =
+      sourceBucketName ||
+      (typeof params.recordingData.storageBucket === 'string'
+        ? params.recordingData.storageBucket
+        : null);
+    const outputBucket = outputBucketName ? storage.bucket(outputBucketName) : storage.bucket();
+
+    await outputBucket.file(outputStoragePath).save(outputBuffer, {
+      resumable: false,
+      contentType: 'audio/mp4',
+      metadata: {
+        metadata: {
+          recordingId: params.recordingRef.id,
+          audioVersionId: params.queuedVersionId,
+          sourceVersionId: params.sourceVersionId,
+          preset: params.preset,
+        },
+      },
+    });
+
+    await queuedRef.set(
+      {
+        status: 'ready',
+        storagePath: outputStoragePath,
+        storageBucket: outputBucket.name,
+        ffmpeg: {
+          pipeline: 'server-side',
+          state: 'completed',
+          completedAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: params.actorId,
+      },
+      { merge: true },
+    );
+
+    await params.recordingRef.set(
+      {
+        updatedAt: FieldValue.serverTimestamp(),
+        lifecycle: {
+          schemaVersion: RECORDING_LIFECYCLE_SCHEMA_VERSION,
+          activeAudioVersionId: params.queuedVersionId,
+          lastEvent: 'version_bumped',
+          lastEventAt: FieldValue.serverTimestamp(),
+          lastEventBy: params.actorId,
+        },
+      },
+      { merge: true },
+    );
+
+    console.info('[audio-edit] processing completed', {
+      recordingId: params.recordingRef.id,
+      versionId: params.queuedVersionId,
+      preset: params.preset,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'audio_edit_failed';
+    await versionsRef.doc(params.queuedVersionId).set(
+      {
+        status: 'failed',
+        ffmpeg: {
+          pipeline: 'server-side',
+          state: 'failed',
+          failedAt: FieldValue.serverTimestamp(),
+          error: truncateErrorMessage(message),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: params.actorId,
+      },
+      { merge: true },
+    );
+    console.error('[audio-edit] processing failed', {
+      recordingId: params.recordingRef.id,
+      versionId: params.queuedVersionId,
+      preset: params.preset,
+      durationMs: Date.now() - startedAt,
+      error: truncateErrorMessage(message),
+    });
+  } finally {
+    if (tempDir) {
+      await rm(tempDir, { recursive: true, force: true }).catch((cleanupError) => {
+        console.error('[audio-edit] temp cleanup failed', {
+          recordingId: params.recordingRef.id,
+          versionId: params.queuedVersionId,
+          error: cleanupError instanceof Error ? cleanupError.message : 'unknown_cleanup_error',
+        });
+      });
+    }
+  }
+}
 
 function serializeVersion(id: string, data: AudioVersionDoc): AudioVersionRecord {
   return {
@@ -40,6 +285,14 @@ function serializeVersion(id: string, data: AudioVersionDoc): AudioVersionRecord
       data.status === 'queued' || data.status === 'failed' || data.status === 'ready'
         ? data.status
         : 'ready',
+    processingState:
+      data.ffmpeg?.state === 'queued' ||
+      data.ffmpeg?.state === 'processing' ||
+      data.ffmpeg?.state === 'completed' ||
+      data.ffmpeg?.state === 'failed'
+        ? data.ffmpeg.state
+        : null,
+    failureReason: typeof data.ffmpeg?.error === 'string' ? data.ffmpeg.error : null,
     storagePath: typeof data.storagePath === 'string' ? data.storagePath : null,
     storageBucket: typeof data.storageBucket === 'string' ? data.storageBucket : null,
     isOriginal: data.isOriginal === true,
@@ -271,6 +524,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     },
     { merge: true },
   );
+
+  await processQueuedAudioEdit({
+    recordingRef: context.access.ref,
+    recordingData: context.access.data as Record<string, unknown>,
+    queuedVersionId: queuedRef.id,
+    sourceVersionId,
+    preset: parsed.preset,
+    actorId: context.user.uid,
+  });
 
   return NextResponse.json({
     ok: true,

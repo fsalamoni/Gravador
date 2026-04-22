@@ -37,6 +37,13 @@ function artifactBadge(status: ArtifactLifecycleStatus) {
   return status === 'deleted' ? 'bg-danger/10 text-danger' : 'bg-ok/10 text-ok';
 }
 
+function getAudioVersionStatusLabel(version: AudioVersionRecord): string {
+  if (version.status === 'failed') return 'falhou';
+  if (version.status === 'queued' && version.processingState === 'processing') return 'processando';
+  if (version.status === 'queued') return 'enfileirada';
+  return 'pronta';
+}
+
 export function LifecyclePanel({
   recordingId,
   deletedAt,
@@ -50,6 +57,7 @@ export function LifecyclePanel({
   const [artifacts, setArtifacts] = useState(initialArtifacts);
   const [audioVersions, setAudioVersions] = useState(initialAudioVersions);
   const [editPreset, setEditPreset] = useState<AudioEditPreset>('normalize_loudness');
+  const [audioFeedback, setAudioFeedback] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   const refreshArtifacts = async () => {
@@ -167,6 +175,7 @@ export function LifecyclePanel({
 
   const queueAudioEdit = async () => {
     setBusyAction('audio:queue');
+    setAudioFeedback(null);
     try {
       const response = await fetch(`/api/recordings/${recordingId}/audio-editing`, {
         method: 'POST',
@@ -175,7 +184,7 @@ export function LifecyclePanel({
       });
 
       if (!response.ok) {
-        alert('Não foi possível enfileirar a edição de áudio.');
+        setAudioFeedback('Não foi possível enfileirar a edição de áudio.');
         return;
       }
 
@@ -190,6 +199,7 @@ export function LifecyclePanel({
         };
         if (lifecycleData.lifecycle) setLifecycle(lifecycleData.lifecycle);
       }
+      setAudioFeedback('Edição de áudio enfileirada.');
     } finally {
       setBusyAction(null);
     }
@@ -197,6 +207,7 @@ export function LifecyclePanel({
 
   const rollbackAudioVersion = async (targetVersionId: string) => {
     setBusyAction(`audio:rollback:${targetVersionId}`);
+    setAudioFeedback(null);
     try {
       const response = await fetch(`/api/recordings/${recordingId}/audio-editing`, {
         method: 'POST',
@@ -204,7 +215,7 @@ export function LifecyclePanel({
         body: JSON.stringify({ action: 'rollback', targetVersionId }),
       });
       if (!response.ok) {
-        alert('Não foi possível executar rollback de áudio.');
+        setAudioFeedback('Não foi possível executar rollback de áudio.');
         return;
       }
 
@@ -218,6 +229,7 @@ export function LifecyclePanel({
         };
         if (lifecycleData.lifecycle) setLifecycle(lifecycleData.lifecycle);
       }
+      setAudioFeedback('Rollback aplicado com sucesso.');
     } finally {
       setBusyAction(null);
     }
@@ -414,6 +426,12 @@ export function LifecyclePanel({
             </div>
           </div>
 
+          {audioFeedback ? (
+            <p className="mt-2 text-xs text-mute" aria-live="polite">
+              {audioFeedback}
+            </p>
+          ) : null}
+
           <div className="mt-3 space-y-2">
             {audioVersions.length === 0 ? (
               <p className="text-sm text-mute">Nenhuma versão de áudio registrada.</p>
@@ -432,9 +450,12 @@ export function LifecyclePanel({
                         {version.isOriginal ? ' • original' : ''}
                       </p>
                       <p className="text-xs text-mute">
-                        {version.status}
+                        {getAudioVersionStatusLabel(version)}
                         {version.editPreset ? ` • ${version.editPreset}` : ''}
                       </p>
+                      {version.failureReason ? (
+                        <p className="mt-1 text-xs text-danger">{version.failureReason}</p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2">
                       {isActive ? (

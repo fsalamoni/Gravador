@@ -31,9 +31,9 @@
 
 ## Phase 3 - audio editing and enhancement
 
-- [~] Add server-side FFmpeg editing pipeline with versioning (queue/list contracts + API + UX scaffold behind flag).
-- [~] Keep original + edited media until explicit user deletion (retention defaults enforced on audio edit/version writes).
-- [~] Expose safe editing actions with rollback visibility (rollback action + active version visibility in lifecycle panel).
+- [x] Add server-side FFmpeg editing pipeline with versioning (queue/list + processing executor + ready/failed transitions behind flag).
+- [x] Keep original + edited media until explicit user deletion (retention defaults + versioned storage publish path).
+- [x] Expose safe editing actions with rollback visibility (active version switch on successful processing + rollback controls in lifecycle panel).
 
 ## Phase 4 - integrations and communication ops
 
