@@ -32,6 +32,5 @@
 ### Remaining concerns
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
-- Merge-side artifact side-by-side rendering contract still pending Phase 2/5 work.
-- Latest EAS preview rerun for parser validation must complete successfully before closing this release gate.
-- Dedicated automated behavior tests for parity diagnostics are partially covered (timeline utility). Waveform parity and merge-flow scenarios are still pending.
+- Bulk merge endpoint currently prepares side-by-side comparison/audit only (no final artifact reconciliation execution yet).
+- Phase 3 FFmpeg editing/version rollback flow is still pending implementation behind `NEXT_PUBLIC_FF_AUDIO_EDITING_V1`.

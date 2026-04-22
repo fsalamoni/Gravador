@@ -8,9 +8,11 @@ import {
   Calendar,
   CheckSquare,
   Clock3,
+  GitMerge,
   RefreshCw,
   Square,
   Tag,
+  Trash2,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -30,7 +32,10 @@ type SortDir = 'asc' | 'desc';
 
 const WAVEFORM_BARS = [16, 24, 42, 64, 58, 36, 44, 62, 30, 18, 34, 26];
 
-export function RecordingsGrid({ recordings }: { recordings: SerializedRecording[] }) {
+export function RecordingsGrid({
+  recordings,
+  bulkOpsEnabled = false,
+}: { recordings: SerializedRecording[]; bulkOpsEnabled?: boolean }) {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -38,6 +43,18 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
   const [tagInput, setTagInput] = useState('');
   const [tagging, setTagging] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [preparingMerge, setPreparingMerge] = useState(false);
+
+  const getRequestErrorMessage = useCallback(async (response: Response, fallback: string) => {
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data?.error) return `${fallback} (${data.error})`;
+    } catch {
+      // ignore parse errors and keep fallback
+    }
+    return fallback;
+  }, []);
 
   // Collect all unique tags
   const allTags = useMemo(() => {
@@ -128,6 +145,69 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
     }
   }, [selectedIds]);
 
+  const selectedPair = useMemo(() => {
+    const selectedOrdered = sorted.filter((recording) => selectedIds.has(recording.id));
+    if (selectedOrdered.length !== 2) return null;
+    return [selectedOrdered[0]!.id, selectedOrdered[1]!.id] as const;
+  }, [selectedIds, sorted]);
+
+  const bulkTrash = useCallback(async () => {
+    if (!bulkOpsEnabled || selectedIds.size === 0) return;
+    if (!confirm(`Mover ${selectedIds.size} gravação(ões) para a lixeira?`)) return;
+
+    setBulkDeleting(true);
+    try {
+      const response = await fetch('/api/recordings/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 1,
+          operation: 'delete',
+          recordingIds: [...selectedIds],
+        }),
+      });
+      if (!response.ok) {
+        alert(await getRequestErrorMessage(response, 'Erro ao mover gravações para a lixeira'));
+        return;
+      }
+      window.location.reload();
+    } catch {
+      alert('Erro ao mover gravações para a lixeira');
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [bulkOpsEnabled, getRequestErrorMessage, selectedIds]);
+
+  const prepareMerge = useCallback(async () => {
+    if (!bulkOpsEnabled || !selectedPair) return;
+
+    setPreparingMerge(true);
+    try {
+      const response = await fetch('/api/recordings/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 1,
+          operation: 'merge',
+          primaryRecordingId: selectedPair[0],
+          secondaryRecordingId: selectedPair[1],
+          preserveArtifacts: 'side_by_side',
+        }),
+      });
+      if (!response.ok) {
+        alert(await getRequestErrorMessage(response, 'Erro ao preparar comparação de merge'));
+        return;
+      }
+      const data = (await response.json()) as { compareUrl?: string };
+      if (data.compareUrl) window.location.href = data.compareUrl;
+      else alert('Erro ao preparar comparação de merge (compare_url_missing)');
+    } catch {
+      alert('Erro ao preparar comparação de merge');
+    } finally {
+      setPreparingMerge(false);
+    }
+  }, [bulkOpsEnabled, getRequestErrorMessage, selectedPair]);
+
   return (
     <>
       {/* Controls bar */}
@@ -215,6 +295,28 @@ export function RecordingsGrid({ recordings }: { recordings: SerializedRecording
             <RefreshCw className={`mr-1 inline h-3 w-3 ${reprocessing ? 'animate-spin' : ''}`} />
             {reprocessing ? 'Enfileirando…' : 'Reprocessar IA'}
           </button>
+          {bulkOpsEnabled ? (
+            <button
+              type="button"
+              onClick={bulkTrash}
+              disabled={bulkDeleting}
+              className="rounded-full border border-danger/40 bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger transition hover:border-danger/60 disabled:opacity-50"
+            >
+              <Trash2 className="mr-1 inline h-3 w-3" />
+              {bulkDeleting ? 'Movendo…' : 'Mover para lixeira'}
+            </button>
+          ) : null}
+          {bulkOpsEnabled && selectedPair ? (
+            <button
+              type="button"
+              onClick={prepareMerge}
+              disabled={preparingMerge}
+              className="rounded-full bg-accent/15 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/25 disabled:opacity-50"
+            >
+              <GitMerge className="mr-1 inline h-3 w-3" />
+              {preparingMerge ? 'Preparando…' : 'Comparar artefatos (merge)'}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setSelectedIds(new Set())}

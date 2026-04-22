@@ -28,13 +28,20 @@ This file captures decisions and assumptions that must survive long implementati
 - Timeline parity computation is now centralized in `apps/web/src/lib/timeline-parity.ts` and covered by unit tests.
 - Web package now has a dedicated `test` script (`vitest run`) for parity regression checks.
 - Intermittent Next.js Windows build ENOENT on `.next/server/edge-runtime-webpack.js` was mitigated with serialized clean builds.
+- Waveform parity computation is now centralized in `apps/web/src/lib/waveform-parity.ts` and covered by tests.
+- Edit/version parity contracts are now centralized in `apps/web/src/lib/edit-version-parity.ts` and surfaced in recording detail diagnostics.
+- Bulk operations schema contract is versioned in `apps/web/src/lib/bulk-ops.ts` (`schemaVersion: 1`) with explicit merge mode `side_by_side`.
+- Bulk merge/delete audit entries are persisted in `recording_bulk_ops` with actor, scope, and preserve strategy metadata.
+- Recording detail supports side-by-side artifact comparison for merge preparation via `?mergeWith=<recordingId>`.
+- Lifecycle/artifact mutation APIs now expose mapped notification event contracts (`recording.lifecycle.*`, `recording.artifact.*`, `recording.pipeline.updated`).
+- EAS preview rerun `24777625944` completed successfully, closing the mobile preview release gate.
 
 ## Current package objective
 
-- Keep repo/docs/state synchronized while closing Phase 2 tests/merge UX and preparing Phase 3 editing contracts.
+- Start Phase 3 package definition (FFmpeg editing pipeline + media versioning + rollback visibility) with Phase 2 closed.
 
 ## Immediate next contracts to lock
 
-- Timeline and waveform parity contracts for edit/version operations.
-- Bulk delete/merge request payload schema and audit strategy.
-- Notification event contracts linked to lifecycle transitions.
+- FFmpeg edit request/response contract and version lineage metadata.
+- Storage path/version retention contract for original + edited media.
+- Rollback action contract for selecting/restoring previous audio versions.

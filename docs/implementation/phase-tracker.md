@@ -24,10 +24,10 @@
 
 ## Phase 2 - recording detail and artifact UX
 
-- [~] Expand recording detail page for full artifact lifecycle management.
+- [x] Expand recording detail page for full artifact lifecycle management.
 - [x] Add timeline/waveform parity diagnostics in recording detail page.
-- [~] Add timeline/progress/waveform parity checks and behavior tests (timeline unit coverage added; waveform/edit flows pending).
-- [ ] Implement side-by-side artifact handling for merge operations.
+- [x] Add timeline/progress/waveform parity checks and behavior tests (timeline + waveform + edit/version coverage delivered).
+- [x] Implement side-by-side artifact handling for merge operations.
 
 ## Phase 3 - audio editing and enhancement
 
@@ -43,8 +43,8 @@
 
 ## Phase 5 - bulk operations and reliability hardening
 
-- [ ] Multi-select delete flow with safety constraints and clear confirmations.
-- [ ] Multi-select merge flow with side-by-side artifacts and auditability.
+- [~] Multi-select delete flow with safety constraints and clear confirmations (v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
+- [~] Multi-select merge flow with side-by-side artifacts and auditability (prepare/compare path + audit contracts delivered).
 - [ ] Add regression checks around permission/auth/path isolation.
 
 ## Release gating before each phase transition
@@ -53,4 +53,4 @@
 - [x] Feature flags default reviewed.
 - [x] Tracker + context cache updated.
 - [x] Risks and rollback path written.
-- [~] Mobile preview workflow healthy (parser hotfix live; rerun 24777625944 in progress).
+- [x] Mobile preview workflow healthy (EAS preview rerun 24777625944 completed with success).

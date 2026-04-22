@@ -3,6 +3,7 @@ import { getServerDb } from '@/lib/firebase-server';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
+  getNotificationEventForLifecycleEvent,
   getRecordingLifecycleState,
   getRecordingRetentionPolicy,
   toIsoTimestamp,
@@ -13,6 +14,16 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 type LifecycleAction = 'archive' | 'unarchive' | 'trash' | 'restore' | 'bumpVersion';
+const EVENT_BY_ACTION: Record<
+  LifecycleAction,
+  Parameters<typeof getNotificationEventForLifecycleEvent>[0]
+> = {
+  archive: 'archived',
+  unarchive: 'unarchived',
+  trash: 'trashed',
+  restore: 'restored',
+  bumpVersion: 'version_bumped',
+};
 
 function isLifecycleAction(value: string): value is LifecycleAction {
   return ['archive', 'unarchive', 'trash', 'restore', 'bumpVersion'].includes(value);
@@ -118,5 +129,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     ),
     lifecycle: getRecordingLifecycleState(data.lifecycle),
     retention: getRecordingRetentionPolicy(data.retention),
+    notificationEvent: getNotificationEventForLifecycleEvent(EVENT_BY_ACTION[body.action]),
   });
 }

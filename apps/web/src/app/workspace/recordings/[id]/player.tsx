@@ -1,5 +1,6 @@
 'use client';
 
+import { getWaveformParityReport } from '@/lib/waveform-parity';
 import { formatDurationMs } from '@gravador/core';
 import { Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -14,12 +15,8 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
   const [duration, setDuration] = useState(0);
   const [waveReady, setWaveReady] = useState(false);
 
-  const hasExpectedDuration =
-    typeof expectedDurationMs === 'number' &&
-    Number.isFinite(expectedDurationMs) &&
-    expectedDurationMs > 0;
-  const durationDeltaMs = hasExpectedDuration ? Math.abs(duration - expectedDurationMs) : 0;
-  const hasParityWarning = hasExpectedDuration && waveReady && durationDeltaMs > 3000;
+  const waveformParity = getWaveformParityReport(expectedDurationMs, duration);
+  const hasParityWarning = !!waveformParity && waveReady && waveformParity.hasWarning;
 
   useEffect(() => {
     if (!containerRef.current || !src || !audioRef.current) return;
@@ -119,7 +116,7 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
         </div>
       </div>
 
-      {hasExpectedDuration ? (
+      {waveformParity ? (
         <div
           className={`rounded-[20px] border px-4 py-3 text-sm ${
             hasParityWarning
@@ -128,7 +125,7 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
           }`}
         >
           Waveform duration {hasParityWarning ? 'differs from' : 'matches'} expected recording
-          duration by {Math.round(durationDeltaMs / 1000)}s.
+          duration by {Math.round(waveformParity.durationDeltaMs / 1000)}s.
         </div>
       ) : null}
     </div>

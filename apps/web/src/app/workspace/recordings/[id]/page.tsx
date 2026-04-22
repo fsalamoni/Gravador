@@ -1,4 +1,6 @@
+import { getEditVersionParityReport } from '@/lib/edit-version-parity';
 import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   getArtifactLifecycleState,
   getRecordingLifecycleState,
@@ -15,31 +17,21 @@ import { RecordingTabs } from './tabs';
 
 export default async function RecordingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mergeWith?: string }>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const db = getServerDb();
 
-  const recDoc = await db.collection('recordings').doc(id).get();
-  if (!recDoc.exists) notFound();
-  const recData = recDoc.data()!;
+  const access = await getAccessibleRecording(db, id, user.uid);
+  if (!access.ok) notFound();
 
-  // Authorization: must be creator or workspace member
-  if (recData.createdBy !== user.uid) {
-    const memberDoc = await db
-      .collection('workspaces')
-      .doc(recData.workspaceId as string)
-      .collection('members')
-      .doc(user.uid)
-      .get();
-    if (!memberDoc.exists) notFound();
-  }
-
-  const recording = { id: recDoc.id, ...recData } as {
+  const recording = { id: access.ref.id, ...access.data } as {
     id: string;
     title?: string;
     capturedAt: { toDate: () => Date };
@@ -91,6 +83,7 @@ export default async function RecordingPage({
         payload: data.payload,
         artifactStatus: lifecycleData.artifactStatus,
         artifactVersion: lifecycleData.artifactVersion,
+        sourceRecordingVersion: lifecycleData.sourceRecordingVersion,
         updatedAt: lifecycleData.updatedAt,
       };
     })
@@ -126,6 +119,60 @@ export default async function RecordingPage({
   }
 
   const timelineParity = getTimelineParityReport(recording.durationMs, segments);
+  const editVersionParity = getEditVersionParityReport(
+    lifecycle.recordingVersion,
+    artifactRows.map((artifact) => ({
+      kind: artifact.kind,
+      artifactStatus: artifact.artifactStatus,
+      sourceRecordingVersion: artifact.sourceRecordingVersion,
+    })),
+  );
+
+  const mergeWithId = typeof query.mergeWith === 'string' ? query.mergeWith : null;
+  const mergeComparison =
+    mergeWithId && mergeWithId !== id
+      ? await (async () => {
+          const compareAccess = await getAccessibleRecording(db, mergeWithId, user.uid);
+          if (!compareAccess.ok) return null;
+
+          const compareArtifactsSnap = await compareAccess.ref
+            .collection('ai_outputs')
+            .orderBy('kind')
+            .get();
+
+          const compareArtifacts = compareArtifactsSnap.docs
+            .map((doc) => {
+              const data = doc.data();
+              const parsed = getArtifactLifecycleState(data);
+              if (!parsed) return null;
+              return {
+                kind: parsed.kind,
+                artifactStatus: parsed.artifactStatus,
+                artifactVersion: parsed.artifactVersion,
+                sourceRecordingVersion: parsed.sourceRecordingVersion,
+                updatedAt: parsed.updatedAt,
+              };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
+
+          const currentByKind = new Map<string, (typeof artifactRows)[number]>(
+            artifactRows.map((artifact) => [artifact.kind, artifact]),
+          );
+          const compareByKind = new Map<string, (typeof compareArtifacts)[number]>(
+            compareArtifacts.map((artifact) => [artifact.kind, artifact]),
+          );
+          const kinds = [...new Set([...currentByKind.keys(), ...compareByKind.keys()])].sort();
+
+          return {
+            compareRecordingId: mergeWithId,
+            rows: kinds.map((kind) => ({
+              kind,
+              current: currentByKind.get(kind) ?? null,
+              compare: compareByKind.get(kind) ?? null,
+            })),
+          };
+        })()
+      : null;
 
   return (
     <div className="space-y-5">
@@ -229,7 +276,74 @@ export default async function RecordingPage({
             Timeline and waveform parity checks look healthy.
           </div>
         )}
+
+        <div className="mt-4 rounded-[20px] border border-border bg-bg/55 px-4 py-3 text-sm">
+          <p className="font-medium text-text">
+            Edit/version parity • recording v{editVersionParity.recordingVersion}
+          </p>
+          <p className="mt-1 text-mute">
+            {editVersionParity.activeArtifactCount} artifact(s) ativos,{' '}
+            {editVersionParity.staleArtifactCount} desatualizados,{' '}
+            {editVersionParity.futureArtifactCount} futuros.
+          </p>
+          {editVersionParity.warnings.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-warning">
+              {editVersionParity.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </section>
+
+      {mergeComparison ? (
+        <section className="card p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-text">Merge artifact comparison</h2>
+            <span className="text-xs uppercase tracking-[0.2em] text-mute">Side-by-side</span>
+          </div>
+          <p className="mt-2 text-sm text-mute">
+            Comparando gravação atual com <code>{mergeComparison.compareRecordingId}</code>. O merge
+            preserva artefatos sem sobrescrever payloads.
+          </p>
+          <div className="mt-4 space-y-2">
+            {mergeComparison.rows.map((row) => (
+              <div
+                key={row.kind}
+                className="grid gap-2 rounded-[16px] border border-border bg-bg/55 p-3 md:grid-cols-3"
+              >
+                <div className="text-sm font-medium text-text">{row.kind}</div>
+                <div className="rounded-[12px] border border-border bg-bg/70 p-2 text-xs text-mute">
+                  {row.current ? (
+                    <>
+                      <p className="font-medium text-text">Atual</p>
+                      <p>
+                        {row.current.artifactStatus} • v{row.current.artifactVersion} • src v
+                        {row.current.sourceRecordingVersion}
+                      </p>
+                    </>
+                  ) : (
+                    <p>Sem artefato</p>
+                  )}
+                </div>
+                <div className="rounded-[12px] border border-border bg-bg/70 p-2 text-xs text-mute">
+                  {row.compare ? (
+                    <>
+                      <p className="font-medium text-text">Merge candidate</p>
+                      <p>
+                        {row.compare.artifactStatus} • v{row.compare.artifactVersion} • src v
+                        {row.compare.sourceRecordingVersion}
+                      </p>
+                    </>
+                  ) : (
+                    <p>Sem artefato</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <LifecyclePanel
         recordingId={id}

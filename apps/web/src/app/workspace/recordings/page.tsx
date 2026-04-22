@@ -1,3 +1,4 @@
+import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { listUserRecordings } from '@/lib/server-recordings';
 import { ArrowLeft, Clock3, Trash2 } from 'lucide-react';
@@ -81,7 +82,7 @@ export default async function RecordingsListPage() {
         </div>
       </section>
 
-      <RecordingsGrid recordings={serialized} />
+      <RecordingsGrid recordings={serialized} bulkOpsEnabled={featureFlags.bulkOpsV1} />
     </div>
   );
 }

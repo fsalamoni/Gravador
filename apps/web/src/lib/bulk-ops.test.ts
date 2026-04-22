@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest';
+import { buildBulkAuditEntry, parseBulkOperationRequest } from './bulk-ops';
+
+describe('bulk ops schema contracts', () => {
+  it('parses delete payload and builds audit entry', () => {
+    const parsed = parseBulkOperationRequest({
+      schemaVersion: 1,
+      operation: 'delete',
+      recordingIds: ['rec-a', 'rec-b'],
+      reason: 'cleanup',
+    });
+
+    const audit = buildBulkAuditEntry('user-1', parsed);
+    expect(audit.operation).toBe('delete');
+    expect(audit.recordingIds).toEqual(['rec-a', 'rec-b']);
+    expect(audit.preserveArtifacts).toBeNull();
+  });
+
+  it('parses merge payload and keeps side-by-side artifacts contract', () => {
+    const parsed = parseBulkOperationRequest({
+      schemaVersion: 1,
+      operation: 'merge',
+      primaryRecordingId: 'rec-a',
+      secondaryRecordingId: 'rec-b',
+      preserveArtifacts: 'side_by_side',
+    });
+
+    const audit = buildBulkAuditEntry('user-1', parsed);
+    expect(audit.operation).toBe('merge');
+    expect(audit.recordingIds).toEqual(['rec-a', 'rec-b']);
+    expect(audit.preserveArtifacts).toBe('side_by_side');
+  });
+
+  it('rejects merge payload with duplicated recording ids', () => {
+    expect(() =>
+      parseBulkOperationRequest({
+        schemaVersion: 1,
+        operation: 'merge',
+        primaryRecordingId: 'rec-a',
+        secondaryRecordingId: 'rec-a',
+        preserveArtifacts: 'side_by_side',
+      }),
+    ).toThrow();
+  });
+});
