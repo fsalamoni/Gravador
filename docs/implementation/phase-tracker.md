@@ -46,6 +46,8 @@
 - [~] Multi-select delete flow with safety constraints and clear confirmations (v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
 - [~] Multi-select merge flow with side-by-side artifacts and auditability (prepare/compare path + audit contracts delivered).
 - [x] Add regression checks around permission/auth/path isolation.
+- [x] Harden mobile startup/auth bootstrap to prevent blank-screen deadlocks (auth timeout fallback + startup error boundary + resilient firebase/i18n init).
+- [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; staging wiring pending.
 
 ## Release gating before each phase transition
 

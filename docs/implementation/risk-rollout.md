@@ -29,6 +29,8 @@
 - Added notification event matrix for audio edit state transitions and deterministic no-op behavior when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=false`.
 - Added guided onboarding modals for WhatsApp/email integrations and send/test flows with standardized notification delivery error mapping.
 - Added bulk contract hardening to reject unsafe recording IDs (`/`, `\\`, `..`) and regression test coverage.
+- Hardened mobile app bootstrap against white-screen deadlocks with auth timeout fallback, startup error boundary, and resilient firebase/i18n initialization guards.
+- Added dedicated `workers/ai-pipeline` audio-edit job consumer (`process-audio-edit-jobs.ts`) that claims due jobs and dispatches retry-safe processing calls with `INTERNAL_JOBS_SECRET`.
 
 ### Rollback path
 
@@ -42,5 +44,5 @@
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
 - Bulk merge endpoint currently prepares side-by-side comparison/audit only (no final artifact reconciliation execution yet).
-- Audio edit jobs require worker/cron consumption policy in staging/prod (`scheduling.nextAttemptAt` honoring).
+- Audio-edit runner deployment still needs environment-level wiring/monitoring in staging/prod (scheduler trigger + alert thresholds).
 - Notification provider staging smoke (WhatsApp Cloud + email webhook) still pending environment configuration.

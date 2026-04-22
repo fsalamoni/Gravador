@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + hardening bridge to Phase 4 in progress
-- Focus: staging operationalization (audio-edit job consumption policy + notification provider validation)
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge in progress with mobile reliability and job-consumer rollout
+- Focus: staging operationalization (audio-edit runner deployment wiring + notification provider validation)
 
 ## Files
 

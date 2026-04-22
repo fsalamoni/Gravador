@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "pnpm run audio-jobs:loop",
+    "audio-jobs:once": "pnpm run build && node dist/tasks/process-audio-edit-jobs.js --once",
+    "audio-jobs:loop": "pnpm run build && node dist/tasks/process-audio-edit-jobs.js",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .turbo dist"
   },

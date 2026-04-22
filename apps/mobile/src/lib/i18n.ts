@@ -9,7 +9,17 @@ interface I18nState {
   setLocale: (locale: Locale) => void;
 }
 
-const initial: Locale = detectLocale(Localization.getLocales()[0]?.languageTag ?? 'pt-BR');
+function resolveInitialLocale(): Locale {
+  try {
+    const locales = Localization.getLocales();
+    return detectLocale(locales[0]?.languageTag ?? 'pt-BR');
+  } catch (error) {
+    console.warn('[i18n] locale detection failed, using pt-BR fallback', error);
+    return 'pt-BR';
+  }
+}
+
+const initial: Locale = resolveInitialLocale();
 
 export const useI18n = create<I18nState>((set) => ({
   locale: initial,
@@ -18,13 +28,18 @@ export const useI18n = create<I18nState>((set) => ({
 }));
 
 export function t(path: string): string {
-  const msgs = useI18n.getState().messages as unknown as Record<string, unknown>;
-  const parts = path.split('.');
-  let value: unknown = msgs;
-  for (const p of parts) {
-    if (value && typeof value === 'object' && p in (value as object)) {
-      value = (value as Record<string, unknown>)[p];
-    } else return path;
+  try {
+    const msgs = useI18n.getState().messages as unknown as Record<string, unknown>;
+    const parts = path.split('.');
+    let value: unknown = msgs;
+    for (const p of parts) {
+      if (value && typeof value === 'object' && p in (value as object)) {
+        value = (value as Record<string, unknown>)[p];
+      } else return path;
+    }
+    return typeof value === 'string' ? value : path;
+  } catch (error) {
+    console.warn('[i18n] translation lookup failed', { path, error });
+    return path;
   }
-  return typeof value === 'string' ? value : path;
 }

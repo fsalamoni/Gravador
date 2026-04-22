@@ -47,13 +47,18 @@ This file captures decisions and assumptions that must survive long implementati
 - Integrations UI now includes guided setup modals for WhatsApp/email and first-wave test/send actions.
 - Notification delivery contract now standardizes status/error handling for WhatsApp/email in `integration-sync` + `notification-delivery`.
 - Bulk operation contract now rejects unsafe recording IDs (`/`, `\\`, `..`) to harden path isolation assumptions.
+- Mobile app startup now hardens auth restore with timeout/error fallback in `apps/mobile/src/features/auth/session.ts`, preventing indefinite loading when `onAuthStateChanged` stalls.
+- Mobile root layout now includes `StartupErrorBoundary` and explicit background-task registration warnings to surface startup/runtime failures instead of blank screens.
+- Mobile firebase/i18n bootstrap now uses resilient initialization guards (`initializeAuth`/`initializeFirestore` singleton fallback + locale lookup try/catch).
+- Worker consumer contract now exists in `workers/ai-pipeline/src/tasks/process-audio-edit-jobs.ts` with due-job claiming (`queued`/`retry_scheduled` + `scheduling.nextAttemptAt`) and retry-safe dispatch to `/api/recordings/[id]/audio-editing`.
+- Root operational scripts now expose `worker:audio-jobs:once` and `worker:audio-jobs:loop` for deterministic staging/prod rollout of audio-edit processing.
 
 ## Current package objective
 
-- Complete staging smoke validation for notifications (WhatsApp/email providers configured) and monitor delivery error rates after activation.
+- Complete staging wiring for audio-edit runner execution and finish notification provider smoke validation (WhatsApp/email).
 
 ## Immediate next contracts to lock
 
-- Worker/cron execution policy for consuming `audio-editing` jobs and honoring `scheduling.nextAttemptAt`.
+- Runtime deployment contract for the new audio-edit runner (scheduler frequency, environment, and failure alerting).
 - End-to-end staging evidence for first-wave notifications with providers enabled.
 - Merge execution contract (beyond side-by-side planning) with rollback-safe artifact reconciliation.
