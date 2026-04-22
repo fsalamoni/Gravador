@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUDIO_EDITING_BASE_RETRY_DELAY_MS,
+  AUDIO_EDITING_MAX_RETRY_DELAY_MS,
+  getAudioEditRetryDelayMs,
   getFfmpegFilterForPreset,
   getNextAudioVersionNumber,
   getVersionedAudioStoragePath,
@@ -49,5 +52,12 @@ describe('audio editing contracts', () => {
         versionId: 'v-2',
       }),
     ).toBe('workspaces/ws-1/recordings/rec-1/audio_versions/v-2.m4a');
+  });
+
+  it('computes exponential retry backoff for queued edits', () => {
+    expect(getAudioEditRetryDelayMs(1)).toBe(AUDIO_EDITING_BASE_RETRY_DELAY_MS);
+    expect(getAudioEditRetryDelayMs(2)).toBe(AUDIO_EDITING_BASE_RETRY_DELAY_MS * 2);
+    expect(getAudioEditRetryDelayMs(3)).toBe(AUDIO_EDITING_BASE_RETRY_DELAY_MS * 4);
+    expect(getAudioEditRetryDelayMs(99)).toBe(AUDIO_EDITING_MAX_RETRY_DELAY_MS);
   });
 });

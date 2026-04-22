@@ -33,6 +33,12 @@ export async function POST(req: Request) {
     if (error instanceof ZodError) {
       return NextResponse.json({ error: 'invalid_body', issues: error.issues }, { status: 400 });
     }
+    if (error instanceof Error && error.message === 'invalid_recording_id') {
+      return NextResponse.json({ error: 'invalid_recording_id' }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === 'primary_and_secondary_must_differ') {
+      return NextResponse.json({ error: 'primary_and_secondary_must_differ' }, { status: 400 });
+    }
     throw error;
   }
 

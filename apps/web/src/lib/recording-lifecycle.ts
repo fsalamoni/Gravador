@@ -28,7 +28,19 @@ export type RecordingNotificationEvent =
   | 'recording.artifact.updated'
   | 'recording.artifact.deleted'
   | 'recording.artifact.restored'
-  | 'recording.pipeline.updated';
+  | 'recording.pipeline.updated'
+  | 'recording.audio_edit.queued'
+  | 'recording.audio_edit.processing'
+  | 'recording.audio_edit.retry_scheduled'
+  | 'recording.audio_edit.completed'
+  | 'recording.audio_edit.failed';
+
+export type AudioEditNotificationState =
+  | 'queued'
+  | 'processing'
+  | 'retry_scheduled'
+  | 'completed'
+  | 'failed';
 
 export const AI_OUTPUT_KINDS: readonly AIOutputKind[] = [
   'summary',
@@ -228,8 +240,25 @@ const NOTIFICATION_EVENT_BY_LIFECYCLE_EVENT: Record<
   pipeline_updated: 'recording.pipeline.updated',
 };
 
+const NOTIFICATION_EVENT_BY_AUDIO_EDIT_STATE: Record<
+  AudioEditNotificationState,
+  RecordingNotificationEvent
+> = {
+  queued: 'recording.audio_edit.queued',
+  processing: 'recording.audio_edit.processing',
+  retry_scheduled: 'recording.audio_edit.retry_scheduled',
+  completed: 'recording.audio_edit.completed',
+  failed: 'recording.audio_edit.failed',
+};
+
 export function getNotificationEventForLifecycleEvent(
   event: RecordingLifecycleEvent,
 ): RecordingNotificationEvent | null {
   return NOTIFICATION_EVENT_BY_LIFECYCLE_EVENT[event] ?? null;
+}
+
+export function getNotificationEventForAudioEditState(
+  state: AudioEditNotificationState,
+): RecordingNotificationEvent {
+  return NOTIFICATION_EVENT_BY_AUDIO_EDIT_STATE[state];
 }

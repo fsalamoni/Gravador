@@ -11,6 +11,7 @@ const INTEGRATIONS: IntegrationId[] = [
   'onedrive',
   'dropbox',
   'whatsapp',
+  'email',
 ];
 
 /** GET /api/integrations — returns user's integration connection statuses */

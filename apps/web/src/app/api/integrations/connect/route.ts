@@ -1,6 +1,10 @@
 import { getApiSessionUser } from '@/lib/api-session';
 import { getServerDb } from '@/lib/firebase-server';
-import { buildWhatsAppReceiveUrl, normalizePhoneNumber } from '@/lib/integration-sync';
+import {
+  buildWhatsAppReceiveUrl,
+  normalizeEmailAddress,
+  normalizePhoneNumber,
+} from '@/lib/integration-sync';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -11,9 +15,16 @@ const SUPPORTED_INTEGRATIONS = new Set([
   'onedrive',
   'dropbox',
   'whatsapp',
+  'email',
 ]);
 
-type IntegrationId = 'google-drive' | 'google-calendar' | 'onedrive' | 'dropbox' | 'whatsapp';
+type IntegrationId =
+  | 'google-drive'
+  | 'google-calendar'
+  | 'onedrive'
+  | 'dropbox'
+  | 'whatsapp'
+  | 'email';
 
 type OAuthConfig = {
   authBase: string;
@@ -26,7 +37,7 @@ type OAuthConfig = {
   };
 };
 
-const OAUTH_CONFIG: Record<Exclude<IntegrationId, 'whatsapp'>, OAuthConfig> = {
+const OAUTH_CONFIG: Record<Exclude<IntegrationId, 'whatsapp' | 'email'>, OAuthConfig> = {
   'google-drive': {
     authBase: 'https://accounts.google.com/o/oauth2/v2/auth',
     scopes:
@@ -90,6 +101,7 @@ export async function POST(req: Request) {
     integrationId?: IntegrationId;
     webhookUrl?: string;
     phoneNumber?: string;
+    emailAddress?: string;
   };
   const integrationId = body.integrationId;
 
@@ -172,7 +184,39 @@ export async function POST(req: Request) {
     });
   }
 
-  const providerConfig = OAUTH_CONFIG[integrationId as Exclude<IntegrationId, 'whatsapp'>];
+  if (integrationId === 'email') {
+    const normalizedEmail = normalizeEmailAddress(body.emailAddress ?? user.email ?? null);
+    if (!normalizedEmail) {
+      return NextResponse.json(
+        {
+          error: 'missing_email_address',
+          message: 'Informe um e-mail válido para receber notificações.',
+        },
+        { status: 400 },
+      );
+    }
+
+    await db.collection('users').doc(user.uid).collection('integrations').doc('email').set(
+      {
+        status: 'connected',
+        type: 'webhook',
+        deliveryMode: 'webhook',
+        emailAddress: normalizedEmail,
+        connectedAt: new Date().toISOString(),
+        connectedEmail: normalizedEmail,
+      },
+      { merge: true },
+    );
+
+    return NextResponse.json({
+      status: 'connected',
+      deliveryMode: 'webhook',
+      emailAddress: normalizedEmail,
+    });
+  }
+
+  const providerConfig =
+    OAUTH_CONFIG[integrationId as Exclude<IntegrationId, 'whatsapp' | 'email'>];
   if (!providerConfig) {
     return NextResponse.json(
       { error: 'not_implemented', message: 'Integração em fase de implementação.' },

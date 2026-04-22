@@ -37,15 +37,15 @@
 
 ## Phase 4 - integrations and communication ops
 
-- [ ] Build richer WhatsApp/email setup modals with guided onboarding.
-- [ ] Add send/test flows for email integration and notification paths.
-- [ ] Validate first-wave notification scope end-to-end.
+- [x] Build richer WhatsApp/email setup modals with guided onboarding.
+- [~] Add send/test flows for email integration and notification paths (test + send APIs and UI actions delivered; provider wiring remains env-dependent).
+- [~] Validate first-wave notification scope end-to-end (contract and deterministic flag behavior validated via API/unit tests; staging smoke pending).
 
 ## Phase 5 - bulk operations and reliability hardening
 
 - [~] Multi-select delete flow with safety constraints and clear confirmations (v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
 - [~] Multi-select merge flow with side-by-side artifacts and auditability (prepare/compare path + audit contracts delivered).
-- [ ] Add regression checks around permission/auth/path isolation.
+- [x] Add regression checks around permission/auth/path isolation.
 
 ## Release gating before each phase transition
 

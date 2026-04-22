@@ -9,6 +9,7 @@ import {
   HardDrive,
   Link2,
   Loader2,
+  Mail,
   MessageCircle,
   RefreshCw,
   Save,
@@ -19,7 +20,13 @@ import {
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-type IntegrationId = 'google-drive' | 'google-calendar' | 'onedrive' | 'dropbox' | 'whatsapp';
+type IntegrationId =
+  | 'google-drive'
+  | 'google-calendar'
+  | 'onedrive'
+  | 'dropbox'
+  | 'whatsapp'
+  | 'email';
 
 interface Integration {
   id: IntegrationId;
@@ -32,6 +39,8 @@ interface Integration {
   connectedEmail?: string | null;
   targetFolder?: string | null;
   phoneNumber?: string | null;
+  emailAddress?: string | null;
+  deliveryMode?: 'webhook' | 'meta-cloud' | null;
   receiveUrl?: string | null;
   receiveToken?: string | null;
   lastSyncedAt?: string | null;
@@ -89,6 +98,15 @@ const INITIAL_INTEGRATIONS: Integration[] = [
     iconColor: 'text-[#25d366]',
     status: 'disconnected',
   },
+  {
+    id: 'email',
+    name: 'E-mail',
+    description:
+      'Dispare notificações por e-mail para eventos de lifecycle e conclusão de processamento com fluxo de teste e envio real.',
+    icon: Mail,
+    iconColor: 'text-[#f97316]',
+    status: 'disconnected',
+  },
 ];
 
 export default function IntegrationsPage() {
@@ -96,6 +114,12 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>(INITIAL_INTEGRATIONS);
   const [toast, setToast] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [setupModalIntegration, setSetupModalIntegration] = useState<IntegrationId | null>(null);
+  const [setupForm, setSetupForm] = useState<{
+    phoneNumber: string;
+    webhookUrl: string;
+    emailAddress: string;
+  }>({ phoneNumber: '', webhookUrl: '', emailAddress: '' });
 
   useEffect(() => {
     const connected = searchParams.get('connected');
@@ -154,30 +178,22 @@ export default function IntegrationsPage() {
 
   const handleConnect = useCallback(
     async (integrationId: IntegrationId) => {
+      if (integrationId === 'whatsapp' || integrationId === 'email') {
+        const existing = integrations.find((item) => item.id === integrationId);
+        setSetupForm({
+          phoneNumber: existing?.phoneNumber ?? '',
+          webhookUrl: '',
+          emailAddress: existing?.emailAddress ?? existing?.connectedEmail ?? '',
+        });
+        setSetupModalIntegration(integrationId);
+        return;
+      }
       patchIntegration(integrationId, { status: 'connecting' });
       try {
-        let payload: { integrationId: IntegrationId; webhookUrl?: string; phoneNumber?: string } = {
-          integrationId,
-        };
-
-        if (integrationId === 'whatsapp') {
-          const phoneNumber = window
-            .prompt('Informe o número de destino no formato internacional (ex: +55 11 99999-9999):')
-            ?.trim();
-          if (!phoneNumber) throw new Error('Conexão cancelada: número de destino é obrigatório.');
-
-          const webhookUrl = window
-            .prompt(
-              'Webhook opcional para automação (deixe em branco para usar só WhatsApp Cloud API oficial):',
-            )
-            ?.trim();
-
-          payload = {
+        const payload: { integrationId: IntegrationId; webhookUrl?: string; phoneNumber?: string } =
+          {
             integrationId,
-            phoneNumber,
-            ...(webhookUrl ? { webhookUrl } : {}),
           };
-        }
 
         const res = await fetch('/api/integrations/connect', {
           method: 'POST',
@@ -212,7 +228,7 @@ export default function IntegrationsPage() {
         showToast(error instanceof Error ? error.message : 'Erro ao conectar.');
       }
     },
-    [patchIntegration, showToast],
+    [integrations, patchIntegration, showToast],
   );
 
   const handleDisconnect = useCallback(
@@ -245,6 +261,92 @@ export default function IntegrationsPage() {
     [patchIntegration, showToast],
   );
 
+  const handleSubmitGuidedSetup = useCallback(async () => {
+    if (!setupModalIntegration) return;
+    const integrationId = setupModalIntegration;
+    setBusyKey(`connect:${integrationId}`);
+    patchIntegration(integrationId, { status: 'connecting' });
+
+    try {
+      const payload: {
+        integrationId: IntegrationId;
+        webhookUrl?: string;
+        phoneNumber?: string;
+        emailAddress?: string;
+      } = { integrationId };
+
+      if (integrationId === 'whatsapp') {
+        payload.phoneNumber = setupForm.phoneNumber;
+        if (setupForm.webhookUrl.trim()) payload.webhookUrl = setupForm.webhookUrl.trim();
+      }
+      if (integrationId === 'email') {
+        payload.emailAddress = setupForm.emailAddress;
+      }
+
+      const res = await fetch('/api/integrations/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        message?: string;
+        receiveUrl?: string;
+        inboundToken?: string;
+        emailAddress?: string;
+      } | null;
+      if (!res.ok) throw new Error(data?.message ?? `Falha ao conectar (${res.status})`);
+
+      patchIntegration(integrationId, {
+        status: 'connected',
+        connectedAt: new Date().toISOString(),
+        receiveUrl: data?.receiveUrl ?? null,
+        receiveToken: data?.inboundToken ?? null,
+        phoneNumber: integrationId === 'whatsapp' ? setupForm.phoneNumber : null,
+        emailAddress:
+          integrationId === 'email' ? (data?.emailAddress ?? setupForm.emailAddress) : null,
+        connectedEmail:
+          integrationId === 'email' ? (data?.emailAddress ?? setupForm.emailAddress) : null,
+      });
+
+      setSetupModalIntegration(null);
+      showToast('Integração conectada com sucesso.');
+    } catch (error) {
+      patchIntegration(integrationId, { status: 'disconnected' });
+      showToast(error instanceof Error ? error.message : 'Erro ao conectar integração.');
+    } finally {
+      setBusyKey(null);
+    }
+  }, [patchIntegration, setupForm, setupModalIntegration, showToast]);
+
+  const handleSendTest = useCallback(
+    async (integrationId: IntegrationId) => {
+      setBusyKey(`test:${integrationId}`);
+      try {
+        const res = await fetch('/api/integrations/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ integrationId, mode: 'test' }),
+        });
+        const data = (await res.json().catch(() => null)) as {
+          failures?: Array<{ message: string }>;
+          notificationsEnabled?: boolean;
+        } | null;
+        if (!res.ok)
+          throw new Error(data?.failures?.[0]?.message ?? `Falha no teste (${res.status})`);
+        if (data?.notificationsEnabled === false) {
+          showToast('Notificações estão temporariamente desativadas.');
+          return;
+        }
+        showToast('Envio de teste concluído.');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : 'Erro ao executar teste.');
+      } finally {
+        setBusyKey(null);
+      }
+    },
+    [showToast],
+  );
+
   const handleSaveSettings = useCallback(
     async (integration: Integration) => {
       setBusyKey(`save:${integration.id}`);
@@ -256,6 +358,7 @@ export default function IntegrationsPage() {
             integrationId: integration.id,
             targetFolder: integration.targetFolder,
             phoneNumber: integration.phoneNumber,
+            emailAddress: integration.emailAddress,
           }),
         });
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -350,6 +453,7 @@ export default function IntegrationsPage() {
           const isConnected = integration.status === 'connected';
           const isConnecting = integration.status === 'connecting';
           const syncBusy = busyKey === `sync:${integration.id}`;
+          const testBusy = busyKey === `test:${integration.id}`;
           const saveBusy = busyKey === `save:${integration.id}`;
           const disconnectBusy = busyKey === `disconnect:${integration.id}`;
           const isStorage = storageIntegrations.has(integration.id);
@@ -421,6 +525,19 @@ export default function IntegrationsPage() {
                         <Save className="h-4 w-4" />
                       )}
                       Salvar pasta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSendTest(integration.id)}
+                      disabled={testBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-surfaceAlt/90 px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-surfaceAlt disabled:opacity-50"
+                    >
+                      {testBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      Enviar teste
                     </button>
                     <button
                       type="button"
@@ -518,6 +635,69 @@ export default function IntegrationsPage() {
                 </div>
               )}
 
+              {isConnected && integration.id === 'email' && (
+                <div className="mt-4 space-y-3 rounded-[18px] border border-border bg-bg/45 p-4">
+                  <div>
+                    <label
+                      htmlFor={`${integration.id}-email-address`}
+                      className="text-xs uppercase tracking-[0.24em] text-mute"
+                    >
+                      E-mail de destino
+                    </label>
+                    <input
+                      id={`${integration.id}-email-address`}
+                      value={integration.emailAddress ?? ''}
+                      onChange={(event) =>
+                        patchIntegration(integration.id, { emailAddress: event.target.value })
+                      }
+                      placeholder="seu-email@empresa.com"
+                      className="mt-2 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSettings(integration)}
+                      disabled={saveBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-surfaceAlt/70 px-4 py-2.5 text-sm font-medium text-text transition hover:bg-surfaceAlt disabled:opacity-50"
+                    >
+                      {saveBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      Salvar e-mail
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSendTest(integration.id)}
+                      disabled={testBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-surfaceAlt/90 px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-surfaceAlt disabled:opacity-50"
+                    >
+                      {testBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      Enviar teste
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSync(integration.id)}
+                    disabled={syncBusy}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:opacity-50"
+                  >
+                    {syncBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    Enviar última gravação por e-mail
+                  </button>
+                </div>
+              )}
+
               {isConnected &&
                 (integration.lastSyncedAt ||
                   integration.lastSyncError ||
@@ -575,7 +755,9 @@ export default function IntegrationsPage() {
                     ) : (
                       <>
                         <ExternalLink className="h-4 w-4" />
-                        {integration.id === 'whatsapp' ? 'Configurar e conectar' : 'Conectar'}
+                        {integration.id === 'whatsapp' || integration.id === 'email'
+                          ? 'Configurar e conectar'
+                          : 'Conectar'}
                       </>
                     )}
                   </button>
@@ -585,6 +767,76 @@ export default function IntegrationsPage() {
           );
         })}
       </section>
+
+      {setupModalIntegration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-6 shadow-xl">
+            <h2 className="text-xl font-semibold text-text">
+              {setupModalIntegration === 'whatsapp'
+                ? 'Configuração guiada do WhatsApp'
+                : 'Configuração guiada de e-mail'}
+            </h2>
+            <p className="mt-2 text-sm text-mute">
+              {setupModalIntegration === 'whatsapp'
+                ? 'Defina número de destino e, opcionalmente, webhook para entrega personalizada.'
+                : 'Defina o e-mail de destino para teste e envio de notificações.'}
+            </p>
+
+            {setupModalIntegration === 'whatsapp' ? (
+              <div className="mt-4 space-y-3">
+                <input
+                  value={setupForm.phoneNumber}
+                  onChange={(event) =>
+                    setSetupForm((prev) => ({ ...prev, phoneNumber: event.target.value }))
+                  }
+                  placeholder="+55 11 99999-9999"
+                  className="w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+                />
+                <input
+                  value={setupForm.webhookUrl}
+                  onChange={(event) =>
+                    setSetupForm((prev) => ({ ...prev, webhookUrl: event.target.value }))
+                  }
+                  placeholder="https://seu-webhook.exemplo.com (opcional)"
+                  className="w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+                />
+              </div>
+            ) : (
+              <div className="mt-4">
+                <input
+                  value={setupForm.emailAddress}
+                  onChange={(event) =>
+                    setSetupForm((prev) => ({ ...prev, emailAddress: event.target.value }))
+                  }
+                  placeholder="seu-email@empresa.com"
+                  className="w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+                />
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSetupModalIntegration(null)}
+                className="rounded-full border border-border px-4 py-2 text-sm text-text"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitGuidedSetup}
+                disabled={busyKey === `connect:${setupModalIntegration}`}
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-onAccent disabled:opacity-50"
+              >
+                {busyKey === `connect:${setupModalIntegration}` && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Conectar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

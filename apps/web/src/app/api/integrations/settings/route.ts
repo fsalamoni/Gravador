@@ -3,6 +3,7 @@ import { getServerDb } from '@/lib/firebase-server';
 import {
   type IntegrationClientView,
   type IntegrationId,
+  normalizeEmailAddress,
   normalizePhoneNumber,
   normalizeTargetFolder,
 } from '@/lib/integration-sync';
@@ -14,6 +15,7 @@ type SettingsBody = {
   integrationId?: IntegrationId;
   targetFolder?: string;
   phoneNumber?: string;
+  emailAddress?: string;
 };
 
 export async function POST(req: Request) {
@@ -49,6 +51,15 @@ export async function POST(req: Request) {
     const normalizedPhoneNumber = normalizePhoneNumber(body.phoneNumber);
     updates.phoneNumber = normalizedPhoneNumber;
     updates.phoneNumberNormalized = normalizedPhoneNumber;
+  }
+
+  if (body.integrationId === 'email' && typeof body.emailAddress === 'string') {
+    const normalizedEmail = normalizeEmailAddress(body.emailAddress);
+    if (!normalizedEmail) {
+      return NextResponse.json({ error: 'invalid_email_address' }, { status: 400 });
+    }
+    updates.emailAddress = normalizedEmail;
+    updates.connectedEmail = normalizedEmail;
   }
 
   if (Object.keys(updates).length === 0) {

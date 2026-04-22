@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 export type AudioVersionStatus = 'ready' | 'queued' | 'failed';
 export type AudioEditPreset = 'normalize_loudness' | 'trim_silence' | 'denoise';
+export type AudioEditJobStatus =
+  | 'queued'
+  | 'processing'
+  | 'retry_scheduled'
+  | 'completed'
+  | 'failed';
 
 export interface AudioVersionRecord {
   id: string;
@@ -19,6 +25,10 @@ export interface AudioVersionRecord {
 }
 
 export const AUDIO_EDITING_SCHEMA_VERSION = 1;
+export const AUDIO_EDITING_JOB_KIND = 'audio-editing';
+export const AUDIO_EDITING_MAX_RETRIES = 3;
+export const AUDIO_EDITING_BASE_RETRY_DELAY_MS = 15_000;
+export const AUDIO_EDITING_MAX_RETRY_DELAY_MS = 10 * 60_000;
 
 const queueEditRequestSchema = z.object({
   action: z.literal('queue_edit'),
@@ -72,4 +82,12 @@ export function getVersionedAudioStoragePath(params: {
       : '';
   if (!sourceDir) return `audio_versions/${params.versionId}.m4a`;
   return `${sourceDir}/audio_versions/${params.versionId}.m4a`;
+}
+
+export function getAudioEditRetryDelayMs(attempt: number): number {
+  const normalizedAttempt = Math.max(1, Math.floor(attempt));
+  return Math.min(
+    AUDIO_EDITING_MAX_RETRY_DELAY_MS,
+    AUDIO_EDITING_BASE_RETRY_DELAY_MS * 2 ** (normalizedAttempt - 1),
+  );
 }
