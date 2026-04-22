@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
@@ -25,12 +26,11 @@ export async function POST(req: Request) {
   let queued = 0;
 
   for (const recId of body.recordingIds.slice(0, 50)) {
-    const ref = db.collection('recordings').doc(recId);
-    const snap = await ref.get();
-    if (!snap.exists || snap.data()?.createdBy !== user.uid) continue;
+    const access = await getAccessibleRecording(db, recId, user.uid);
+    if (!access.ok) continue;
 
     // Mark recording for reprocessing
-    await ref.update({
+    await access.ref.update({
       'pipeline.status': 'pending',
       'pipeline.requestedPipelines': pipelines,
       'pipeline.requestedAt': FieldValue.serverTimestamp(),

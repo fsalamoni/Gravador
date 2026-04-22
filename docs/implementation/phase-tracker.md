@@ -19,7 +19,8 @@
 
 - [x] Define canonical per-recording lifecycle schema and retention metadata.
 - [x] Add API routes/contracts for explicit artifact lifecycle operations.
-- [~] Guarantee robust per-user persistence and ownership enforcement across edits.
+- [x] Guarantee robust per-user persistence and ownership enforcement across edits.
+- [x] Consolidate recording access checks across chat/shares/trash/reprocess/tags routes.
 
 ## Phase 2 - recording detail and artifact UX
 
@@ -51,4 +52,4 @@
 - [x] Feature flags default reviewed.
 - [x] Tracker + context cache updated.
 - [x] Risks and rollback path written.
-- [~] Mobile preview workflow healthy (output parser hotfix pushed; success rerun pending).
+- [~] Mobile preview workflow healthy (parser hotfix live; rerun 24777625944 in progress).

@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
@@ -28,14 +29,15 @@ export async function PUT(req: Request) {
   const BATCH_LIMIT = 490;
   let batch = db.batch();
   let opCount = 0;
+  let updated = 0;
 
   for (const recId of body.recordingIds.slice(0, 100)) {
-    const ref = db.collection('recordings').doc(recId);
-    const snap = await ref.get();
-    if (!snap.exists || snap.data()?.createdBy !== user.uid) continue;
+    const access = await getAccessibleRecording(db, recId, user.uid);
+    if (!access.ok) continue;
 
-    batch.update(ref, { tags, updatedAt: FieldValue.serverTimestamp() });
+    batch.update(access.ref, { tags, updatedAt: FieldValue.serverTimestamp() });
     opCount++;
+    updated++;
 
     if (opCount >= BATCH_LIMIT) {
       await batch.commit();
@@ -46,7 +48,7 @@ export async function PUT(req: Request) {
 
   if (opCount > 0) await batch.commit();
 
-  return NextResponse.json({ ok: true, updated: body.recordingIds.length, tags });
+  return NextResponse.json({ ok: true, updated, tags });
 }
 
 /**
@@ -70,14 +72,13 @@ export async function POST(req: Request) {
   let opCount = 0;
 
   for (const recId of body.recordingIds.slice(0, 100)) {
-    const ref = db.collection('recordings').doc(recId);
-    const snap = await ref.get();
-    if (!snap.exists || snap.data()?.createdBy !== user.uid) continue;
+    const access = await getAccessibleRecording(db, recId, user.uid);
+    if (!access.ok) continue;
 
-    const existing = (snap.data()?.tags ?? []) as string[];
+    const existing = (access.data.tags ?? []) as string[];
     const merged = [...new Set([...existing, ...newTags])].slice(0, 20);
 
-    batch.update(ref, { tags: merged, updatedAt: FieldValue.serverTimestamp() });
+    batch.update(access.ref, { tags: merged, updatedAt: FieldValue.serverTimestamp() });
     opCount++;
 
     if (opCount >= BATCH_LIMIT) {

@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
 import { shortId } from '@gravador/core';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
@@ -16,20 +17,14 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = getServerDb();
-  const recDoc = await db.collection('recordings').doc(recordingId).get();
-  if (!recDoc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  const rec = recDoc.data() as { workspaceId: string; createdBy: string };
-
-  // Verify user owns this recording or is a workspace member
-  if (rec.createdBy !== user.uid) {
-    const memberDoc = await db
-      .collection('workspaces')
-      .doc(rec.workspaceId)
-      .collection('members')
-      .doc(user.uid)
-      .get();
-    if (!memberDoc.exists) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const access = await getAccessibleRecording(db, recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
   }
+  const rec = access.data as { workspaceId: string };
 
   let passwordHash: string | null = null;
   if (password) {

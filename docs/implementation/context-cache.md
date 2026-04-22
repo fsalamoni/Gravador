@@ -22,10 +22,12 @@ This file captures decisions and assumptions that must survive long implementati
 - Recording detail page now includes a lifecycle panel with archive/trash/restore/version controls and artifact delete/restore actions.
 - EAS preview workflow failure root cause identified: shell quoting conflict in `node -e` output parsing (GitHub Actions step writing `GITHUB_OUTPUT`).
 - EAS preview workflow patched to use a heredoc Node script with guarded output writes; rerun dispatched for validation.
+- Legacy recording routes now use centralized access checks (`getAccessibleRecording`) across chat, shares, trash, reprocess, and tags endpoints.
+- Shares listing/revoke flows are now authorization-hardened with workspace access checks.
 
 ## Current package objective
 
-- Keep repo/docs/state synchronized while hardening Phase 1 ownership guarantees and expanding Phase 2 UX.
+- Keep repo/docs/state synchronized while expanding Phase 2 UX and preparing Phase 3 editing contracts.
 
 ## Immediate next contracts to lock
 

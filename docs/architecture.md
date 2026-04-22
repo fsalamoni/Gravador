@@ -185,6 +185,7 @@ Recordings now include additive lifecycle metadata that supports versioning and 
 - `GET /api/recordings/{id}/artifacts` — lists artifact docs with lifecycle status.
 - `POST /api/recordings/{id}/artifacts` — create/upsert artifact payload with version bump.
 - `GET/PATCH/POST/DELETE /api/recordings/{id}/artifacts/{kind}` — read/update/restore/delete artifact with lifecycle tracking.
+- Authorization model: recording access checks are centralized through `getAccessibleRecording` / `canAccessWorkspace` and reused by lifecycle/artifact/run-task/chat/shares/reprocess/tags/trash routes. Destructive trash operations remain creator-only.
 
 ### Recording detail UX integration
 

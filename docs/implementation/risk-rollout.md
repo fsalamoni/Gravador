@@ -17,6 +17,7 @@
 - Switched artifact writes (worker + run-task + manual artifact APIs) to transactional upserts with explicit `artifactVersion` and `artifactStatus` updates.
 - Added lifecycle panel actions that always re-fetch backend state after artifact mutation.
 - Replaced fragile inline `node -e` parser in `.github/workflows/eas-preview.yml` with heredoc Node script and explicit guards for missing fields/output path.
+- Extended centralized recording access guard adoption to legacy API routes (chat, shares, trash, reprocess, tags), reducing owner/member authorization drift.
 
 ### Rollback path
 
@@ -27,7 +28,6 @@
 
 ### Remaining concerns
 
-- Not all legacy routes use `getAccessibleRecording` yet (share/chat/export are safe but still use local checks).
 - No dedicated e2e tests for lifecycle transition matrix yet.
 - Merge-side artifact side-by-side rendering contract still pending Phase 2/5 work.
 - Latest EAS preview rerun for parser validation must complete successfully before closing this release gate.

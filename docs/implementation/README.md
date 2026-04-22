@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1 core contracts delivered + Phase 2 lifecycle panel started
-- Focus: complete recording detail lifecycle UX and move into audio editing/version pipeline
+- Stage: Phase 1 contracts + ownership hardening delivered; Phase 2 lifecycle UX in progress
+- Focus: close Phase 2 parity checks (timeline/waveform/merge UX) and start Phase 3 editing pipeline
 
 ## Files
 

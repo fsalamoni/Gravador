@@ -1,8 +1,41 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
+import { RECORDING_LIFECYCLE_SCHEMA_VERSION } from '@/lib/recording-lifecycle';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
+
+async function getOwnedRecording(
+  recordingId: string,
+  userId: string,
+): Promise<
+  | {
+      ok: true;
+      ref: FirebaseFirestore.DocumentReference;
+      data: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      error: 'not_found' | 'forbidden';
+    }
+> {
+  const db = getServerDb();
+  const access = await getAccessibleRecording(db, recordingId, userId);
+  if (!access.ok) {
+    return access;
+  }
+
+  if (access.data.createdBy !== userId) {
+    return { ok: false, error: 'forbidden' };
+  }
+
+  return {
+    ok: true,
+    ref: access.ref,
+    data: access.data as Record<string, unknown>,
+  };
+}
 
 /**
  * POST /api/recordings/trash — soft-delete a recording (set deletedAt)
@@ -17,19 +50,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'missing_recording_id' }, { status: 400 });
   }
 
-  const db = getServerDb();
-  const ref = db.collection('recordings').doc(recordingId);
-  const doc = await ref.get();
-  if (!doc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-
-  const data = doc.data()!;
-  if (data.createdBy !== user.uid) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const access = await getOwnedRecording(recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
   }
 
-  await ref.update({
+  await access.ref.update({
     deletedAt: FieldValue.serverTimestamp(),
-    'lifecycle.schemaVersion': 1,
+    'lifecycle.schemaVersion': RECORDING_LIFECYCLE_SCHEMA_VERSION,
     'lifecycle.status': 'trashed',
     'lifecycle.trashedAt': FieldValue.serverTimestamp(),
     'lifecycle.lastEvent': 'trashed',
@@ -84,19 +115,17 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'missing_recording_id' }, { status: 400 });
   }
 
-  const db = getServerDb();
-  const ref = db.collection('recordings').doc(recordingId);
-  const doc = await ref.get();
-  if (!doc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-
-  const data = doc.data()!;
-  if (data.createdBy !== user.uid) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const access = await getOwnedRecording(recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
   }
 
-  await ref.update({
+  await access.ref.update({
     deletedAt: null,
-    'lifecycle.schemaVersion': 1,
+    'lifecycle.schemaVersion': RECORDING_LIFECYCLE_SCHEMA_VERSION,
     'lifecycle.status': 'active',
     'lifecycle.trashedAt': null,
     'lifecycle.lastEvent': 'restored',
@@ -120,15 +149,14 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'missing_recording_id' }, { status: 400 });
   }
 
-  const db = getServerDb();
-  const ref = db.collection('recordings').doc(recordingId);
-  const doc = await ref.get();
-  if (!doc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-
-  const data = doc.data()!;
-  if (data.createdBy !== user.uid) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const access = await getOwnedRecording(recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
   }
+  const data = access.data;
 
   // Must be already soft-deleted
   if (!data.deletedAt) {
@@ -136,6 +164,7 @@ export async function DELETE(req: Request) {
   }
 
   // Delete subcollections
+  const db = getServerDb();
   const subcollections = [
     'transcripts',
     'transcript_segments',
@@ -144,7 +173,7 @@ export async function DELETE(req: Request) {
     'embeddings',
   ];
   for (const sub of subcollections) {
-    const subSnap = await ref.collection(sub).get();
+    const subSnap = await access.ref.collection(sub).get();
     if (!subSnap.empty) {
       const batch = db.batch();
       let count = 0;
@@ -160,6 +189,6 @@ export async function DELETE(req: Request) {
     }
   }
 
-  await ref.delete();
+  await access.ref.delete();
   return NextResponse.json({ ok: true });
 }

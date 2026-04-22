@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { canAccessWorkspace, getAccessibleRecording } from '@/lib/recording-access';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
@@ -16,15 +17,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const share = shareDoc.data() as { createdBy: string; workspaceId: string };
 
-  // Only the creator or workspace member can revoke
+  // Only the creator or someone with workspace access can revoke
   if (share.createdBy !== user.uid) {
-    const memberDoc = await db
-      .collection('workspaces')
-      .doc(share.workspaceId)
-      .collection('members')
-      .doc(user.uid)
-      .get();
-    if (!memberDoc.exists) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+    const allowed = await canAccessWorkspace(db, share.workspaceId, user.uid);
+    if (!allowed) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
   await shareRef.update({ revokedAt: FieldValue.serverTimestamp() });
@@ -39,6 +35,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = getServerDb();
+  const access = await getAccessibleRecording(db, recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
+  }
 
   const sharesSnap = await db
     .collection('shares')
