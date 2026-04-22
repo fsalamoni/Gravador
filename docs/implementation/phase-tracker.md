@@ -48,6 +48,7 @@
 - [x] Add regression checks around permission/auth/path isolation.
 - [x] Harden mobile startup/auth bootstrap to prevent blank-screen deadlocks (auth timeout fallback + startup error boundary + resilient firebase/i18n init).
 - [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; staging wiring pending.
+- [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 
 ## Release gating before each phase transition
 
@@ -55,4 +56,5 @@
 - [x] Feature flags default reviewed.
 - [x] Tracker + context cache updated.
 - [x] Risks and rollback path written.
-- [x] Mobile preview workflow healthy (EAS preview rerun 24777625944 completed with success).
+- [x] Mobile preview workflow healthy (EAS preview rerun 24804367070 completed with success under `quota_blocked` degraded status).
+- [x] Web deploy workflow healthy (firebase-hosting run 24804241474 completed with success).

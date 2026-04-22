@@ -32,6 +32,7 @@
 - Hardened mobile app bootstrap against white-screen deadlocks with auth timeout fallback, startup error boundary, and resilient firebase/i18n initialization guards.
 - Added dedicated `workers/ai-pipeline` audio-edit job consumer (`process-audio-edit-jobs.ts`) that claims due jobs and dispatches retry-safe processing calls with `INTERNAL_JOBS_SECRET`.
 - Hardened `.github/workflows/eas-preview.yml` to treat Expo monthly Android quota exhaustion as a degraded `quota_blocked` preview status instead of a hard CI failure.
+- Quota mitigation path validated in EAS preview run `24804367070` (workflow conclusion `success` with quota warning + summary contract).
 
 ### Rollback path
 
