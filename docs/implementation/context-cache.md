@@ -55,13 +55,18 @@ This file captures decisions and assumptions that must survive long implementati
 - EAS preview workflow now degrades gracefully on Expo monthly Android quota exhaustion (`status=quota_blocked`) instead of hard-failing release observability.
 - Latest mobile preview validation run `24804367070` completed with success and explicit quota-blocked summary output.
 - Latest firebase-hosting deploy run `24804241474` completed with success after mobile/auth hardening release.
+- Scheduled audio-edit runner workflow now exists at `.github/workflows/audio-edit-runner.yml` with batch summary outputs and dispatch-failure threshold enforcement (`AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH`).
+- Notifications provider smoke workflow now exists at `.github/workflows/notifications-smoke.yml` using `scripts/smoke-notifications.mjs` (WhatsApp Graph probe + email webhook reachability/send-test modes).
+- Web deploy workflows now propagate feature flags and optional operational secrets (`INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) to Cloud Run runtime.
+- Release workflow Android/iOS EAS metadata parsing now uses guarded heredoc scripts (no inline `node -e` quoting fragility).
+- Mobile startup shell now includes a bootstrap watchdog fallback CTA to avoid perceived white-screen hangs when routing/auth restoration stalls.
 
 ## Current package objective
 
-- Complete staging wiring for audio-edit runner execution and finish notification provider smoke validation (WhatsApp/email).
+- Activate newly delivered runner/smoke workflows in staging/prod variables and collect strict-pass evidence.
 
 ## Immediate next contracts to lock
 
-- Runtime deployment contract for the new audio-edit runner (scheduler frequency, environment, and failure alerting).
-- End-to-end staging evidence for first-wave notifications with providers enabled.
+- Activation contract for `ENABLE_AUDIO_EDIT_RUNNER=true` with first successful scheduled batches recorded in workflow summaries.
+- End-to-end strict smoke evidence for notifications (`ENABLE_NOTIFICATIONS_SMOKE=true`, providers configured) with no failed checks.
 - Merge execution contract (beyond side-by-side planning) with rollback-safe artifact reconciliation.

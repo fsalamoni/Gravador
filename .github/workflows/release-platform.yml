@@ -73,17 +73,61 @@ jobs:
         env:
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
         run: |
-          eas build --profile "${{ inputs.profile }}" --platform android --non-interactive --json > eas-android.json
-          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('eas-android.json','utf8')); const build=Array.isArray(payload)?payload[0]:payload; fs.appendFileSync(process.env.GITHUB_OUTPUT, `id=${build?.id ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `details=${build?.detailsPageUrl ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact=${build?.artifacts?.buildUrl ?? ''}\n`);"
+          set +e
+          eas build --profile "${{ inputs.profile }}" --platform android --non-interactive --json > eas-android.json 2> eas-android.stderr
+          eas_exit_code=$?
+          set -e
+
+          if [[ $eas_exit_code -ne 0 ]]; then
+            if [[ "${{ inputs.profile }}" == "preview" ]] && grep -qi "used its Android builds from the Free plan this month" eas-android.stderr; then
+              echo "::warning::EAS Android preview quota exhausted. Marking Android stage as quota_blocked."
+              {
+                echo "id="
+                echo "details="
+                echo "artifact="
+                echo "status=quota_blocked"
+                echo "quota_blocked=true"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            cat eas-android.stderr
+            exit "$eas_exit_code"
+          fi
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const payload = JSON.parse(fs.readFileSync('eas-android.json', 'utf8'));
+          const build = Array.isArray(payload) ? payload[0] : payload;
+          if (!build || typeof build !== 'object') {
+            throw new Error('Unexpected EAS Android payload');
+          }
+
+          const outputPath = process.env.GITHUB_OUTPUT;
+          if (!outputPath) {
+            throw new Error('GITHUB_OUTPUT is not set');
+          }
+
+          fs.appendFileSync(outputPath, `id=${build.id ?? ''}\n`, 'utf8');
+          fs.appendFileSync(outputPath, `details=${build.detailsPageUrl ?? ''}\n`, 'utf8');
+          fs.appendFileSync(outputPath, `artifact=${build.artifacts?.buildUrl ?? ''}\n`, 'utf8');
+          fs.appendFileSync(outputPath, 'status=queued\n', 'utf8');
+          fs.appendFileSync(outputPath, 'quota_blocked=false\n', 'utf8');
+          NODE
       - name: Android summary
         run: |
           {
             echo "## Android"
             echo ""
             echo "- Profile: ${{ inputs.profile }}"
+            echo "- Status: ${{ steps.android.outputs.status || 'failed' }}"
             echo "- Build ID: ${{ steps.android.outputs.id || 'n/a' }}"
             echo "- Details: ${{ steps.android.outputs.details || 'n/a' }}"
             echo "- Artifact: ${{ steps.android.outputs.artifact || 'n/a' }}"
+            if [[ "${{ steps.android.outputs.quota_blocked || 'false' }}" == "true" ]]; then
+              echo "- Quota: Android preview quota exhausted (Expo Free plan)."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   mobile-ios:
@@ -112,7 +156,24 @@ jobs:
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
         run: |
           eas build --profile "${{ inputs.profile }}" --platform ios --non-interactive --json > eas-ios.json
-          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('eas-ios.json','utf8')); const build=Array.isArray(payload)?payload[0]:payload; fs.appendFileSync(process.env.GITHUB_OUTPUT, `id=${build?.id ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `details=${build?.detailsPageUrl ?? ''}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact=${build?.artifacts?.buildUrl ?? ''}\n`);"
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const payload = JSON.parse(fs.readFileSync('eas-ios.json', 'utf8'));
+          const build = Array.isArray(payload) ? payload[0] : payload;
+          if (!build || typeof build !== 'object') {
+            throw new Error('Unexpected EAS iOS payload');
+          }
+
+          const outputPath = process.env.GITHUB_OUTPUT;
+          if (!outputPath) {
+            throw new Error('GITHUB_OUTPUT is not set');
+          }
+
+          fs.appendFileSync(outputPath, `id=${build.id ?? ''}\n`, 'utf8');
+          fs.appendFileSync(outputPath, `details=${build.detailsPageUrl ?? ''}\n`, 'utf8');
+          fs.appendFileSync(outputPath, `artifact=${build.artifacts?.buildUrl ?? ''}\n`, 'utf8');
+          NODE
       - name: iOS summary
         run: |
           {
@@ -150,6 +211,12 @@ jobs:
           HAS_STORAGE_BUCKET: ${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] != '' }}
           HAS_SENDER_ID: ${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] != '' }}
           HAS_APP_ID: ${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] != '' }}
+          HAS_INTERNAL_JOBS_SECRET: ${{ secrets['INTERNAL_JOBS_SECRET'] != '' }}
+          HAS_WHATSAPP_TOKEN: ${{ secrets['WHATSAPP_CLOUD_ACCESS_TOKEN'] != '' }}
+          HAS_WHATSAPP_PHONE_ID: ${{ secrets['WHATSAPP_CLOUD_PHONE_NUMBER_ID'] != '' }}
+          HAS_EMAIL_WEBHOOK_URL: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_URL'] != '' }}
+          AUDIO_EDITING_FLAG: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }}
+          NOTIFICATIONS_FLAG: ${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] || 'false' }}
         run: |
           missing=()
           [[ "$HAS_SA"             == "true" ]] || missing+=("FIREBASE_SERVICE_ACCOUNT")
@@ -160,9 +227,23 @@ jobs:
           [[ "$HAS_STORAGE_BUCKET" == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET")
           [[ "$HAS_SENDER_ID"      == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID")
           [[ "$HAS_APP_ID"         == "true" ]] || missing+=("NEXT_PUBLIC_FIREBASE_APP_ID")
+
+          if [[ "$AUDIO_EDITING_FLAG" == "true" && "$HAS_INTERNAL_JOBS_SECRET" != "true" ]]; then
+            missing+=("INTERNAL_JOBS_SECRET (required when NEXT_PUBLIC_FF_AUDIO_EDITING_V1=true)")
+          fi
+
           if (( ${#missing[@]} )); then
             echo "::error::Missing required GitHub secrets for deploy: ${missing[*]}"
             exit 1
+          fi
+
+          if [[ "$NOTIFICATIONS_FLAG" == "true" ]]; then
+            if [[ "$HAS_WHATSAPP_TOKEN" != "true" || "$HAS_WHATSAPP_PHONE_ID" != "true" ]]; then
+              echo "::warning::NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true but WhatsApp Cloud credentials are incomplete."
+            fi
+            if [[ "$HAS_EMAIL_WEBHOOK_URL" != "true" ]]; then
+              echo "::warning::NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true but EMAIL_NOTIFICATIONS_WEBHOOK_URL is missing."
+            fi
           fi
       - uses: google-github-actions/auth@v2
         with:
@@ -212,7 +293,7 @@ jobs:
             --region us-central1 \
             --service-account "projects/$FIREBASE_PROJECT_ID/serviceAccounts/$service_account" \
             --config infra/cloudbuild/web.yaml \
-            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/$FIREBASE_PROJECT_ID/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app,_NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA},_NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME} \
+            --substitutions _IMAGE_URI=us-central1-docker.pkg.dev/$FIREBASE_PROJECT_ID/gravador-web/anotes-web,_NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets['NEXT_PUBLIC_FIREBASE_API_KEY'] }},_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets['NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'] }},_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_PROJECT_ID'] }},_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets['NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'] }},_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'] }},_NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets['NEXT_PUBLIC_FIREBASE_APP_ID'] }},_NEXT_PUBLIC_FIRESTORE_DATABASE_ID=anotes,_NEXT_PUBLIC_APP_URL=https://anotes.web.app,_NEXT_PUBLIC_ADMIN_EMAILS=${{ vars['NEXT_PUBLIC_ADMIN_EMAILS'] || '' }},_NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS=${{ vars['NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS'] || 'true' }},_NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1=${{ vars['NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1'] || 'false' }},_NEXT_PUBLIC_FF_AUDIO_EDITING_V1=${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }},_NEXT_PUBLIC_FF_NOTIFICATIONS_V1=${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] || 'false' }},_NEXT_PUBLIC_FF_BULK_OPS_V1=${{ vars['NEXT_PUBLIC_FF_BULK_OPS_V1'] || 'false' }},_NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA},_NEXT_PUBLIC_BUILD_TIME=${BUILD_TIME} \
             .
       - name: Deploy Cloud Run service
         env:
@@ -221,6 +302,19 @@ jobs:
           CLOUD_RUN_SERVICE_ACCOUNT: ${{ vars['CLOUD_RUN_SERVICE_ACCOUNT'] }}
           ANDROID_PREVIEW_URL: ${{ vars['ANDROID_PREVIEW_URL'] }}
           INTERNAL_WEBHOOK_SECRET: ${{ secrets['INTERNAL_WEBHOOK_SECRET'] }}
+          INTERNAL_JOBS_SECRET: ${{ secrets['INTERNAL_JOBS_SECRET'] }}
+          AUDIO_EDIT_EXECUTOR_BASE_URL: ${{ vars['AUDIO_EDIT_EXECUTOR_BASE_URL'] }}
+          WHATSAPP_CLOUD_ACCESS_TOKEN: ${{ secrets['WHATSAPP_CLOUD_ACCESS_TOKEN'] }}
+          WHATSAPP_CLOUD_PHONE_NUMBER_ID: ${{ secrets['WHATSAPP_CLOUD_PHONE_NUMBER_ID'] }}
+          WHATSAPP_CLOUD_VERIFY_TOKEN: ${{ secrets['WHATSAPP_CLOUD_VERIFY_TOKEN'] }}
+          WHATSAPP_CLOUD_APP_SECRET: ${{ secrets['WHATSAPP_CLOUD_APP_SECRET'] }}
+          EMAIL_NOTIFICATIONS_WEBHOOK_URL: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_URL'] }}
+          EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN'] }}
+          NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS: ${{ vars['NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS'] }}
+          NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1: ${{ vars['NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1'] }}
+          NEXT_PUBLIC_FF_AUDIO_EDITING_V1: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] }}
+          NEXT_PUBLIC_FF_NOTIFICATIONS_V1: ${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] }}
+          NEXT_PUBLIC_FF_BULK_OPS_V1: ${{ vars['NEXT_PUBLIC_FF_BULK_OPS_V1'] }}
           OPENAI_API_KEY: ${{ secrets['OPENAI_API_KEY'] }}
           ANTHROPIC_API_KEY: ${{ secrets['ANTHROPIC_API_KEY'] }}
           GROQ_API_KEY: ${{ secrets['GROQ_API_KEY'] }}
@@ -232,9 +326,9 @@ jobs:
           DROPBOX_OAUTH_CLIENT_ID: ${{ secrets['DROPBOX_OAUTH_CLIENT_ID'] }}
           DROPBOX_OAUTH_CLIENT_SECRET: ${{ secrets['DROPBOX_OAUTH_CLIENT_SECRET'] }}
         run: |
-          env_vars="NEXT_PUBLIC_APP_URL=https://anotes.web.app,FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID,FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET,FIRESTORE_DATABASE_ID=anotes"
+          env_vars="NEXT_PUBLIC_APP_URL=https://anotes.web.app,FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID,FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET,FIRESTORE_DATABASE_ID=anotes,NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS=${NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS:-true},NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1=${NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1:-false},NEXT_PUBLIC_FF_AUDIO_EDITING_V1=${NEXT_PUBLIC_FF_AUDIO_EDITING_V1:-false},NEXT_PUBLIC_FF_NOTIFICATIONS_V1=${NEXT_PUBLIC_FF_NOTIFICATIONS_V1:-false},NEXT_PUBLIC_FF_BULK_OPS_V1=${NEXT_PUBLIC_FF_BULK_OPS_V1:-false}"
           service_account="${CLOUD_RUN_SERVICE_ACCOUNT:-${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com}"
-          for key in ANDROID_PREVIEW_URL INTERNAL_WEBHOOK_SECRET OPENAI_API_KEY ANTHROPIC_API_KEY GROQ_API_KEY GOOGLE_GENERATIVE_AI_API_KEY GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET DROPBOX_OAUTH_CLIENT_ID DROPBOX_OAUTH_CLIENT_SECRET; do
+          for key in ANDROID_PREVIEW_URL INTERNAL_WEBHOOK_SECRET INTERNAL_JOBS_SECRET AUDIO_EDIT_EXECUTOR_BASE_URL WHATSAPP_CLOUD_ACCESS_TOKEN WHATSAPP_CLOUD_PHONE_NUMBER_ID WHATSAPP_CLOUD_VERIFY_TOKEN WHATSAPP_CLOUD_APP_SECRET EMAIL_NOTIFICATIONS_WEBHOOK_URL EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN OPENAI_API_KEY ANTHROPIC_API_KEY GROQ_API_KEY GOOGLE_GENERATIVE_AI_API_KEY GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET DROPBOX_OAUTH_CLIENT_ID DROPBOX_OAUTH_CLIENT_SECRET; do
             value="${!key}"
             if [[ -n "$value" ]]; then
               env_vars="$env_vars,$key=$value"

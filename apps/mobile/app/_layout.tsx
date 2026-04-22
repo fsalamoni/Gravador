@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../src/global.css';
@@ -58,6 +58,7 @@ function AppNavigator() {
   const authReady = useAuthSession((state) => state.ready);
   const user = useAuthSession((state) => state.user);
   const isAuthRoute = pathname === '/auth' || pathname.startsWith('/auth/');
+  const [bootWatchdogTriggered, setBootWatchdogTriggered] = useState(false);
 
   useEffect(() => {
     if (!authReady) return;
@@ -70,6 +71,24 @@ function AppNavigator() {
       router.replace('/');
     }
   }, [authReady, isAuthRoute, router, user]);
+
+  useEffect(() => {
+    if (authReady) {
+      setBootWatchdogTriggered(false);
+      return;
+    }
+
+    setBootWatchdogTriggered(false);
+    const timeoutId = setTimeout(() => {
+      console.warn('[mobile-startup] bootstrap watchdog triggered', {
+        pathname,
+        hasUser: Boolean(user),
+      });
+      setBootWatchdogTriggered(true);
+    }, 12_000);
+
+    return () => clearTimeout(timeoutId);
+  }, [authReady, pathname, user]);
 
   if (!authReady || (!user && !isAuthRoute) || (user && isAuthRoute)) {
     return (
@@ -85,6 +104,19 @@ function AppNavigator() {
           <Text className="text-center leading-6 text-mute">
             Restaurando sessão, registrando tarefas de fundo e preparando a camada visual do app.
           </Text>
+          {bootWatchdogTriggered ? (
+            <View className="items-center gap-3">
+              <Text className="text-center text-sm leading-6 text-warning">
+                A inicializacao demorou mais que o esperado.
+              </Text>
+              <Pressable
+                onPress={() => router.replace('/auth')}
+                className="rounded-full border border-border bg-surfaceAlt/80 px-5 py-2.5"
+              >
+                <Text className="text-sm font-medium text-text">Abrir login manualmente</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </StudioPanel>
       </StudioScreen>
     );

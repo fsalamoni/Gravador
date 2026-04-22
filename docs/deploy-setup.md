@@ -46,6 +46,29 @@ Add these only if you use the corresponding features in production:
 | `WHATSAPP_CLOUD_PHONE_NUMBER_ID` | Meta phone number ID used by `/messages` Graph endpoint |
 | `WHATSAPP_CLOUD_VERIFY_TOKEN` | Verify token used by webhook GET challenge (`hub.verify_token`) |
 | `WHATSAPP_CLOUD_APP_SECRET` | Optional webhook signature validation (`x-hub-signature-256`) |
+| `EMAIL_NOTIFICATIONS_WEBHOOK_URL` | Optional e-mail bridge webhook URL used by notification send/test flows |
+| `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` | Optional token sent as `x-gravador-email-token` for e-mail webhook auth |
+| `INTERNAL_JOBS_SECRET` | Required secret for internal audio-edit job execution endpoint (`PATCH /api/recordings/[id]/audio-editing`) |
+
+### GitHub Variables (Recommended)
+
+Go to **GitHub → Settings → Secrets and variables → Actions → Variables** and add:
+
+| Variable | Default | Purpose |
+|--------|---------|---------|
+| `ENABLE_AUDIO_EDIT_RUNNER` | `false` | Enables scheduled workflow `audio-edit-runner.yml` |
+| `AUDIO_EDIT_EXECUTOR_BASE_URL` | `https://anotes.web.app` | Base URL used by runner dispatch calls |
+| `AUDIO_EDIT_JOB_BATCH_SIZE` | `5` | Jobs claimed per runner batch |
+| `AUDIO_EDIT_JOB_QUERY_LIMIT` | `50` | Jobs scanned per batch query |
+| `AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH` | `0` | Max dispatch failures before runner workflow fails |
+| `ENABLE_NOTIFICATIONS_SMOKE` | `false` | Enables scheduled workflow `notifications-smoke.yml` |
+| `EMAIL_NOTIFICATIONS_SMOKE_SEND` | `false` | If `true`, smoke sends POST test payload to e-mail webhook |
+| `EMAIL_NOTIFICATIONS_SMOKE_TO` | _(optional)_ | Target e-mail used by smoke send mode |
+| `NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS` | `true` | Build/runtime flag wiring for web deploy |
+| `NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1` | `false` | Build/runtime flag wiring for web deploy |
+| `NEXT_PUBLIC_FF_AUDIO_EDITING_V1` | `false` | Build/runtime flag wiring for web deploy |
+| `NEXT_PUBLIC_FF_NOTIFICATIONS_V1` | `false` | Build/runtime flag wiring for web deploy |
+| `NEXT_PUBLIC_FF_BULK_OPS_V1` | `false` | Build/runtime flag wiring for web deploy |
 
 ### Where to find the Firebase config values
 
@@ -85,6 +108,7 @@ Add these only if you use the corresponding features in production:
 - Container port: `3000`
 - Artifact Registry repository: `gravador-web`
 - Runtime envs: `NEXT_PUBLIC_APP_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIRESTORE_DATABASE_ID`, plus any optional AI/webhook secrets you actually use
+- Runtime envs: `NEXT_PUBLIC_APP_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIRESTORE_DATABASE_ID`, plus optional integration/job secrets (`INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`, AI keys)
 - Optional runtime env: `ANDROID_PREVIEW_URL` to expose the current Android APK on `https://anotes.web.app/download`
 
 ---
@@ -242,6 +266,8 @@ firebase apps:sdkconfig ANDROID 1:143237037612:android:31789e1c4b51e86f031b89 --
 | `ci.yml` | Push/PR | Lint + Typecheck |
 | `firebase-hosting.yml` | Push to main | Lint + Typecheck + Deploy Firestore indexes/rules/storage + Wait for indexes + Build container + Deploy Cloud Run + Deploy Hosting rewrite to the `anotes` site |
 | `eas-preview.yml` | PR or manual dispatch | Android EAS preview build for internal distribution (requires `EXPO_TOKEN` and optionally `EXPO_PUBLIC_EAS_PROJECT_ID`) |
+| `audio-edit-runner.yml` | Schedule (15 min) or manual dispatch | Claims due `audio-editing` jobs and dispatches retry-safe processing calls using `INTERNAL_JOBS_SECRET` |
+| `notifications-smoke.yml` | Daily schedule or manual dispatch | Non-destructive provider readiness checks for WhatsApp Cloud and e-mail webhook |
 
 ---
 

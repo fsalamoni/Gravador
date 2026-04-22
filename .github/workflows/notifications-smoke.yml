@@ -1,0 +1,106 @@
+name: Notifications Smoke
+
+on:
+  schedule:
+    - cron: '20 6 * * *'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail workflow when any smoke check fails
+        required: false
+        default: 'true'
+      send_email_test:
+        description: Send POST test payload to email webhook (otherwise reachability probe only)
+        required: false
+        default: 'false'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  smoke:
+    if: ${{ vars['ENABLE_NOTIFICATIONS_SMOKE'] == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run notification smoke checks
+        id: smoke
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUT_STRICT: ${{ github.event.inputs.strict }}
+          INPUT_SEND_EMAIL_TEST: ${{ github.event.inputs.send_email_test }}
+          NEXT_PUBLIC_FF_NOTIFICATIONS_V1: ${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] || 'false' }}
+          EMAIL_NOTIFICATIONS_SMOKE_SEND: ${{ vars['EMAIL_NOTIFICATIONS_SMOKE_SEND'] || 'false' }}
+          EMAIL_NOTIFICATIONS_SMOKE_TO: ${{ vars['EMAIL_NOTIFICATIONS_SMOKE_TO'] }}
+          WHATSAPP_CLOUD_ACCESS_TOKEN: ${{ secrets['WHATSAPP_CLOUD_ACCESS_TOKEN'] }}
+          WHATSAPP_CLOUD_PHONE_NUMBER_ID: ${{ secrets['WHATSAPP_CLOUD_PHONE_NUMBER_ID'] }}
+          EMAIL_NOTIFICATIONS_WEBHOOK_URL: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_URL'] }}
+          EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN'] }}
+        run: |
+          strict="${INPUT_STRICT:-true}"
+          send_email_test="${INPUT_SEND_EMAIL_TEST:-$EMAIL_NOTIFICATIONS_SMOKE_SEND}"
+          export EMAIL_NOTIFICATIONS_SMOKE_SEND="$send_email_test"
+
+          args=(--summary-path notifications-smoke-summary.json)
+          if [[ "$strict" == "true" ]]; then
+            args+=(--strict)
+          fi
+
+          node scripts/smoke-notifications.mjs "${args[@]}"
+
+      - name: Publish smoke summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f notifications-smoke-summary.json ]]; then
+            node <<'NODE'
+            const fs = require('node:fs');
+            const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+            if (!summaryPath) {
+              throw new Error('GITHUB_STEP_SUMMARY is not set');
+            }
+            const payload = JSON.parse(fs.readFileSync('notifications-smoke-summary.json', 'utf8'));
+            const checks = Array.isArray(payload.checks) ? payload.checks : [];
+            const lines = [];
+            lines.push('## Notifications Smoke');
+            lines.push('');
+            lines.push(`- Workflow status: ${process.env.SMOKE_OUTCOME ?? 'unknown'}`);
+            lines.push(`- Strict mode: ${payload.strict}`);
+            lines.push(`- Email send test: ${payload.sendEmailTest}`);
+            lines.push(`- Passed: ${payload.totals?.passed ?? 0}`);
+            lines.push(`- Failed: ${payload.totals?.failed ?? 0}`);
+            lines.push(`- Skipped: ${payload.totals?.skipped ?? 0}`);
+            lines.push('');
+            lines.push('### Checks');
+            for (const check of checks) {
+              const details = check?.details ? ` | details: ${JSON.stringify(check.details)}` : '';
+              lines.push(`- ${check?.check ?? 'unknown'}: ${check?.status ?? 'unknown'} - ${check?.message ?? ''}${details}`);
+            }
+            fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`, 'utf8');
+            NODE
+          else
+            {
+              echo "## Notifications Smoke"
+              echo ""
+              echo "- Workflow status: ${{ steps.smoke.outcome }}"
+              echo "- Summary file was not generated."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        env:
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+
+      - name: Fail when smoke checks fail
+        if: ${{ steps.smoke.outcome == 'failure' }}
+        run: |
+          echo "Notification smoke checks reported failures."
+          exit 1

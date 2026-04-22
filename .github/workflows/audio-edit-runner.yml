@@ -1,0 +1,160 @@
+name: Audio Edit Runner
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: Maximum jobs claimed per batch
+        required: false
+        default: '5'
+      query_limit:
+        description: Jobs scanned per batch query
+        required: false
+        default: '50'
+      max_failed_dispatch:
+        description: Allowed dispatch failures before workflow fails
+        required: false
+        default: '0'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: audio-edit-runner
+  cancel-in-progress: false
+
+jobs:
+  run-audio-edit-jobs:
+    if: ${{ vars['ENABLE_AUDIO_EDIT_RUNNER'] == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check runner secrets
+        shell: bash
+        env:
+          HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          HAS_PID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
+          HAS_JOB_SECRET: ${{ secrets.INTERNAL_JOBS_SECRET != '' }}
+          AUDIO_FLAG: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }}
+        run: |
+          missing=()
+          [[ "$HAS_SA"         == "true" ]] || missing+=("FIREBASE_SERVICE_ACCOUNT")
+          [[ "$HAS_PID"        == "true" ]] || missing+=("FIREBASE_PROJECT_ID")
+          [[ "$HAS_JOB_SECRET" == "true" ]] || missing+=("INTERNAL_JOBS_SECRET")
+
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing required secrets for audio-edit runner: ${missing[*]}"
+            exit 1
+          fi
+
+          if [[ "$AUDIO_FLAG" != "true" ]]; then
+            echo "::warning::NEXT_PUBLIC_FF_AUDIO_EDITING_V1 is not enabled. Runner may find queued jobs but processing endpoint can remain unavailable."
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run audio-edit runner batch
+        id: runner
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUT_BATCH_SIZE: ${{ github.event.inputs.batch_size }}
+          INPUT_QUERY_LIMIT: ${{ github.event.inputs.query_limit }}
+          INPUT_MAX_FAILED_DISPATCH: ${{ github.event.inputs.max_failed_dispatch }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: hocapp-44760.firebasestorage.app
+          FIRESTORE_DATABASE_ID: anotes
+          INTERNAL_JOBS_SECRET: ${{ secrets.INTERNAL_JOBS_SECRET }}
+          AUDIO_EDIT_EXECUTOR_BASE_URL: ${{ vars['AUDIO_EDIT_EXECUTOR_BASE_URL'] || 'https://anotes.web.app' }}
+          AUDIO_EDIT_JOB_BATCH_SIZE: ${{ vars['AUDIO_EDIT_JOB_BATCH_SIZE'] || '5' }}
+          AUDIO_EDIT_JOB_QUERY_LIMIT: ${{ vars['AUDIO_EDIT_JOB_QUERY_LIMIT'] || '50' }}
+          AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH: ${{ vars['AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH'] || '0' }}
+          AUDIO_EDIT_RUNNER_SUMMARY_PATH: audio-edit-runner-summary.json
+          AUDIO_EDIT_RUNNER_ID: github-actions-audio-edit-runner
+        run: |
+          batch_size="${INPUT_BATCH_SIZE:-$AUDIO_EDIT_JOB_BATCH_SIZE}"
+          query_limit="${INPUT_QUERY_LIMIT:-$AUDIO_EDIT_JOB_QUERY_LIMIT}"
+          max_failed_dispatch="${INPUT_MAX_FAILED_DISPATCH:-$AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH}"
+
+          pnpm worker:audio-jobs:once -- \
+            --batch-size "$batch_size" \
+            --query-limit "$query_limit" \
+            --max-failed-dispatch "$max_failed_dispatch" \
+            --summary-path "$AUDIO_EDIT_RUNNER_SUMMARY_PATH"
+
+      - name: Export runner outputs
+        id: export
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const outputPath = process.env.GITHUB_OUTPUT;
+          if (!outputPath) {
+            throw new Error('GITHUB_OUTPUT is not set');
+          }
+
+          let summary = {
+            scanned: 0,
+            claimed: 0,
+            dispatched: 0,
+            skipped: 0,
+            failedDispatch: 0,
+          };
+
+          const summaryPath = 'audio-edit-runner-summary.json';
+          if (fs.existsSync(summaryPath)) {
+            const raw = fs.readFileSync(summaryPath, 'utf8');
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              summary = {
+                ...summary,
+                ...parsed,
+              };
+            }
+          }
+
+          for (const [key, value] of Object.entries(summary)) {
+            fs.appendFileSync(outputPath, `${key}=${String(value)}\n`, 'utf8');
+          }
+          NODE
+
+      - name: Publish runner summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Audio Edit Runner"
+            echo ""
+            echo "- Workflow status: ${{ steps.runner.outcome }}"
+            echo "- Scanned jobs: ${{ steps.export.outputs.scanned || '0' }}"
+            echo "- Claimed jobs: ${{ steps.export.outputs.claimed || '0' }}"
+            echo "- Dispatched jobs: ${{ steps.export.outputs.dispatched || '0' }}"
+            echo "- Skipped jobs: ${{ steps.export.outputs.skipped || '0' }}"
+            echo "- Failed dispatch: ${{ steps.export.outputs.failedDispatch || '0' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when runner execution failed
+        if: ${{ steps.runner.outcome == 'failure' }}
+        run: |
+          echo "Audio edit runner failed. Check previous step logs and summary."
+          exit 1

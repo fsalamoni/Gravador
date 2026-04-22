@@ -33,6 +33,9 @@
 - Added dedicated `workers/ai-pipeline` audio-edit job consumer (`process-audio-edit-jobs.ts`) that claims due jobs and dispatches retry-safe processing calls with `INTERNAL_JOBS_SECRET`.
 - Hardened `.github/workflows/eas-preview.yml` to treat Expo monthly Android quota exhaustion as a degraded `quota_blocked` preview status instead of a hard CI failure.
 - Quota mitigation path validated in EAS preview run `24804367070` (workflow conclusion `success` with quota warning + summary contract).
+- Added scheduled runner workflow `.github/workflows/audio-edit-runner.yml` with batch summary export and configurable failure threshold (`AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH`).
+- Added notifications smoke workflow `.github/workflows/notifications-smoke.yml` + `scripts/smoke-notifications.mjs` for provider readiness probing (WhatsApp Graph + email webhook).
+- Updated deploy/release workflows to propagate `INTERNAL_JOBS_SECRET`, notification provider envs, and feature flags to Cloud Run runtime/build.
 
 ### Rollback path
 
@@ -46,6 +49,6 @@
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
 - Bulk merge endpoint currently prepares side-by-side comparison/audit only (no final artifact reconciliation execution yet).
-- Audio-edit runner deployment still needs environment-level wiring/monitoring in staging/prod (scheduler trigger + alert thresholds).
-- Notification provider staging smoke (WhatsApp Cloud + email webhook) still pending environment configuration.
+- Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and first scheduled run evidence.
+- Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE` + provider secrets/vars) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { getDb } from '@gravador/db';
@@ -11,6 +12,7 @@ const DEFAULT_BATCH_SIZE = 5;
 const DEFAULT_QUERY_SIZE = 50;
 const DEFAULT_POLL_INTERVAL_MS = 15_000;
 const DEFAULT_MAX_ATTEMPTS = 3;
+const DEFAULT_MAX_FAILED_DISPATCH = 0;
 const RETRY_BASE_DELAY_MS = 15_000;
 const RETRY_MAX_DELAY_MS = 10 * 60_000;
 const ERROR_SNIPPET_MAX = 500;
@@ -62,6 +64,14 @@ export type AudioEditBatchResult = {
 function parseNumeric(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function parseNonNegativeNumeric(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
     return fallback;
   }
   return parsed;
@@ -349,6 +359,8 @@ type RunnerCliOptions = {
   batchSize: number;
   queryLimit: number;
   intervalMs: number;
+  maxFailedDispatch: number;
+  summaryPath: string | null;
 };
 
 function parseCliOptions(argv: string[]): RunnerCliOptions {
@@ -378,13 +390,38 @@ function parseCliOptions(argv: string[]): RunnerCliOptions {
     readArg('--interval-ms') ?? process.env.AUDIO_EDIT_JOB_POLL_INTERVAL_MS,
     DEFAULT_POLL_INTERVAL_MS,
   );
+  const maxFailedDispatch = parseNonNegativeNumeric(
+    readArg('--max-failed-dispatch') ?? process.env.AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH,
+    DEFAULT_MAX_FAILED_DISPATCH,
+  );
+  const rawSummaryPath =
+    readArg('--summary-path') ?? process.env.AUDIO_EDIT_RUNNER_SUMMARY_PATH ?? null;
+  const summaryPath = rawSummaryPath?.trim() ? rawSummaryPath.trim() : null;
 
   return {
     once,
     batchSize,
     queryLimit,
     intervalMs,
+    maxFailedDispatch,
+    summaryPath,
   };
+}
+
+async function writeBatchSummary(summaryPath: string | null, result: AudioEditBatchResult) {
+  if (!summaryPath) return;
+
+  await writeFile(summaryPath, JSON.stringify(result, null, 2), 'utf8');
+}
+
+function assertFailureThreshold(result: AudioEditBatchResult, maxFailedDispatch: number) {
+  if (result.failedDispatch <= maxFailedDispatch) {
+    return;
+  }
+
+  throw new Error(
+    `audio_edit_runner_failed_dispatch_threshold_exceeded: failedDispatch=${result.failedDispatch}, maxAllowed=${maxFailedDispatch}`,
+  );
 }
 
 async function runAudioEditRunner(options: RunnerCliOptions): Promise<void> {
@@ -393,6 +430,8 @@ async function runAudioEditRunner(options: RunnerCliOptions): Promise<void> {
     batchSize: options.batchSize,
     queryLimit: options.queryLimit,
     intervalMs: options.intervalMs,
+    maxFailedDispatch: options.maxFailedDispatch,
+    summaryPath: options.summaryPath,
   });
 
   for (;;) {
@@ -403,6 +442,10 @@ async function runAudioEditRunner(options: RunnerCliOptions): Promise<void> {
     });
 
     console.log('[audio-edit-runner] batch completed', result);
+    console.log('[audio-edit-runner] batch-json', JSON.stringify(result));
+
+    await writeBatchSummary(options.summaryPath, result);
+    assertFailureThreshold(result, options.maxFailedDispatch);
 
     if (options.once) {
       return;

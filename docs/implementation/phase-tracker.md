@@ -39,7 +39,7 @@
 
 - [x] Build richer WhatsApp/email setup modals with guided onboarding.
 - [~] Add send/test flows for email integration and notification paths (test + send APIs and UI actions delivered; provider wiring remains env-dependent).
-- [~] Validate first-wave notification scope end-to-end (contract and deterministic flag behavior validated via API/unit tests; staging smoke pending).
+- [~] Validate first-wave notification scope end-to-end (contract and deterministic flag behavior validated via API/unit tests; smoke workflow `notifications-smoke.yml` added, awaiting provider activation/strict pass evidence).
 
 ## Phase 5 - bulk operations and reliability hardening
 
@@ -47,7 +47,8 @@
 - [~] Multi-select merge flow with side-by-side artifacts and auditability (prepare/compare path + audit contracts delivered).
 - [x] Add regression checks around permission/auth/path isolation.
 - [x] Harden mobile startup/auth bootstrap to prevent blank-screen deadlocks (auth timeout fallback + startup error boundary + resilient firebase/i18n init).
-- [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; staging wiring pending.
+- [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; scheduled workflow `audio-edit-runner.yml` delivered, awaiting environment activation.
+- [x] Add runner observability/failure thresholds (JSON batch summary + `AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH` contract).
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 
 ## Release gating before each phase transition
