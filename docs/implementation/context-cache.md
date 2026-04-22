@@ -36,6 +36,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Bulk merge now supports explicit execution modes (`prepare` | `execute`) under `/api/recordings/bulk` with non-destructive reconciliation: copy only missing active artifacts from secondary, never overwrite existing primary artifacts.
 - Merge execution now persists reconciliation plan summary + copied artifact kinds in `recording_bulk_ops.execution` and stamps merge metadata on both primary/secondary recording documents.
 - Recording detail merge comparison now exposes an inline execute action (`MergeExecutionControls`) and a post-merge success banner (`?mergedFrom=<id>&mergeOperationId=<opId>`).
+- Commit `a685f43` release verification: `CI` run `24806002660` success, `firebase-hosting` run `24806002669` success, `EAS preview` run `24806015351` success (`quota_blocked` degraded output contract).
+- Scheduled `audio-edit-runner` remains gated while activation vars are absent (`24806076695` skipped).
+- Repository currently has no `INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `EMAIL_NOTIFICATIONS_WEBHOOK_URL`, `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` secrets and no `ENABLE_AUDIO_EDIT_RUNNER` / `ENABLE_NOTIFICATIONS_SMOKE` variables, so strict operational activation is still blocked.
 - Lifecycle/artifact mutation APIs now expose mapped notification event contracts (`recording.lifecycle.*`, `recording.artifact.*`, `recording.pipeline.updated`).
 - EAS preview rerun `24777625944` completed successfully, closing the mobile preview release gate.
 - Audio editing v1 now has initial server contracts under `/api/recordings/[id]/audio-editing` for queue/list/rollback flows (flag-gated).

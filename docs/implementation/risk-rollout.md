@@ -52,6 +52,6 @@
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
 - Bulk merge execute path currently has unit coverage for reconciliation planning but still lacks API integration tests for Firestore transaction semantics.
-- Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and first scheduled run evidence.
-- Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE` + provider secrets/vars) for strict-pass evidence.
+- Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
+- Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.
