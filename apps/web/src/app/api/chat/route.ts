@@ -1,4 +1,5 @@
 import { getServerDb, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
 import { chatWithRecording, embedTexts } from '@gravador/ai';
 import { detectLocale } from '@gravador/i18n';
 import { NextResponse } from 'next/server';
@@ -24,20 +25,14 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const db = getServerDb();
-  const recDoc = await db.collection('recordings').doc(recordingId).get();
-  if (!recDoc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  const rec = recDoc.data() as { workspaceId: string; createdBy: string; locale?: string };
-
-  // Verify user owns this recording or is a workspace member
-  if (rec.createdBy !== user.uid) {
-    const memberDoc = await db
-      .collection('workspaces')
-      .doc(rec.workspaceId)
-      .collection('members')
-      .doc(user.uid)
-      .get();
-    if (!memberDoc.exists) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const access = await getAccessibleRecording(db, recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
   }
+  const rec = access.data as { workspaceId: string; locale?: string };
 
   const query = messages[messages.length - 1]!.content;
   const [queryEmbedding] = await embedTexts([query]);
@@ -46,7 +41,7 @@ export async function POST(req: Request) {
   }
 
   // Vector search using Firestore findNearest
-  const embeddingsRef = db.collection('recordings').doc(recordingId).collection('embeddings');
+  const embeddingsRef = access.ref.collection('embeddings');
   const findNearestOpts = {
     limit: 6,
     distanceMeasure: 'COSINE' as const,
