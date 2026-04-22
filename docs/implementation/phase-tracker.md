@@ -26,7 +26,7 @@
 
 - [~] Expand recording detail page for full artifact lifecycle management.
 - [x] Add timeline/waveform parity diagnostics in recording detail page.
-- [~] Add timeline/progress/waveform parity checks and behavior tests.
+- [~] Add timeline/progress/waveform parity checks and behavior tests (timeline unit coverage added; waveform/edit flows pending).
 - [ ] Implement side-by-side artifact handling for merge operations.
 
 ## Phase 3 - audio editing and enhancement

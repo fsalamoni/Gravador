@@ -25,6 +25,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Legacy recording routes now use centralized access checks (`getAccessibleRecording`) across chat, shares, trash, reprocess, and tags endpoints.
 - Shares listing/revoke flows are now authorization-hardened with workspace access checks.
 - Recording detail now includes timeline/waveform parity diagnostics (segment count, first/last segment bounds, duration delta, overlap/gap/invalid alerts).
+- Timeline parity computation is now centralized in `apps/web/src/lib/timeline-parity.ts` and covered by unit tests.
+- Web package now has a dedicated `test` script (`vitest run`) for parity regression checks.
+- Intermittent Next.js Windows build ENOENT on `.next/server/edge-runtime-webpack.js` was mitigated with serialized clean builds.
 
 ## Current package objective
 
