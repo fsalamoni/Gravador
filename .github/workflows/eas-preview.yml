@@ -43,7 +43,28 @@ jobs:
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
         run: |
           eas build --profile preview --platform android --non-interactive --json > eas-build.json
-          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('eas-build.json','utf8')); const build=Array.isArray(payload)?payload[0]:payload; if(!build){process.exit(1);} const buildId=build.id ?? ''; const detailsUrl=build.detailsPageUrl ?? build.artifacts?.buildUrl ?? ''; const artifactUrl=build.artifacts?.buildUrl ?? ''; fs.appendFileSync(process.env.GITHUB_OUTPUT, `build_id=${buildId}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `details_url=${detailsUrl}\n`); fs.appendFileSync(process.env.GITHUB_OUTPUT, `artifact_url=${artifactUrl}\n`);"
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const payload = JSON.parse(fs.readFileSync('eas-build.json', 'utf8'));
+          const build = Array.isArray(payload) ? payload[0] : payload;
+          if (!build || typeof build !== 'object') {
+            throw new Error('Unexpected EAS build payload');
+          }
+
+          const outputPath = process.env.GITHUB_OUTPUT;
+          if (!outputPath) {
+            throw new Error('GITHUB_OUTPUT is not set');
+          }
+
+          const buildId = build.id ? String(build.id) : '';
+          const detailsUrl = build.detailsPageUrl || build.webpageUrl || '';
+          const artifactUrl = build.artifacts?.buildUrl ? String(build.artifacts.buildUrl) : '';
+
+          fs.appendFileSync(outputPath, `build_id=${buildId}\n`, 'utf8');
+          fs.appendFileSync(outputPath, `details_url=${detailsUrl}\n`, 'utf8');
+          fs.appendFileSync(outputPath, `artifact_url=${artifactUrl}\n`, 'utf8');
+          NODE
       - name: Publish preview summary
         if: always()
         shell: bash

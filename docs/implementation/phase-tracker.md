@@ -51,3 +51,4 @@
 - [x] Feature flags default reviewed.
 - [x] Tracker + context cache updated.
 - [x] Risks and rollback path written.
+- [~] Mobile preview workflow healthy (output parser hotfix pushed; success rerun pending).

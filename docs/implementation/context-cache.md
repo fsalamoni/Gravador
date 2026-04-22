@@ -20,6 +20,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Canonical recording lifecycle/retention metadata now exists across web, mobile, and integration ingestion paths.
 - New lifecycle and artifact APIs exist under `/api/recordings/[id]/lifecycle` and `/api/recordings/[id]/artifacts`.
 - Recording detail page now includes a lifecycle panel with archive/trash/restore/version controls and artifact delete/restore actions.
+- EAS preview workflow failure root cause identified: shell quoting conflict in `node -e` output parsing (GitHub Actions step writing `GITHUB_OUTPUT`).
+- EAS preview workflow patched to use a heredoc Node script with guarded output writes; rerun dispatched for validation.
 
 ## Current package objective
 
