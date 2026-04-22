@@ -42,7 +42,28 @@ jobs:
         env:
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars['EXPO_PUBLIC_EAS_PROJECT_ID'] }}
         run: |
-          eas build --profile preview --platform android --non-interactive --json > eas-build.json
+          set +e
+          eas build --profile preview --platform android --non-interactive --json > eas-build.json 2> eas-build.stderr
+          eas_exit_code=$?
+          set -e
+
+          if [[ $eas_exit_code -ne 0 ]]; then
+            if grep -qi "used its Android builds from the Free plan this month" eas-build.stderr; then
+              echo "::warning::EAS Android preview quota exhausted for the month. Marking preview as blocked, not failed."
+              {
+                echo "build_id="
+                echo "details_url="
+                echo "artifact_url="
+                echo "status=quota_blocked"
+                echo "quota_blocked=true"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            cat eas-build.stderr
+            exit "$eas_exit_code"
+          fi
+
           node <<'NODE'
           const fs = require('node:fs');
 
@@ -64,6 +85,8 @@ jobs:
           fs.appendFileSync(outputPath, `build_id=${buildId}\n`, 'utf8');
           fs.appendFileSync(outputPath, `details_url=${detailsUrl}\n`, 'utf8');
           fs.appendFileSync(outputPath, `artifact_url=${artifactUrl}\n`, 'utf8');
+          fs.appendFileSync(outputPath, 'status=queued\n', 'utf8');
+          fs.appendFileSync(outputPath, 'quota_blocked=false\n', 'utf8');
           NODE
       - name: Publish preview summary
         if: always()
@@ -73,8 +96,12 @@ jobs:
             echo "## Android Preview Build"
             echo ""
             echo "- Trigger: ${{ github.event_name }}"
+            echo "- Status: ${{ steps.eas_build.outputs.status || 'failed' }}"
             echo "- Build ID: ${{ steps.eas_build.outputs.build_id || 'n/a' }}"
             echo "- Details: ${{ steps.eas_build.outputs.details_url || 'n/a' }}"
             echo "- Artifact: ${{ steps.eas_build.outputs.artifact_url || 'n/a' }}"
+            if [[ "${{ steps.eas_build.outputs.quota_blocked || 'false' }}" == "true" ]]; then
+              echo "- Quota: Monthly Expo Android preview quota exhausted. Build dispatch skipped until quota reset or paid capacity is enabled."
+            fi
             echo "- To expose this build on the live website, copy the artifact URL into the GitHub variable ANDROID_PREVIEW_URL and redeploy the web workflow."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -31,6 +31,7 @@
 - Added bulk contract hardening to reject unsafe recording IDs (`/`, `\\`, `..`) and regression test coverage.
 - Hardened mobile app bootstrap against white-screen deadlocks with auth timeout fallback, startup error boundary, and resilient firebase/i18n initialization guards.
 - Added dedicated `workers/ai-pipeline` audio-edit job consumer (`process-audio-edit-jobs.ts`) that claims due jobs and dispatches retry-safe processing calls with `INTERNAL_JOBS_SECRET`.
+- Hardened `.github/workflows/eas-preview.yml` to treat Expo monthly Android quota exhaustion as a degraded `quota_blocked` preview status instead of a hard CI failure.
 
 ### Rollback path
 
@@ -46,3 +47,4 @@
 - Bulk merge endpoint currently prepares side-by-side comparison/audit only (no final artifact reconciliation execution yet).
 - Audio-edit runner deployment still needs environment-level wiring/monitoring in staging/prod (scheduler trigger + alert thresholds).
 - Notification provider staging smoke (WhatsApp Cloud + email webhook) still pending environment configuration.
+- Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.
