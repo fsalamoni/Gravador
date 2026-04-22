@@ -74,6 +74,7 @@ export async function drainQueue(onProgress?: (item: QueuedUpload) => void): Pro
       if (!userId) {
         throw new Error('User not authenticated — cannot create recording');
       }
+      const capturedAt = new Date(item.capturedAt);
       await addDoc(collection(db, 'recordings'), {
         workspaceId: item.workspaceId,
         createdBy: userId,
@@ -83,10 +84,29 @@ export async function drainQueue(onProgress?: (item: QueuedUpload) => void): Pro
         mimeType: item.mimeType,
         storagePath,
         storageBucket: 'default',
-        capturedAt: new Date(item.capturedAt),
+        capturedAt,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         deletedAt: null,
+        lifecycle: {
+          schemaVersion: 1,
+          status: 'active',
+          recordingVersion: 1,
+          retainedVersions: 1,
+          source: 'mobile',
+          activeAudioVersionId: item.id,
+          archivedAt: null,
+          trashedAt: null,
+          lastEvent: 'created',
+          lastEventAt: serverTimestamp(),
+          lastEventBy: userId,
+        },
+        retention: {
+          keepOriginal: true,
+          keepEditedVersions: true,
+          manualDeleteOnly: true,
+          purgeAfterDays: null,
+        },
       });
 
       await FileSystem.deleteAsync(item.uri, { idempotent: true });
