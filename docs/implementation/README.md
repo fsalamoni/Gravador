@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge in progress with mobile reliability and job-consumer rollout
-- Focus: staging operationalization (audio-edit runner deployment wiring + notification provider validation)
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge validated (mobile white-screen mitigation, audio job runner contract, CI quota resilience)
+- Focus: staging operationalization closure (audio-edit runner deployment wiring + notification provider validation + Expo capacity plan)
 
 ## Files
 
