@@ -1,7 +1,13 @@
 import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
+import {
+  getArtifactLifecycleState,
+  getRecordingLifecycleState,
+  toIsoTimestamp,
+} from '@/lib/recording-lifecycle';
 import { ArrowLeft, Clock3, FileAudio, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { LifecyclePanel } from './lifecycle-panel';
 import { PipelinePanel } from './pipeline-panel';
 import { Player } from './player';
 import { RecordingTabs } from './tabs';
@@ -40,8 +46,12 @@ export default async function RecordingPage({
     durationMs: number;
     storagePath: string;
     storageBucket: string;
+    deletedAt?: { toDate?: () => Date } | null;
+    lifecycle?: unknown;
     pipelineResults?: Record<string, 'ok' | 'failed'>;
   };
+
+  const lifecycle = getRecordingLifecycleState(recording.lifecycle);
 
   const [transcriptSnap, segmentsSnap, outputsSnap, actionItemsSnap] = await Promise.all([
     db.collection('recordings').doc(id).collection('transcripts').limit(1).get(),
@@ -69,10 +79,25 @@ export default async function RecordingPage({
       speaker_id: (data.speakerId as string) ?? null,
     };
   });
-  const outputs = outputsSnap.docs.map((d) => {
-    const data = d.data();
-    return { kind: data.kind as string, payload: data.payload };
-  });
+  const artifactRows = outputsSnap.docs
+    .map((d) => {
+      const data = d.data();
+      const lifecycleData = getArtifactLifecycleState(data);
+      if (!lifecycleData) return null;
+
+      return {
+        kind: data.kind as string,
+        payload: data.payload,
+        artifactStatus: lifecycleData.artifactStatus,
+        artifactVersion: lifecycleData.artifactVersion,
+        updatedAt: lifecycleData.updatedAt,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+
+  const outputs = artifactRows
+    .filter((artifact) => artifact.artifactStatus !== 'deleted')
+    .map((artifact) => ({ kind: artifact.kind, payload: artifact.payload }));
 
   const actionItems = actionItemsSnap.docs.map((d) => {
     const data = d.data();
@@ -147,6 +172,18 @@ export default async function RecordingPage({
       <section className="card p-5 sm:p-6">
         <Player src={audioUrl} />
       </section>
+
+      <LifecyclePanel
+        recordingId={id}
+        deletedAt={toIsoTimestamp(recording.deletedAt)}
+        initialLifecycle={lifecycle}
+        initialArtifacts={artifactRows.map((artifact) => ({
+          kind: artifact.kind,
+          artifactStatus: artifact.artifactStatus,
+          artifactVersion: artifact.artifactVersion,
+          updatedAt: artifact.updatedAt,
+        }))}
+      />
 
       <section className="card p-5 sm:p-6">
         <PipelinePanel

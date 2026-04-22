@@ -19,6 +19,7 @@ import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1_000;
+const RECORDING_LIFECYCLE_SCHEMA_VERSION = 1;
 
 async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   let lastError: unknown;
@@ -57,6 +58,11 @@ export async function processRecording(payload: { recordingId: string; locale?: 
   const recDoc = await db.collection('recordings').doc(recordingId).get();
   if (!recDoc.exists) throw new Error(`recording ${recordingId} not found`);
   const recording = recDoc.data()!;
+  const sourceRecordingVersion =
+    typeof (recording.lifecycle as { recordingVersion?: number } | undefined)?.recordingVersion ===
+    'number'
+      ? (recording.lifecycle as { recordingVersion: number }).recordingVersion
+      : 1;
 
   // Idempotency guard: skip if already processed
   if (recording.status === 'ready') {
@@ -199,19 +205,40 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     }
 
     if (summary.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'summary', summary.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'summary', summary.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
     if (actions.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'action_items', actions.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'action_items', actions.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
     if (mindmap.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'mindmap', mindmap.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'mindmap', mindmap.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
     if (chapters.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'chapters', chapters.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'chapters', chapters.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
     if (quotes.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'quotes', quotes.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'quotes', quotes.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
     if (sentiment.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'sentiment', sentiment.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'sentiment', sentiment.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
     if (flashcards.status === 'fulfilled')
-      await insertOutput(outputsCollection, recordingId, 'flashcards', flashcards.value, locale);
+      await insertOutput(outputsCollection, recordingId, 'flashcards', flashcards.value, locale, {
+        actorId: 'system',
+        sourceRecordingVersion,
+      });
 
     if (actions.status === 'fulfilled') {
       const actionItemsCollection = db
@@ -276,6 +303,10 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     await db.collection('recordings').doc(recordingId).update({
       status: 'ready',
       pipelineResults,
+      'lifecycle.schemaVersion': RECORDING_LIFECYCLE_SCHEMA_VERSION,
+      'lifecycle.lastEvent': 'pipeline_updated',
+      'lifecycle.lastEventAt': FieldValue.serverTimestamp(),
+      'lifecycle.lastEventBy': 'system',
       updatedAt: FieldValue.serverTimestamp(),
     });
     return { recordingId, segments: segments.length, chunks: chunks.length, pipelineResults };
@@ -372,19 +403,41 @@ async function insertOutput(
     latencyMs: number;
   },
   locale: Locale,
+  options: {
+    actorId: string;
+    sourceRecordingVersion: number;
+  },
 ) {
-  // Upsert by kind: use kind as doc ID
-  await collection.doc(kind).set({
-    recordingId,
-    kind,
-    payload: result.payload,
-    provider: result.provider,
-    model: result.model,
-    promptVersion: result.promptVersion,
-    latencyMs: result.latencyMs,
-    locale,
-    costCents: 0,
-    createdAt: FieldValue.serverTimestamp(),
+  const ref = collection.doc(kind);
+
+  await collection.firestore.runTransaction(async (tx) => {
+    const current = await tx.get(ref);
+    const currentData = current.data() ?? {};
+    const nextVersion =
+      typeof currentData.artifactVersion === 'number' ? currentData.artifactVersion + 1 : 1;
+
+    tx.set(
+      ref,
+      {
+        recordingId,
+        kind,
+        payload: result.payload,
+        provider: result.provider,
+        model: result.model,
+        promptVersion: result.promptVersion,
+        latencyMs: result.latencyMs,
+        locale,
+        costCents: 0,
+        artifactStatus: 'active',
+        artifactVersion: nextVersion,
+        sourceRecordingVersion: options.sourceRecordingVersion,
+        deletedAt: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: options.actorId,
+        createdAt: currentData.createdAt ?? FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
   });
 }
 

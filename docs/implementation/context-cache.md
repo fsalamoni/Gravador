@@ -17,13 +17,16 @@ This file captures decisions and assumptions that must survive long implementati
 - Internal workspace downloads route introduced for authenticated users.
 - Navigation and command palette now expose internal downloads entry.
 - Lint and typecheck are green after this package.
+- Canonical recording lifecycle/retention metadata now exists across web, mobile, and integration ingestion paths.
+- New lifecycle and artifact APIs exist under `/api/recordings/[id]/lifecycle` and `/api/recordings/[id]/artifacts`.
+- Recording detail page now includes a lifecycle panel with archive/trash/restore/version controls and artifact delete/restore actions.
 
 ## Current package objective
 
-- Keep repo/docs/state synchronized while moving from Phase 0 package to Phase 1 contracts.
+- Keep repo/docs/state synchronized while hardening Phase 1 ownership guarantees and expanding Phase 2 UX.
 
 ## Immediate next contracts to lock
 
-- Recording lifecycle state machine fields and transitions.
-- API contract for artifact create/update/delete/version actions.
+- Timeline and waveform parity contracts for edit/version operations.
 - Bulk delete/merge request payload schema and audit strategy.
+- Notification event contracts linked to lifecycle transitions.

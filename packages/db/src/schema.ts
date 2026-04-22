@@ -21,6 +21,23 @@ export type AIOutputKind =
   | 'sentiment'
   | 'flashcards';
 
+export type RecordingLifecycleStatus = 'active' | 'archived' | 'trashed';
+
+export type RecordingLifecycleEvent =
+  | 'created'
+  | 'archived'
+  | 'unarchived'
+  | 'trashed'
+  | 'restored'
+  | 'version_bumped'
+  | 'artifact_created'
+  | 'artifact_updated'
+  | 'artifact_deleted'
+  | 'artifact_restored'
+  | 'pipeline_updated';
+
+export type ArtifactLifecycleStatus = 'active' | 'deleted';
+
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 
 export type Locale = 'pt-BR' | 'en';
@@ -155,6 +172,25 @@ export interface RecordingDoc {
   capturedFromDevice?: string;
   latitude?: number;
   longitude?: number;
+  lifecycle?: {
+    schemaVersion: number;
+    status: RecordingLifecycleStatus;
+    recordingVersion: number;
+    retainedVersions: number;
+    source: string;
+    activeAudioVersionId?: string | null;
+    archivedAt?: Timestamp | null;
+    trashedAt?: Timestamp | null;
+    lastEvent: RecordingLifecycleEvent;
+    lastEventAt?: Timestamp | null;
+    lastEventBy?: string | null;
+  };
+  retention?: {
+    keepOriginal: boolean;
+    keepEditedVersions: boolean;
+    manualDeleteOnly: boolean;
+    purgeAfterDays?: number | null;
+  };
   deletedAt?: Timestamp | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -189,6 +225,12 @@ export interface AIOutputDoc {
   latencyMs?: number;
   promptVersion: string;
   locale?: Locale;
+  artifactStatus?: ArtifactLifecycleStatus;
+  artifactVersion?: number;
+  sourceRecordingVersion?: number;
+  updatedAt?: Timestamp;
+  updatedBy?: string;
+  deletedAt?: Timestamp | null;
   createdAt: Timestamp;
 }
 

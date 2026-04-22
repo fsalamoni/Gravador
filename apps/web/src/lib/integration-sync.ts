@@ -593,6 +593,7 @@ async function createRecordingFromAudioBytes(params: {
     params.title?.trim() ||
     `WhatsApp ${normalizedPhone ?? ''}`.trim() ||
     `WhatsApp ${capturedAt.toISOString()}`;
+  const now = new Date();
 
   await params.db
     .collection('recordings')
@@ -608,12 +609,31 @@ async function createRecordingFromAudioBytes(params: {
       storagePath,
       storageBucket: 'default',
       capturedAt,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
       deletedAt: null,
       source: 'whatsapp',
       sourceChannel: params.source,
       sourcePhoneNumber: normalizedPhone,
+      lifecycle: {
+        schemaVersion: 1,
+        status: 'active',
+        recordingVersion: 1,
+        retainedVersions: 1,
+        source: 'whatsapp',
+        activeAudioVersionId: id,
+        archivedAt: null,
+        trashedAt: null,
+        lastEvent: 'created',
+        lastEventAt: now,
+        lastEventBy: params.userId,
+      },
+      retention: {
+        keepOriginal: true,
+        keepEditedVersions: true,
+        manualDeleteOnly: true,
+        purgeAfterDays: null,
+      },
     });
 
   return { recordingId: id, workspaceId, userId: params.userId };

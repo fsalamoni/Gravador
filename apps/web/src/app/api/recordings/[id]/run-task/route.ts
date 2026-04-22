@@ -1,4 +1,10 @@
-import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
+import { getApiSessionUser } from '@/lib/api-session';
+import { getServerDb, getServerStorage } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
+import {
+  RECORDING_LIFECYCLE_SCHEMA_VERSION,
+  getRecordingLifecycleState,
+} from '@/lib/recording-lifecycle';
 import {
   chunkAndEmbed,
   runActionItems,
@@ -30,7 +36,7 @@ type TaskKind =
   | 'embed';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getSessionUser();
+  const user = await getApiSessionUser(req);
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const { id: recordingId } = await params;
@@ -38,20 +44,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { task } = body;
 
   const db = getServerDb();
-  const recDoc = await db.collection('recordings').doc(recordingId).get();
-  if (!recDoc.exists) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-
-  const recording = recDoc.data()!;
-
-  if (recording.createdBy !== user.uid) {
-    const memberDoc = await db
-      .collection('workspaces')
-      .doc(recording.workspaceId as string)
-      .collection('members')
-      .doc(user.uid)
-      .get();
-    if (!memberDoc.exists) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const access = await getAccessibleRecording(db, recordingId, user.uid);
+  if (!access.ok) {
+    return NextResponse.json(
+      { error: access.error },
+      { status: access.error === 'not_found' ? 404 : 403 },
+    );
   }
+
+  const recording = access.data;
+  const recordingLifecycle = getRecordingLifecycleState(recording.lifecycle);
 
   const workspaceAI = await loadWorkspaceAI(db, recording.workspaceId as string);
 
@@ -64,6 +66,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       | 'openrouter',
     model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
   });
+  const sourceRecordingVersion = recordingLifecycle.recordingVersion;
 
   // Map task → pipelineResults key
   const resultKey = task === 'actionItems' ? 'action_items' : task;
@@ -99,6 +102,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       await db.collection('recordings').doc(recordingId).update({
         status: 'uploaded',
         'pipelineResults.transcribe': 'ok',
+        'lifecycle.schemaVersion': RECORDING_LIFECYCLE_SCHEMA_VERSION,
+        'lifecycle.lastEvent': 'pipeline_updated',
+        'lifecycle.lastEventAt': FieldValue.serverTimestamp(),
+        'lifecycle.lastEventBy': user.uid,
         updatedAt: FieldValue.serverTimestamp(),
       });
 
@@ -155,7 +162,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('summarize').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'summary', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'summary', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
     } else if (task === 'actionItems') {
       const result = await runActionItems({
         segments,
@@ -164,7 +174,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('actionItems').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'action_items', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'action_items', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
 
       // Refresh the action_items subcollection
       const actionItemsCollection = db
@@ -206,7 +219,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('mindmap').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'mindmap', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'mindmap', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
     } else if (task === 'chapters') {
       const result = await runChapters({
         segments,
@@ -215,7 +231,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('chapters').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'chapters', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'chapters', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
     } else if (task === 'quotes') {
       const result = await runQuotes({
         segments,
@@ -224,7 +243,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('quotes').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'quotes', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'quotes', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
     } else if (task === 'sentiment') {
       const result = await runSentiment({
         fullText,
@@ -233,7 +255,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('sentiment').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'sentiment', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'sentiment', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
     } else if (task === 'flashcards') {
       const result = await runFlashcards({
         fullText,
@@ -242,7 +267,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         model: resolve('flashcards').model,
         keys: workspaceAI.keys,
       });
-      await insertOutput(outputsCollection, recordingId, 'flashcards', result, locale);
+      await insertOutput(outputsCollection, recordingId, 'flashcards', result, locale, {
+        actorId: user.uid,
+        sourceRecordingVersion,
+      });
     } else if (task === 'embed') {
       const chunks = await chunkAndEmbed(segments, {
         provider: workspaceAI.embeddingProvider,
@@ -293,6 +321,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .doc(recordingId)
       .update({
         [`pipelineResults.${resultKey}`]: 'ok',
+        'lifecycle.schemaVersion': RECORDING_LIFECYCLE_SCHEMA_VERSION,
+        'lifecycle.lastEvent': 'artifact_updated',
+        'lifecycle.lastEventAt': FieldValue.serverTimestamp(),
+        'lifecycle.lastEventBy': user.uid,
         updatedAt: FieldValue.serverTimestamp(),
       });
 
@@ -303,6 +335,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .doc(recordingId)
       .update({
         [`pipelineResults.${resultKey}`]: 'failed',
+        'lifecycle.schemaVersion': RECORDING_LIFECYCLE_SCHEMA_VERSION,
+        'lifecycle.lastEvent': 'pipeline_updated',
+        'lifecycle.lastEventAt': FieldValue.serverTimestamp(),
+        'lifecycle.lastEventBy': user.uid,
         updatedAt: FieldValue.serverTimestamp(),
       })
       .catch(() => {});
@@ -417,17 +453,40 @@ async function insertOutput(
     latencyMs: number;
   },
   locale: Locale,
+  options: {
+    actorId: string;
+    sourceRecordingVersion: number;
+  },
 ) {
-  await col.doc(kind).set({
-    recordingId,
-    kind,
-    payload: result.payload,
-    provider: result.provider,
-    model: result.model,
-    promptVersion: result.promptVersion,
-    latencyMs: result.latencyMs,
-    locale,
-    costCents: 0,
-    createdAt: FieldValue.serverTimestamp(),
+  const ref = col.doc(kind);
+
+  await col.firestore.runTransaction(async (tx) => {
+    const current = await tx.get(ref);
+    const currentData = current.data() ?? {};
+    const nextVersion =
+      typeof currentData.artifactVersion === 'number' ? currentData.artifactVersion + 1 : 1;
+
+    tx.set(
+      ref,
+      {
+        recordingId,
+        kind,
+        payload: result.payload,
+        provider: result.provider,
+        model: result.model,
+        promptVersion: result.promptVersion,
+        latencyMs: result.latencyMs,
+        locale,
+        costCents: 0,
+        artifactStatus: 'active',
+        artifactVersion: nextVersion,
+        sourceRecordingVersion: options.sourceRecordingVersion,
+        deletedAt: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: options.actorId,
+        createdAt: currentData.createdAt ?? FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
   });
 }

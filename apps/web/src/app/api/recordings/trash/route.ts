@@ -29,6 +29,12 @@ export async function POST(req: Request) {
 
   await ref.update({
     deletedAt: FieldValue.serverTimestamp(),
+    'lifecycle.schemaVersion': 1,
+    'lifecycle.status': 'trashed',
+    'lifecycle.trashedAt': FieldValue.serverTimestamp(),
+    'lifecycle.lastEvent': 'trashed',
+    'lifecycle.lastEventAt': FieldValue.serverTimestamp(),
+    'lifecycle.lastEventBy': user.uid,
     updatedAt: FieldValue.serverTimestamp(),
   });
   return NextResponse.json({ ok: true });
@@ -88,7 +94,16 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  await ref.update({ deletedAt: null, updatedAt: FieldValue.serverTimestamp() });
+  await ref.update({
+    deletedAt: null,
+    'lifecycle.schemaVersion': 1,
+    'lifecycle.status': 'active',
+    'lifecycle.trashedAt': null,
+    'lifecycle.lastEvent': 'restored',
+    'lifecycle.lastEventAt': FieldValue.serverTimestamp(),
+    'lifecycle.lastEventBy': user.uid,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   return NextResponse.json({ ok: true });
 }
 

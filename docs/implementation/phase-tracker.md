@@ -17,13 +17,13 @@
 
 ## Phase 1 - recording lifecycle and persistence
 
-- [ ] Define canonical per-recording lifecycle schema and retention metadata.
-- [ ] Add API routes/contracts for explicit artifact lifecycle operations.
-- [ ] Guarantee robust per-user persistence and ownership enforcement across edits.
+- [x] Define canonical per-recording lifecycle schema and retention metadata.
+- [x] Add API routes/contracts for explicit artifact lifecycle operations.
+- [~] Guarantee robust per-user persistence and ownership enforcement across edits.
 
 ## Phase 2 - recording detail and artifact UX
 
-- [ ] Expand recording detail page for full artifact lifecycle management.
+- [~] Expand recording detail page for full artifact lifecycle management.
 - [ ] Add timeline/progress/waveform parity checks and behavior tests.
 - [ ] Implement side-by-side artifact handling for merge operations.
 
@@ -50,4 +50,4 @@
 - [x] Lint/typecheck green.
 - [x] Feature flags default reviewed.
 - [x] Tracker + context cache updated.
-- [ ] Risks and rollback path written.
+- [x] Risks and rollback path written.

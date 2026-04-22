@@ -4,14 +4,15 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 0 package completed (workspace downloads + rollout scaffolding)
-- Focus: lock Phase 1 recording lifecycle contracts and artifact APIs
+- Stage: Phase 1 core contracts delivered + Phase 2 lifecycle panel started
+- Focus: complete recording detail lifecycle UX and move into audio editing/version pipeline
 
 ## Files
 
 - `phase-tracker.md`: execution checklist by phase and ownership
 - `feature-flags.md`: runtime flags used for progressive activation
 - `context-cache.md`: locked decisions, assumptions, and pending contracts
+- `risk-rollout.md`: current risks, mitigations, and rollback actions per package
 
 ## Update policy
 

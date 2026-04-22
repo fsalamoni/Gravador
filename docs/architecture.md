@@ -162,6 +162,37 @@ Recordings support soft-delete via the `deletedAt` timestamp field:
 
 All listing queries (`listUserRecordings`, search, health check) filter by `deletedAt == null` to exclude trashed recordings.
 
+## Recording Lifecycle Contracts (Phase 1)
+
+Recordings now include additive lifecycle metadata that supports versioning and retention decisions without breaking legacy documents.
+
+- **Recording metadata**:
+    - `lifecycle.status`: `active | archived | trashed`
+    - `lifecycle.recordingVersion`: monotonic recording version
+    - `lifecycle.retainedVersions`: number of retained versions
+    - `lifecycle.lastEvent`: lifecycle/audit event marker
+    - `retention`: `{ keepOriginal, keepEditedVersions, manualDeleteOnly, purgeAfterDays }`
+- **Artifact metadata** (on `ai_outputs/{kind}` docs):
+    - `artifactStatus`: `active | deleted`
+    - `artifactVersion`: monotonic artifact version
+    - `sourceRecordingVersion`: recording version that generated this artifact
+    - `updatedAt`, `updatedBy`, `deletedAt`
+
+### Lifecycle and artifact API routes
+
+- `GET /api/recordings/{id}/lifecycle` — returns normalized lifecycle + retention + deletedAt.
+- `PATCH /api/recordings/{id}/lifecycle` — actions: `archive | unarchive | trash | restore | bumpVersion`.
+- `GET /api/recordings/{id}/artifacts` — lists artifact docs with lifecycle status.
+- `POST /api/recordings/{id}/artifacts` — create/upsert artifact payload with version bump.
+- `GET/PATCH/POST/DELETE /api/recordings/{id}/artifacts/{kind}` — read/update/restore/delete artifact with lifecycle tracking.
+
+### Recording detail UX integration
+
+- `workspace/recordings/[id]` now renders a lifecycle panel with:
+    - archive, unarchive, trash, restore, and version bump actions
+    - artifact-level delete/restore controls
+    - lifecycle and retained-version indicators
+
 ## Worker Reliability
 
 The AI pipeline worker (`process-recording.ts`) implements:

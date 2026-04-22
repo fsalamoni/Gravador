@@ -1,5 +1,6 @@
 'use client';
 
+import { getDefaultRecordingLifecycle, getDefaultRetentionPolicy } from '@/lib/recording-lifecycle';
 import { shortId } from '@gravador/core';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
@@ -103,6 +104,12 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
       const storageRef = ref(storage, storagePath);
       await uploadBytes(storageRef, blob, { contentType: mimeType });
 
+      const lifecycle = getDefaultRecordingLifecycle({
+        source: 'web',
+        recordingId: id,
+        actorId: userId,
+      });
+
       await addDoc(collection(db, 'recordings'), {
         workspaceId,
         createdBy: userId,
@@ -117,6 +124,11 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
         updatedAt: serverTimestamp(),
         deletedAt: null,
         pipelineResults: {},
+        lifecycle: {
+          ...lifecycle,
+          lastEventAt: serverTimestamp(),
+        },
+        retention: getDefaultRetentionPolicy(),
       });
 
       setDurationMs(0);
