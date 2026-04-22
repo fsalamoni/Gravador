@@ -36,6 +36,8 @@
 - Added scheduled runner workflow `.github/workflows/audio-edit-runner.yml` with batch summary export and configurable failure threshold (`AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH`).
 - Added notifications smoke workflow `.github/workflows/notifications-smoke.yml` + `scripts/smoke-notifications.mjs` for provider readiness probing (WhatsApp Graph + email webhook).
 - Updated deploy/release workflows to propagate `INTERNAL_JOBS_SECRET`, notification provider envs, and feature flags to Cloud Run runtime/build.
+- Release verification on commit `6e4e1f0`: `CI` run `24805210132` success, `firebase-hosting` run `24805210127` success, `EAS preview` run `24805231408` success with explicit quota-blocked summary.
+- Operational workflow dispatch checks succeeded (`audio-edit-runner` run `24805361685`, `notifications-smoke` run `24805363134`) with expected `skipped` outcomes while activation vars remain disabled.
 
 ### Rollback path
 

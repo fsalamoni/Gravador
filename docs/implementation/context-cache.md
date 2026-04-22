@@ -60,6 +60,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Web deploy workflows now propagate feature flags and optional operational secrets (`INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) to Cloud Run runtime.
 - Release workflow Android/iOS EAS metadata parsing now uses guarded heredoc scripts (no inline `node -e` quoting fragility).
 - Mobile startup shell now includes a bootstrap watchdog fallback CTA to avoid perceived white-screen hangs when routing/auth restoration stalls.
+- Commit `6e4e1f0` release closure: `CI` run `24805210132` success, `firebase-hosting` run `24805210127` success, `EAS preview` run `24805231408` success (`quota_blocked` degraded output contract).
+- New workflows validated on main via manual dispatch: `audio-edit-runner` run `24805361685` skipped by `ENABLE_AUDIO_EDIT_RUNNER=false` and `notifications-smoke` run `24805363134` skipped by `ENABLE_NOTIFICATIONS_SMOKE=false`.
 
 ## Current package objective
 

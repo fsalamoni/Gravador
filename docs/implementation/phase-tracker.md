@@ -57,5 +57,7 @@
 - [x] Feature flags default reviewed.
 - [x] Tracker + context cache updated.
 - [x] Risks and rollback path written.
-- [x] Mobile preview workflow healthy (EAS preview rerun 24804367070 completed with success under `quota_blocked` degraded status).
-- [x] Web deploy workflow healthy (firebase-hosting run 24804241474 completed with success).
+- [x] Mobile preview workflow healthy (EAS preview run 24805231408 for commit `6e4e1f0` completed with success under `quota_blocked` degraded status).
+- [x] Web deploy workflow healthy (firebase-hosting run 24805210127 for commit `6e4e1f0` completed with success).
+- [x] CI workflow healthy (run 24805210132 for commit `6e4e1f0` completed with success).
+- [x] New operational workflows validated syntactically (`audio-edit-runner` run 24805361685 and `notifications-smoke` run 24805363134 dispatched and skipped by activation flags as expected).
