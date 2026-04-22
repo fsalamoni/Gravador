@@ -4,6 +4,7 @@ import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
   getArtifactLifecycleState,
+  getNotificationEventForLifecycleEvent,
   getRecordingLifecycleState,
   isAIOutputKind,
 } from '@/lib/recording-lifecycle';
@@ -176,6 +177,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
       payload: data.payload,
       lifecycle: getArtifactLifecycleState(data),
     },
+    notificationEvent: getNotificationEventForLifecycleEvent('artifact_updated'),
   });
 }
 
@@ -228,7 +230,11 @@ export async function POST(req: Request, { params }: { params: Promise<Params> }
   }
 
   const updated = await context.artifactRef.get();
-  return NextResponse.json({ ok: true, item: updated.data() ?? {} });
+  return NextResponse.json({
+    ok: true,
+    item: updated.data() ?? {},
+    notificationEvent: getNotificationEventForLifecycleEvent('artifact_restored'),
+  });
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<Params> }) {
@@ -279,5 +285,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<Params>
     throw error;
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    notificationEvent: getNotificationEventForLifecycleEvent('artifact_deleted'),
+  });
 }

@@ -1,4 +1,8 @@
+import type { AudioVersionRecord } from '@/lib/audio-editing';
+import { getEditVersionParityReport } from '@/lib/edit-version-parity';
+import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
+import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   getArtifactLifecycleState,
   getRecordingLifecycleState,
@@ -15,31 +19,21 @@ import { RecordingTabs } from './tabs';
 
 export default async function RecordingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mergeWith?: string }>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const db = getServerDb();
 
-  const recDoc = await db.collection('recordings').doc(id).get();
-  if (!recDoc.exists) notFound();
-  const recData = recDoc.data()!;
+  const access = await getAccessibleRecording(db, id, user.uid);
+  if (!access.ok) notFound();
 
-  // Authorization: must be creator or workspace member
-  if (recData.createdBy !== user.uid) {
-    const memberDoc = await db
-      .collection('workspaces')
-      .doc(recData.workspaceId as string)
-      .collection('members')
-      .doc(user.uid)
-      .get();
-    if (!memberDoc.exists) notFound();
-  }
-
-  const recording = { id: recDoc.id, ...recData } as {
+  const recording = { id: access.ref.id, ...access.data } as {
     id: string;
     title?: string;
     capturedAt: { toDate: () => Date };
@@ -60,6 +54,14 @@ export default async function RecordingPage({
     db.collection('recordings').doc(id).collection('ai_outputs').get(),
     db.collection('recordings').doc(id).collection('action_items').orderBy('createdAt').get(),
   ]);
+  const audioVersionsSnap = featureFlags.audioEditingV1
+    ? await db
+        .collection('recordings')
+        .doc(id)
+        .collection('audio_versions')
+        .orderBy('versionNumber', 'desc')
+        .get()
+    : null;
 
   const transcript = transcriptSnap.docs[0]
     ? (() => {
@@ -91,6 +93,7 @@ export default async function RecordingPage({
         payload: data.payload,
         artifactStatus: lifecycleData.artifactStatus,
         artifactVersion: lifecycleData.artifactVersion,
+        sourceRecordingVersion: lifecycleData.sourceRecordingVersion,
         updatedAt: lifecycleData.updatedAt,
       };
     })
@@ -110,22 +113,132 @@ export default async function RecordingPage({
       done: (data.done as boolean) ?? false,
     };
   });
+  const audioVersions: AudioVersionRecord[] =
+    audioVersionsSnap?.docs.map((doc) => {
+      const data = doc.data() as {
+        versionNumber?: number;
+        status?: 'ready' | 'queued' | 'failed';
+        ffmpeg?: {
+          state?: 'queued' | 'processing' | 'completed' | 'failed';
+          error?: string;
+        } | null;
+        storagePath?: string | null;
+        storageBucket?: string | null;
+        isOriginal?: boolean;
+        sourceVersionId?: string | null;
+        editPreset?: 'normalize_loudness' | 'trim_silence' | 'denoise' | null;
+        createdAt?: { toDate?: () => Date } | Date | string | null;
+        updatedAt?: { toDate?: () => Date } | Date | string | null;
+      };
+      return {
+        id: doc.id,
+        versionNumber: typeof data.versionNumber === 'number' ? data.versionNumber : 1,
+        status:
+          data.status === 'queued' || data.status === 'failed' || data.status === 'ready'
+            ? data.status
+            : 'ready',
+        processingState:
+          data.ffmpeg?.state === 'queued' ||
+          data.ffmpeg?.state === 'processing' ||
+          data.ffmpeg?.state === 'completed' ||
+          data.ffmpeg?.state === 'failed'
+            ? data.ffmpeg.state
+            : null,
+        failureReason: typeof data.ffmpeg?.error === 'string' ? data.ffmpeg.error : null,
+        storagePath: typeof data.storagePath === 'string' ? data.storagePath : null,
+        storageBucket: typeof data.storageBucket === 'string' ? data.storageBucket : null,
+        isOriginal: data.isOriginal === true,
+        sourceVersionId: typeof data.sourceVersionId === 'string' ? data.sourceVersionId : null,
+        editPreset:
+          data.editPreset === 'normalize_loudness' ||
+          data.editPreset === 'trim_silence' ||
+          data.editPreset === 'denoise'
+            ? data.editPreset
+            : null,
+        createdAt: toIsoTimestamp(data.createdAt),
+        updatedAt: toIsoTimestamp(data.updatedAt),
+      };
+    }) ?? [];
 
   // Get a signed URL for the audio file
+  const activeAudioVersion =
+    audioVersions.find((version) => version.id === lifecycle.activeAudioVersionId) ?? null;
+  const fallbackStoragePath =
+    typeof recording.storagePath === 'string' ? recording.storagePath : null;
+  const playbackStoragePath =
+    activeAudioVersion?.status === 'ready' && activeAudioVersion.storagePath
+      ? activeAudioVersion.storagePath
+      : fallbackStoragePath;
   let audioUrl = '';
-  try {
-    const storage = getServerStorage();
-    const bucket = storage.bucket();
-    const [url] = await bucket.file(recording.storagePath).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 3600 * 1000,
-    });
-    audioUrl = url;
-  } catch {
-    // Audio may not be uploaded yet
+  if (playbackStoragePath) {
+    try {
+      const storage = getServerStorage();
+      const bucket = storage.bucket();
+      const [url] = await bucket.file(playbackStoragePath).getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 3600 * 1000,
+      });
+      audioUrl = url;
+    } catch {
+      // Audio may not be uploaded yet
+    }
   }
 
   const timelineParity = getTimelineParityReport(recording.durationMs, segments);
+  const editVersionParity = getEditVersionParityReport(
+    lifecycle.recordingVersion,
+    artifactRows.map((artifact) => ({
+      kind: artifact.kind,
+      artifactStatus: artifact.artifactStatus,
+      sourceRecordingVersion: artifact.sourceRecordingVersion,
+    })),
+  );
+
+  const mergeWithId = typeof query.mergeWith === 'string' ? query.mergeWith : null;
+  const mergeComparison =
+    mergeWithId && mergeWithId !== id
+      ? await (async () => {
+          const compareAccess = await getAccessibleRecording(db, mergeWithId, user.uid);
+          if (!compareAccess.ok) return null;
+
+          const compareArtifactsSnap = await compareAccess.ref
+            .collection('ai_outputs')
+            .orderBy('kind')
+            .get();
+
+          const compareArtifacts = compareArtifactsSnap.docs
+            .map((doc) => {
+              const data = doc.data();
+              const parsed = getArtifactLifecycleState(data);
+              if (!parsed) return null;
+              return {
+                kind: parsed.kind,
+                artifactStatus: parsed.artifactStatus,
+                artifactVersion: parsed.artifactVersion,
+                sourceRecordingVersion: parsed.sourceRecordingVersion,
+                updatedAt: parsed.updatedAt,
+              };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
+
+          const currentByKind = new Map<string, (typeof artifactRows)[number]>(
+            artifactRows.map((artifact) => [artifact.kind, artifact]),
+          );
+          const compareByKind = new Map<string, (typeof compareArtifacts)[number]>(
+            compareArtifacts.map((artifact) => [artifact.kind, artifact]),
+          );
+          const kinds = [...new Set([...currentByKind.keys(), ...compareByKind.keys()])].sort();
+
+          return {
+            compareRecordingId: mergeWithId,
+            rows: kinds.map((kind) => ({
+              kind,
+              current: currentByKind.get(kind) ?? null,
+              compare: compareByKind.get(kind) ?? null,
+            })),
+          };
+        })()
+      : null;
 
   return (
     <div className="space-y-5">
@@ -229,12 +342,81 @@ export default async function RecordingPage({
             Timeline and waveform parity checks look healthy.
           </div>
         )}
+
+        <div className="mt-4 rounded-[20px] border border-border bg-bg/55 px-4 py-3 text-sm">
+          <p className="font-medium text-text">
+            Edit/version parity • recording v{editVersionParity.recordingVersion}
+          </p>
+          <p className="mt-1 text-mute">
+            {editVersionParity.activeArtifactCount} artifact(s) ativos,{' '}
+            {editVersionParity.staleArtifactCount} desatualizados,{' '}
+            {editVersionParity.futureArtifactCount} futuros.
+          </p>
+          {editVersionParity.warnings.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-warning">
+              {editVersionParity.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </section>
+
+      {mergeComparison ? (
+        <section className="card p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-text">Merge artifact comparison</h2>
+            <span className="text-xs uppercase tracking-[0.2em] text-mute">Side-by-side</span>
+          </div>
+          <p className="mt-2 text-sm text-mute">
+            Comparando gravação atual com <code>{mergeComparison.compareRecordingId}</code>. O merge
+            preserva artefatos sem sobrescrever payloads.
+          </p>
+          <div className="mt-4 space-y-2">
+            {mergeComparison.rows.map((row) => (
+              <div
+                key={row.kind}
+                className="grid gap-2 rounded-[16px] border border-border bg-bg/55 p-3 md:grid-cols-3"
+              >
+                <div className="text-sm font-medium text-text">{row.kind}</div>
+                <div className="rounded-[12px] border border-border bg-bg/70 p-2 text-xs text-mute">
+                  {row.current ? (
+                    <>
+                      <p className="font-medium text-text">Atual</p>
+                      <p>
+                        {row.current.artifactStatus} • v{row.current.artifactVersion} • src v
+                        {row.current.sourceRecordingVersion}
+                      </p>
+                    </>
+                  ) : (
+                    <p>Sem artefato</p>
+                  )}
+                </div>
+                <div className="rounded-[12px] border border-border bg-bg/70 p-2 text-xs text-mute">
+                  {row.compare ? (
+                    <>
+                      <p className="font-medium text-text">Merge candidate</p>
+                      <p>
+                        {row.compare.artifactStatus} • v{row.compare.artifactVersion} • src v
+                        {row.compare.sourceRecordingVersion}
+                      </p>
+                    </>
+                  ) : (
+                    <p>Sem artefato</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <LifecyclePanel
         recordingId={id}
         deletedAt={toIsoTimestamp(recording.deletedAt)}
         initialLifecycle={lifecycle}
+        audioEditingEnabled={featureFlags.audioEditingV1}
+        initialAudioVersions={audioVersions}
         initialArtifacts={artifactRows.map((artifact) => ({
           kind: artifact.kind,
           artifactStatus: artifact.artifactStatus,

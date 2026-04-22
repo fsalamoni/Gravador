@@ -10,7 +10,7 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 | `NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1` | `false` | Guards upcoming lifecycle schema/API changes for recording artifacts. |
 | `NEXT_PUBLIC_FF_AUDIO_EDITING_V1` | `false` | Guards server-side audio editing/versioning features. |
 | `NEXT_PUBLIC_FF_NOTIFICATIONS_V1` | `false` | Guards first-wave notification and integration delivery flows. |
-| `NEXT_PUBLIC_FF_BULK_OPS_V1` | `false` | Guards advanced bulk delete/merge behaviors. |
+| `NEXT_PUBLIC_FF_BULK_OPS_V1` | `false` | Guards advanced bulk delete/merge behaviors, including `/api/recordings/bulk` and merge side-by-side preparation UX. |
 
 ## Rollout policy
 
@@ -18,3 +18,5 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 2. Enable per environment in controlled order: local -> staging/preview -> production.
 3. Couple flag activation to explicit verification notes in `phase-tracker.md`.
 4. Keep fallback behavior deterministic when a flag is disabled.
+5. Bulk merge must preserve artifact payloads side-by-side by contract while the flag is active.
+6. Audio editing flows (`/api/recordings/[id]/audio-editing` + lifecycle panel controls) must stay hidden/inert when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.

@@ -4,6 +4,7 @@ import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
   getArtifactLifecycleState,
+  getNotificationEventForLifecycleEvent,
   getRecordingLifecycleState,
   isAIOutputKind,
 } from '@/lib/recording-lifecycle';
@@ -156,5 +157,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       payload: data.payload,
       lifecycle: getArtifactLifecycleState(data),
     },
+    notificationEvent: getNotificationEventForLifecycleEvent('artifact_created'),
   });
 }

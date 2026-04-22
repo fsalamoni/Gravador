@@ -18,6 +18,18 @@ export type RecordingLifecycleEvent =
   | 'artifact_restored'
   | 'pipeline_updated';
 
+export type RecordingNotificationEvent =
+  | 'recording.lifecycle.archived'
+  | 'recording.lifecycle.unarchived'
+  | 'recording.lifecycle.trashed'
+  | 'recording.lifecycle.restored'
+  | 'recording.lifecycle.version_bumped'
+  | 'recording.artifact.created'
+  | 'recording.artifact.updated'
+  | 'recording.artifact.deleted'
+  | 'recording.artifact.restored'
+  | 'recording.pipeline.updated';
+
 export const AI_OUTPUT_KINDS: readonly AIOutputKind[] = [
   'summary',
   'action_items',
@@ -197,4 +209,27 @@ export function getDefaultRetentionPolicy(): RecordingRetentionPolicy {
     manualDeleteOnly: true,
     purgeAfterDays: null,
   };
+}
+
+const NOTIFICATION_EVENT_BY_LIFECYCLE_EVENT: Record<
+  RecordingLifecycleEvent,
+  RecordingNotificationEvent | null
+> = {
+  created: null,
+  archived: 'recording.lifecycle.archived',
+  unarchived: 'recording.lifecycle.unarchived',
+  trashed: 'recording.lifecycle.trashed',
+  restored: 'recording.lifecycle.restored',
+  version_bumped: 'recording.lifecycle.version_bumped',
+  artifact_created: 'recording.artifact.created',
+  artifact_updated: 'recording.artifact.updated',
+  artifact_deleted: 'recording.artifact.deleted',
+  artifact_restored: 'recording.artifact.restored',
+  pipeline_updated: 'recording.pipeline.updated',
+};
+
+export function getNotificationEventForLifecycleEvent(
+  event: RecordingLifecycleEvent,
+): RecordingNotificationEvent | null {
+  return NOTIFICATION_EVENT_BY_LIFECYCLE_EVENT[event] ?? null;
 }

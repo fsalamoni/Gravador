@@ -28,13 +28,25 @@ This file captures decisions and assumptions that must survive long implementati
 - Timeline parity computation is now centralized in `apps/web/src/lib/timeline-parity.ts` and covered by unit tests.
 - Web package now has a dedicated `test` script (`vitest run`) for parity regression checks.
 - Intermittent Next.js Windows build ENOENT on `.next/server/edge-runtime-webpack.js` was mitigated with serialized clean builds.
+- Waveform parity computation is now centralized in `apps/web/src/lib/waveform-parity.ts` and covered by tests.
+- Edit/version parity contracts are now centralized in `apps/web/src/lib/edit-version-parity.ts` and surfaced in recording detail diagnostics.
+- Bulk operations schema contract is versioned in `apps/web/src/lib/bulk-ops.ts` (`schemaVersion: 1`) with explicit merge mode `side_by_side`.
+- Bulk merge/delete audit entries are persisted in `recording_bulk_ops` with actor, scope, and preserve strategy metadata.
+- Recording detail supports side-by-side artifact comparison for merge preparation via `?mergeWith=<recordingId>`.
+- Lifecycle/artifact mutation APIs now expose mapped notification event contracts (`recording.lifecycle.*`, `recording.artifact.*`, `recording.pipeline.updated`).
+- EAS preview rerun `24777625944` completed successfully, closing the mobile preview release gate.
+- Audio editing v1 now has initial server contracts under `/api/recordings/[id]/audio-editing` for queue/list/rollback flows (flag-gated).
+- Recording detail lifecycle panel now surfaces audio version history, active version marker, edit queue action, and rollback action when audio editing flag is enabled.
+- Audio version writes enforce retention defaults (`keepOriginal`, `keepEditedVersions`, `manualDeleteOnly`) to preserve original + edited media until explicit deletion.
+- Audio editing queue now executes real server-side FFmpeg processing in `/api/recordings/[id]/audio-editing`, publishing versioned media paths and transitioning versions to `ready`/`failed`.
+- Successful audio processing now promotes the processed version to `lifecycle.activeAudioVersionId`; failures are persisted in version metadata for UI visibility.
 
 ## Current package objective
 
-- Keep repo/docs/state synchronized while closing Phase 2 tests/merge UX and preparing Phase 3 editing contracts.
+- Move from Phase 3 delivery to hardening (background execution model, retries, and notifications for audio edit state transitions).
 
 ## Immediate next contracts to lock
 
-- Timeline and waveform parity contracts for edit/version operations.
-- Bulk delete/merge request payload schema and audit strategy.
-- Notification event contracts linked to lifecycle transitions.
+- Dedicated background execution contract (decoupled from request lifecycle) for long audio edits and retries.
+- Notification contract for audio edit pipeline state transitions.
+- Operational observability contract (processing latency/error telemetry for FFmpeg runs).

@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1 contracts + ownership hardening delivered; Phase 2 lifecycle UX + parity diagnostics delivered with initial automated tests, merge UX still in progress
-- Focus: close remaining Phase 2 merge UX and parity test expansion (waveform/edit paths), then start Phase 3 editing pipeline
+- Stage: Phase 1/2/3 delivered (Phase 3 with FFmpeg execution + versioned publish + rollback UX behind flag)
+- Focus: hardening and operationalization (background execution model, retries, notifications)
 
 ## Files
 
