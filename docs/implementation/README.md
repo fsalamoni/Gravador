@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1 and Phase 2 delivered (lifecycle UX, parity diagnostics/tests, merge side-by-side artifact comparison)
-- Focus: start Phase 3 editing pipeline contracts and server-side FFmpeg versioning package behind feature flags
+- Stage: Phase 1 and Phase 2 delivered; Phase 3 started with audio edit/version contracts and rollback UX scaffold behind flag
+- Focus: wire actual FFmpeg execution pipeline to move queued versions into ready/failed and publish edited media paths
 
 ## Files
 

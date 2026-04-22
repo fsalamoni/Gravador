@@ -33,4 +33,5 @@
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
 - Bulk merge endpoint currently prepares side-by-side comparison/audit only (no final artifact reconciliation execution yet).
-- Phase 3 FFmpeg editing/version rollback flow is still pending implementation behind `NEXT_PUBLIC_FF_AUDIO_EDITING_V1`.
+- Audio editing API currently scaffolds queue/list/rollback contracts; FFmpeg processing execution and publish path are not wired yet.
+- Audio version lifecycle still depends on manual/next-package processing to transition queued edits into ready/failed states.

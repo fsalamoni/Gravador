@@ -19,3 +19,4 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 3. Couple flag activation to explicit verification notes in `phase-tracker.md`.
 4. Keep fallback behavior deterministic when a flag is disabled.
 5. Bulk merge must preserve artifact payloads side-by-side by contract while the flag is active.
+6. Audio editing flows (`/api/recordings/[id]/audio-editing` + lifecycle panel controls) must stay hidden/inert when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.

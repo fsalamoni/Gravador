@@ -1,4 +1,6 @@
+import type { AudioVersionRecord } from '@/lib/audio-editing';
 import { getEditVersionParityReport } from '@/lib/edit-version-parity';
+import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
@@ -52,6 +54,14 @@ export default async function RecordingPage({
     db.collection('recordings').doc(id).collection('ai_outputs').get(),
     db.collection('recordings').doc(id).collection('action_items').orderBy('createdAt').get(),
   ]);
+  const audioVersionsSnap = featureFlags.audioEditingV1
+    ? await db
+        .collection('recordings')
+        .doc(id)
+        .collection('audio_versions')
+        .orderBy('versionNumber', 'desc')
+        .get()
+    : null;
 
   const transcript = transcriptSnap.docs[0]
     ? (() => {
@@ -103,13 +113,53 @@ export default async function RecordingPage({
       done: (data.done as boolean) ?? false,
     };
   });
+  const audioVersions: AudioVersionRecord[] =
+    audioVersionsSnap?.docs.map((doc) => {
+      const data = doc.data() as {
+        versionNumber?: number;
+        status?: 'ready' | 'queued' | 'failed';
+        storagePath?: string | null;
+        storageBucket?: string | null;
+        isOriginal?: boolean;
+        sourceVersionId?: string | null;
+        editPreset?: 'normalize_loudness' | 'trim_silence' | 'denoise' | null;
+        createdAt?: { toDate?: () => Date } | Date | string | null;
+        updatedAt?: { toDate?: () => Date } | Date | string | null;
+      };
+      return {
+        id: doc.id,
+        versionNumber: typeof data.versionNumber === 'number' ? data.versionNumber : 1,
+        status:
+          data.status === 'queued' || data.status === 'failed' || data.status === 'ready'
+            ? data.status
+            : 'ready',
+        storagePath: typeof data.storagePath === 'string' ? data.storagePath : null,
+        storageBucket: typeof data.storageBucket === 'string' ? data.storageBucket : null,
+        isOriginal: data.isOriginal === true,
+        sourceVersionId: typeof data.sourceVersionId === 'string' ? data.sourceVersionId : null,
+        editPreset:
+          data.editPreset === 'normalize_loudness' ||
+          data.editPreset === 'trim_silence' ||
+          data.editPreset === 'denoise'
+            ? data.editPreset
+            : null,
+        createdAt: toIsoTimestamp(data.createdAt),
+        updatedAt: toIsoTimestamp(data.updatedAt),
+      };
+    }) ?? [];
 
   // Get a signed URL for the audio file
+  const activeAudioVersion =
+    audioVersions.find((version) => version.id === lifecycle.activeAudioVersionId) ?? null;
+  const playbackStoragePath =
+    activeAudioVersion?.status === 'ready' && activeAudioVersion.storagePath
+      ? activeAudioVersion.storagePath
+      : recording.storagePath;
   let audioUrl = '';
   try {
     const storage = getServerStorage();
     const bucket = storage.bucket();
-    const [url] = await bucket.file(recording.storagePath).getSignedUrl({
+    const [url] = await bucket.file(playbackStoragePath).getSignedUrl({
       action: 'read',
       expires: Date.now() + 3600 * 1000,
     });
@@ -349,6 +399,8 @@ export default async function RecordingPage({
         recordingId={id}
         deletedAt={toIsoTimestamp(recording.deletedAt)}
         initialLifecycle={lifecycle}
+        audioEditingEnabled={featureFlags.audioEditingV1}
+        initialAudioVersions={audioVersions}
         initialArtifacts={artifactRows.map((artifact) => ({
           kind: artifact.kind,
           artifactStatus: artifact.artifactStatus,

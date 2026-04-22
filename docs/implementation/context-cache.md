@@ -35,13 +35,16 @@ This file captures decisions and assumptions that must survive long implementati
 - Recording detail supports side-by-side artifact comparison for merge preparation via `?mergeWith=<recordingId>`.
 - Lifecycle/artifact mutation APIs now expose mapped notification event contracts (`recording.lifecycle.*`, `recording.artifact.*`, `recording.pipeline.updated`).
 - EAS preview rerun `24777625944` completed successfully, closing the mobile preview release gate.
+- Audio editing v1 now has initial server contracts under `/api/recordings/[id]/audio-editing` for queue/list/rollback flows (flag-gated).
+- Recording detail lifecycle panel now surfaces audio version history, active version marker, edit queue action, and rollback action when audio editing flag is enabled.
+- Audio version writes enforce retention defaults (`keepOriginal`, `keepEditedVersions`, `manualDeleteOnly`) to preserve original + edited media until explicit deletion.
 
 ## Current package objective
 
-- Start Phase 3 package definition (FFmpeg editing pipeline + media versioning + rollback visibility) with Phase 2 closed.
+- Evolve Phase 3 from initial contract scaffold to actual FFmpeg processing execution path and edited media publication.
 
 ## Immediate next contracts to lock
 
-- FFmpeg edit request/response contract and version lineage metadata.
-- Storage path/version retention contract for original + edited media.
-- Rollback action contract for selecting/restoring previous audio versions.
+- Worker/queue execution contract that transitions audio edit versions from `queued` to `ready/failed`.
+- Published edited media path contract and signed playback source switching guarantees.
+- Notification contract for audio edit pipeline state transitions.

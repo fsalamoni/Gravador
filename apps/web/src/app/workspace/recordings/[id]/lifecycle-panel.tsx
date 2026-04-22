@@ -1,5 +1,6 @@
 'use client';
 
+import type { AudioEditPreset, AudioVersionRecord } from '@/lib/audio-editing';
 import type {
   ArtifactLifecycleStatus,
   RecordingLifecycleState,
@@ -19,6 +20,8 @@ type LifecyclePanelProps = {
   recordingId: string;
   deletedAt: string | null;
   initialLifecycle: RecordingLifecycleState;
+  audioEditingEnabled: boolean;
+  initialAudioVersions: AudioVersionRecord[];
   initialArtifacts: ArtifactItem[];
 };
 
@@ -38,11 +41,15 @@ export function LifecyclePanel({
   recordingId,
   deletedAt,
   initialLifecycle,
+  audioEditingEnabled,
+  initialAudioVersions,
   initialArtifacts,
 }: LifecyclePanelProps) {
   const [lifecycle, setLifecycle] = useState(initialLifecycle);
   const [trashedAt, setTrashedAt] = useState<string | null>(deletedAt);
   const [artifacts, setArtifacts] = useState(initialArtifacts);
+  const [audioVersions, setAudioVersions] = useState(initialAudioVersions);
+  const [editPreset, setEditPreset] = useState<AudioEditPreset>('normalize_loudness');
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   const refreshArtifacts = async () => {
@@ -104,6 +111,27 @@ export function LifecyclePanel({
     }
   };
 
+  const refreshAudioVersions = async () => {
+    if (!audioEditingEnabled) return;
+    const response = await fetch(`/api/recordings/${recordingId}/audio-editing`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) return;
+
+    const data = (await response.json()) as {
+      activeAudioVersionId?: string | null;
+      items?: AudioVersionRecord[];
+    };
+
+    setAudioVersions(data.items ?? []);
+    if (data.activeAudioVersionId) {
+      setLifecycle((prev) => ({
+        ...prev,
+        activeAudioVersionId: data.activeAudioVersionId ?? null,
+      }));
+    }
+  };
+
   const updateArtifactStatus = async (kind: string, action: 'delete' | 'restore') => {
     setBusyAction(`${action}:${kind}`);
     try {
@@ -131,6 +159,64 @@ export function LifecyclePanel({
         if (Object.prototype.hasOwnProperty.call(lifecycleData, 'deletedAt')) {
           setTrashedAt(lifecycleData.deletedAt ?? null);
         }
+      }
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const queueAudioEdit = async () => {
+    setBusyAction('audio:queue');
+    try {
+      const response = await fetch(`/api/recordings/${recordingId}/audio-editing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'queue_edit', preset: editPreset }),
+      });
+
+      if (!response.ok) {
+        alert('Não foi possível enfileirar a edição de áudio.');
+        return;
+      }
+
+      await refreshAudioVersions();
+      const lifecycleRes = await fetch(`/api/recordings/${recordingId}/lifecycle`, {
+        cache: 'no-store',
+      });
+      if (lifecycleRes.ok) {
+        const lifecycleData = (await lifecycleRes.json()) as {
+          lifecycle?: RecordingLifecycleState;
+          deletedAt?: string | null;
+        };
+        if (lifecycleData.lifecycle) setLifecycle(lifecycleData.lifecycle);
+      }
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const rollbackAudioVersion = async (targetVersionId: string) => {
+    setBusyAction(`audio:rollback:${targetVersionId}`);
+    try {
+      const response = await fetch(`/api/recordings/${recordingId}/audio-editing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rollback', targetVersionId }),
+      });
+      if (!response.ok) {
+        alert('Não foi possível executar rollback de áudio.');
+        return;
+      }
+
+      await refreshAudioVersions();
+      const lifecycleRes = await fetch(`/api/recordings/${recordingId}/lifecycle`, {
+        cache: 'no-store',
+      });
+      if (lifecycleRes.ok) {
+        const lifecycleData = (await lifecycleRes.json()) as {
+          lifecycle?: RecordingLifecycleState;
+        };
+        if (lifecycleData.lifecycle) setLifecycle(lifecycleData.lifecycle);
       }
     } finally {
       setBusyAction(null);
@@ -299,6 +385,83 @@ export function LifecyclePanel({
           </div>
         )}
       </div>
+
+      {audioEditingEnabled ? (
+        <div className="mt-6 rounded-[18px] border border-border bg-bg/55 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-text">Audio editing (FFmpeg)</p>
+              <p className="text-xs text-mute">Versionamento + rollback sob feature flag.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-xs text-text"
+                value={editPreset}
+                onChange={(event) => setEditPreset(event.target.value as AudioEditPreset)}
+              >
+                <option value="normalize_loudness">Normalizar loudness</option>
+                <option value="trim_silence">Remover silêncios</option>
+                <option value="denoise">Reduzir ruído</option>
+              </select>
+              <button
+                type="button"
+                onClick={queueAudioEdit}
+                className="rounded-full border border-border bg-surfaceAlt/70 px-3 py-1.5 text-xs font-medium text-text transition hover:border-accent/40"
+                disabled={busyAction !== null}
+              >
+                {busyAction === 'audio:queue' ? 'Enfileirando…' : 'Enfileirar edição'}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {audioVersions.length === 0 ? (
+              <p className="text-sm text-mute">Nenhuma versão de áudio registrada.</p>
+            ) : (
+              audioVersions.map((version) => {
+                const isActive = lifecycle.activeAudioVersionId === version.id;
+                const canRollback = !isActive && version.status === 'ready';
+                return (
+                  <div
+                    key={version.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] border border-border bg-bg/70 px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-text">
+                        v{version.versionNumber}
+                        {version.isOriginal ? ' • original' : ''}
+                      </p>
+                      <p className="text-xs text-mute">
+                        {version.status}
+                        {version.editPreset ? ` • ${version.editPreset}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isActive ? (
+                        <span className="rounded-full bg-ok/15 px-2.5 py-1 text-[11px] font-semibold text-ok">
+                          ativa
+                        </span>
+                      ) : null}
+                      {canRollback ? (
+                        <button
+                          type="button"
+                          onClick={() => rollbackAudioVersion(version.id)}
+                          className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-text transition hover:border-accent/40"
+                          disabled={busyAction === `audio:rollback:${version.id}`}
+                        >
+                          {busyAction === `audio:rollback:${version.id}`
+                            ? 'Aplicando…'
+                            : 'Rollback'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

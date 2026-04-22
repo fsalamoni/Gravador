@@ -153,7 +153,7 @@ export function RecordingsGrid({
 
   const bulkTrash = useCallback(async () => {
     if (!bulkOpsEnabled || selectedIds.size === 0) return;
-    if (!confirm(`Mover ${selectedIds.size} gravação(ões) para a lixeira?`)) return;
+    if (!confirm(`Mover ${selectedIds.size} gravações para a lixeira?`)) return;
 
     setBulkDeleting(true);
     try {
