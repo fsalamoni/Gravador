@@ -10,6 +10,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Notifications scope: included in first functional wave.
 - Bulk merge behavior: preserve artifacts side-by-side (no forced merge).
 - Bulk merge execute transaction semantics must be protected by route-level regression coverage (copy-on-missing + no-overwrite invariants).
+- Recording lifecycle/artifact transition semantics must be protected by route-level regression coverage (state transitions + metadata/version invariants).
 
 ## Already resolved foundation
 
@@ -39,6 +40,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Recording detail merge comparison now exposes an inline execute action (`MergeExecutionControls`) and a post-merge success banner (`?mergedFrom=<id>&mergeOperationId=<opId>`).
 - Route-level integration coverage now exists for merge execute transaction semantics in `apps/web/src/app/api/recordings/bulk/route.test.ts` using an in-memory Firestore transaction harness.
 - Web Vitest alias resolution is now explicit in `apps/web/vitest.config.ts` (`@` -> `./src`) for route-level tests importing app-layer modules.
+- Reusable fake Firestore test harness now exists at `apps/web/src/test-utils/fake-firestore.ts` with support for transaction flow, dot-path updates, `FieldValue.increment`, and `FieldValue.serverTimestamp` semantics.
+- Route-level integration coverage now exists for lifecycle transitions in `apps/web/src/app/api/recordings/[id]/lifecycle/route.test.ts` (archive/trash/restore/version bump, plus auth/validation/not-found guards).
+- Route-level integration coverage now exists for artifact-kind transitions in `apps/web/src/app/api/recordings/[id]/artifacts/[kind]/route.test.ts` (update/delete/restore transitions, artifact versioning, lifecycle last-event metadata).
 - Commit `a685f43` release verification: `CI` run `24806002660` success, `firebase-hosting` run `24806002669` success, `EAS preview` run `24806015351` success (`quota_blocked` degraded output contract).
 - Scheduled `audio-edit-runner` remains gated while activation vars are absent (`24806076695` skipped).
 - Repository currently has no `INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `EMAIL_NOTIFICATIONS_WEBHOOK_URL`, `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` secrets and no `ENABLE_AUDIO_EDIT_RUNNER` / `ENABLE_NOTIFICATIONS_SMOKE` variables, so strict operational activation is still blocked.
@@ -80,4 +84,4 @@ This file captures decisions and assumptions that must survive long implementati
 
 - Activation contract for `ENABLE_AUDIO_EDIT_RUNNER=true` with first successful scheduled batches recorded in workflow summaries.
 - End-to-end strict smoke evidence for notifications (`ENABLE_NOTIFICATIONS_SMOKE=true`, providers configured) with no failed checks.
-- Expand beyond in-memory route harness into emulator-backed or staged e2e coverage for lifecycle transition matrices.
+- Expand beyond in-memory route harness into Firestore emulator-backed or staged e2e coverage for lifecycle + artifact transition matrices.

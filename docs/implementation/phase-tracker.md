@@ -28,6 +28,7 @@
 - [x] Add timeline/waveform parity diagnostics in recording detail page.
 - [x] Add timeline/progress/waveform parity checks and behavior tests (timeline + waveform + edit/version coverage delivered).
 - [x] Implement side-by-side artifact handling for merge operations.
+- [x] Add integration-level lifecycle/artifact route transition coverage (archive/trash/restore/version-bump + artifact update/delete/restore invariants).
 
 ## Phase 3 - audio editing and enhancement
 
@@ -63,4 +64,4 @@
 - [x] CI workflow healthy (run 24806002660 for commit `a685f43` completed with success).
 - [x] New operational workflows validated syntactically (`audio-edit-runner` run 24805361685 and `notifications-smoke` run 24805363134 dispatched and skipped by activation flags as expected).
 - [x] Scheduled runner behavior remains deterministic while activation toggles are absent (`audio-edit-runner` run 24806076695 skipped).
-- [x] Local package verification green after merge execute integration-coverage package (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local package verification green after lifecycle/artifact route integration-coverage expansion (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
