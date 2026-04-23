@@ -26,7 +26,14 @@ interface ActionItem {
 
 interface Props {
   recordingId: string;
-  transcript: { full_text: string; detected_locale: string | null } | null;
+  transcript: {
+    id: string;
+    full_text: string;
+    detected_locale: string | null;
+    transcript_version: number;
+    updated_at: string | null;
+    updated_by: string | null;
+  } | null;
   segments: Array<{
     id: string;
     start_ms: number;
@@ -34,11 +41,28 @@ interface Props {
     text: string;
     speaker_id: string | null;
   }>;
+  transcriptRevisions: Array<{
+    id: string;
+    from_version: number;
+    to_version: number;
+    previous_text: string;
+    next_text: string;
+    edited_by: string | null;
+    created_at: string | null;
+    source: 'manual_edit' | 'retranscribe';
+  }>;
   outputs: Output[];
   actionItems: ActionItem[];
 }
 
-export function RecordingTabs({ recordingId, transcript, segments, outputs, actionItems }: Props) {
+export function RecordingTabs({
+  recordingId,
+  transcript,
+  segments,
+  transcriptRevisions,
+  outputs,
+  actionItems,
+}: Props) {
   const t = useTranslations('recording.tabs');
   const [tab, setTab] = useState('transcript');
 
@@ -75,7 +99,12 @@ export function RecordingTabs({ recordingId, transcript, segments, outputs, acti
       <div className="mt-6">
         <Tabs.Content value="transcript">
           <ErrorBoundary>
-            <TranscriptView segments={segments} />
+            <TranscriptView
+              recordingId={recordingId}
+              transcript={transcript}
+              segments={segments}
+              revisions={transcriptRevisions}
+            />
           </ErrorBoundary>
         </Tabs.Content>
         <Tabs.Content value="summary">

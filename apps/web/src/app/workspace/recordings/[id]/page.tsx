@@ -49,12 +49,25 @@ export default async function RecordingPage({
 
   const lifecycle = getRecordingLifecycleState(recording.lifecycle);
 
-  const [transcriptSnap, segmentsSnap, outputsSnap, actionItemsSnap] = await Promise.all([
-    db.collection('recordings').doc(id).collection('transcripts').limit(1).get(),
-    db.collection('recordings').doc(id).collection('transcript_segments').orderBy('startMs').get(),
-    db.collection('recordings').doc(id).collection('ai_outputs').get(),
-    db.collection('recordings').doc(id).collection('action_items').orderBy('createdAt').get(),
-  ]);
+  const [transcriptSnap, transcriptRevisionsSnap, segmentsSnap, outputsSnap, actionItemsSnap] =
+    await Promise.all([
+      db.collection('recordings').doc(id).collection('transcripts').limit(1).get(),
+      db
+        .collection('recordings')
+        .doc(id)
+        .collection('transcript_revisions')
+        .orderBy('toVersion', 'desc')
+        .limit(20)
+        .get(),
+      db
+        .collection('recordings')
+        .doc(id)
+        .collection('transcript_segments')
+        .orderBy('startMs')
+        .get(),
+      db.collection('recordings').doc(id).collection('ai_outputs').get(),
+      db.collection('recordings').doc(id).collection('action_items').orderBy('createdAt').get(),
+    ]);
   const audioVersionsSnap = featureFlags.audioEditingV1
     ? await db
         .collection('recordings')
@@ -68,11 +81,39 @@ export default async function RecordingPage({
     ? (() => {
         const d = transcriptSnap.docs[0].data();
         return {
+          id: transcriptSnap.docs[0]!.id,
           full_text: d.fullText as string,
           detected_locale: (d.detectedLocale as string) ?? null,
+          transcript_version: typeof d.transcriptVersion === 'number' ? d.transcriptVersion : 1,
+          updated_at: toIsoTimestamp(d.updatedAt),
+          updated_by: typeof d.updatedBy === 'string' ? d.updatedBy : null,
         };
       })()
     : null;
+  const transcriptRevisions: Array<{
+    id: string;
+    from_version: number;
+    to_version: number;
+    previous_text: string;
+    next_text: string;
+    edited_by: string | null;
+    created_at: string | null;
+    source: 'manual_edit' | 'retranscribe';
+  }> = transcriptRevisionsSnap.docs.map((d) => {
+    const data = d.data();
+    const source: 'manual_edit' | 'retranscribe' =
+      data.source === 'retranscribe' ? 'retranscribe' : 'manual_edit';
+    return {
+      id: d.id,
+      from_version: typeof data.fromVersion === 'number' ? data.fromVersion : 1,
+      to_version: typeof data.toVersion === 'number' ? data.toVersion : 1,
+      previous_text: typeof data.previousFullText === 'string' ? data.previousFullText : '',
+      next_text: typeof data.nextFullText === 'string' ? data.nextFullText : '',
+      edited_by: typeof data.editedBy === 'string' ? data.editedBy : null,
+      created_at: toIsoTimestamp(data.createdAt),
+      source,
+    };
+  });
   const segments = segmentsSnap.docs.map((d) => {
     const data = d.data();
     return {
@@ -451,6 +492,7 @@ export default async function RecordingPage({
           recordingId={id}
           transcript={transcript}
           segments={segments}
+          transcriptRevisions={transcriptRevisions}
           outputs={outputs}
           actionItems={actionItems}
         />

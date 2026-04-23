@@ -123,7 +123,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         },
       });
 
-      await persistTranscript(db, recordingId, tx);
+      await persistTranscript(db, recordingId, tx, user.uid);
 
       await db.collection('recordings').doc(recordingId).update({
         status: 'uploaded',
@@ -381,10 +381,37 @@ async function persistTranscript(
       confidence: number | null;
     }>;
   },
+  actorId: string,
 ) {
   const transcriptsRef = db.collection('recordings').doc(recordingId).collection('transcripts');
   const existing = await transcriptsRef.limit(1).get();
-  if (!existing.empty) await existing.docs[0]!.ref.delete();
+
+  let nextVersion = 1;
+  if (!existing.empty) {
+    const previous = existing.docs[0]!;
+    const previousData = previous.data();
+    const currentVersion =
+      typeof previousData.transcriptVersion === 'number' ? previousData.transcriptVersion : 1;
+    nextVersion = currentVersion + 1;
+
+    await db
+      .collection('recordings')
+      .doc(recordingId)
+      .collection('transcript_revisions')
+      .add({
+        recordingId,
+        transcriptId: previous.id,
+        fromVersion: currentVersion,
+        toVersion: nextVersion,
+        previousFullText: typeof previousData.fullText === 'string' ? previousData.fullText : '',
+        nextFullText: tx.fullText,
+        editedBy: actorId,
+        source: 'retranscribe',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+    await previous.ref.delete();
+  }
 
   const transcriptRef = await transcriptsRef.add({
     recordingId,
@@ -392,6 +419,9 @@ async function persistTranscript(
     model: tx.model,
     detectedLocale: tx.detectedLocale ?? null,
     fullText: tx.fullText,
+    transcriptVersion: nextVersion,
+    updatedBy: actorId,
+    updatedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp(),
   });
 

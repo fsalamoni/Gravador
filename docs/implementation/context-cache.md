@@ -10,6 +10,11 @@ This file captures decisions and assumptions that must survive long implementati
 - Embeddings resolution now honors per-agent overrides (`agentModels.embed`) and provider-aware fallback semantics; OpenAI embeddings automatically fall back to Ollama when `OPENAI_API_KEY` is absent, with clearer provider-specific error signaling.
 - Model registry ratings were recalibrated to comparative realistic heuristics (including stronger Qwen tiers) and UX now explicitly labels ratings as comparative benchmarks, not absolute guarantees.
 - Local verification for this package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
+- Recording detail UI now refreshes automatically after each task completion (`PipelinePanel` calls `router.refresh()` on success), removing manual page reload dependency for transcript/artifact visibility.
+- Transcript UX now supports full-text correction with explicit API contract `PATCH /api/recordings/[id]/transcript`; all manual edits create `transcript_revisions` entries and increment `transcriptVersion`.
+- Re-transcription now also appends to `transcript_revisions` with `source=retranscribe`, preserving a single audit trail for manual and automated transcript changes.
+- Pipeline task execution is now independent at UI trigger level: starting one running task no longer blocks starting/re-running other tasks; task cards are individually rerunnable.
+- Local verification for reactive display + transcript editing/history package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.

@@ -92,7 +92,7 @@ export async function processRecording(payload: { recordingId: string; locale?: 
         },
       }),
     );
-    const segments = await persistTranscript(db, recordingId, tx);
+    const segments = await persistTranscript(db, recordingId, tx, 'system');
     console.log('[pipeline] transcribed', { segments: segments.length });
 
     const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
@@ -299,13 +299,36 @@ async function persistTranscript(
   db: Firestore,
   recordingId: string,
   tx: TranscribeResult,
+  actorId: string,
 ): Promise<TranscriptSegment[]> {
   const transcriptsRef = db.collection('recordings').doc(recordingId).collection('transcripts');
 
-  // Upsert: delete existing then create
+  let nextVersion = 1;
   const existing = await transcriptsRef.limit(1).get();
   if (!existing.empty) {
-    await existing.docs[0]!.ref.delete();
+    const previous = existing.docs[0]!;
+    const previousData = previous.data();
+    const currentVersion =
+      typeof previousData.transcriptVersion === 'number' ? previousData.transcriptVersion : 1;
+    nextVersion = currentVersion + 1;
+
+    await db
+      .collection('recordings')
+      .doc(recordingId)
+      .collection('transcript_revisions')
+      .add({
+        recordingId,
+        transcriptId: previous.id,
+        fromVersion: currentVersion,
+        toVersion: nextVersion,
+        previousFullText: typeof previousData.fullText === 'string' ? previousData.fullText : '',
+        nextFullText: tx.fullText,
+        editedBy: actorId,
+        source: 'retranscribe',
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+    await previous.ref.delete();
   }
 
   const transcriptRef = await transcriptsRef.add({
@@ -314,6 +337,9 @@ async function persistTranscript(
     model: tx.model,
     detectedLocale: tx.detectedLocale ?? null,
     fullText: tx.fullText,
+    transcriptVersion: nextVersion,
+    updatedBy: actorId,
+    updatedAt: FieldValue.serverTimestamp(),
     createdAt: FieldValue.serverTimestamp(),
   });
 

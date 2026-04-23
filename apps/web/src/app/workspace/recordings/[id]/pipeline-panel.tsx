@@ -4,7 +4,6 @@ import {
   AlertCircle,
   BookMarked,
   BookOpen,
-  Check,
   CheckSquare,
   CreditCard,
   FileText,
@@ -17,8 +16,9 @@ import {
   RefreshCw,
   TrendingUp,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import type { ComponentType } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type TaskKind =
   | 'transcribe'
@@ -125,21 +125,47 @@ interface Props {
 
 type ApiResponse = { ok?: boolean; message?: string; error?: string };
 
+function resolveServerTaskStatus(
+  task: TaskDef,
+  hasTranscript: boolean,
+  pipelineResults: Record<string, 'ok' | 'failed'>,
+): TaskStatus {
+  const existing = pipelineResults[task.pipelineKey];
+  if (task.id === 'transcribe') {
+    return hasTranscript || existing === 'ok' ? 'done' : existing === 'failed' ? 'failed' : 'idle';
+  }
+  return existing === 'ok' ? 'done' : existing === 'failed' ? 'failed' : 'idle';
+}
+
 export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResults = {} }: Props) {
+  const router = useRouter();
+
   const [taskStatus, setTaskStatus] = useState<Record<TaskKind, TaskStatus>>(() => {
     const init = {} as Record<TaskKind, TaskStatus>;
     for (const t of TASKS) {
-      const existing = initialPipelineResults[t.pipelineKey];
-      if (t.id === 'transcribe') {
-        init[t.id] = hasTranscript ? 'done' : existing === 'ok' ? 'done' : 'idle';
-      } else {
-        init[t.id] = existing === 'ok' ? 'done' : existing === 'failed' ? 'failed' : 'idle';
-      }
+      init[t.id] = resolveServerTaskStatus(t, hasTranscript, initialPipelineResults);
     }
     return init;
   });
 
   const [taskErrors, setTaskErrors] = useState<Partial<Record<TaskKind, string>>>({});
+  const [runAllRunning, setRunAllRunning] = useState(false);
+
+  useEffect(() => {
+    setTaskStatus((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const task of TASKS) {
+        if (prev[task.id] === 'running') continue;
+        const serverStatus = resolveServerTaskStatus(task, hasTranscript, initialPipelineResults);
+        if (next[task.id] !== serverStatus) {
+          next[task.id] = serverStatus;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [hasTranscript, initialPipelineResults]);
 
   // Returns true on success, false on failure
   const callTask = useCallback(
@@ -159,6 +185,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
         const data = (await res.json()) as ApiResponse;
         if (!res.ok) throw new Error(data.message ?? data.error ?? 'Falha na tarefa');
         setTaskStatus((prev) => ({ ...prev, [taskId]: 'done' }));
+        router.refresh();
         return true;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erro inesperado';
@@ -167,49 +194,35 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
         return false;
       }
     },
-    [recordingId],
+    [recordingId, router],
   );
 
   const runAll = useCallback(async () => {
-    // Check if transcript is available (read from current closed-over state or hasTranscript prop)
-    const transcriptReady = hasTranscript || taskStatus.transcribe === 'done';
+    setRunAllRunning(true);
+    const transcriptReady =
+      hasTranscript || taskStatus.transcribe === 'done' || taskStatus.transcribe === 'running';
 
     if (!transcriptReady) {
       const ok = await callTask('transcribe');
-      if (!ok) return; // Can't run AI tasks without transcript
+      if (!ok) {
+        setRunAllRunning(false);
+        return;
+      }
     }
 
-    // Queue all AI tasks visually then fire them in parallel
-    const aiTasks = TASKS.filter((t) => t.requiresTranscript);
-    setTaskStatus((prev) => {
-      const next = { ...prev };
-      for (const t of aiTasks) next[t.id] = 'running';
-      return next;
-    });
-    setTaskErrors({});
-
-    await Promise.allSettled(
-      aiTasks.map(async (t) => {
-        try {
-          const res = await fetch(`/api/recordings/${recordingId}/run-task`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ task: t.id }),
-          });
-          const data = (await res.json()) as ApiResponse;
-          if (!res.ok) throw new Error(data.message ?? data.error ?? 'Falha');
-          setTaskStatus((prev) => ({ ...prev, [t.id]: 'done' }));
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Erro inesperado';
-          setTaskStatus((prev) => ({ ...prev, [t.id]: 'failed' }));
-          setTaskErrors((prev) => ({ ...prev, [t.id]: msg }));
-        }
-      }),
+    const aiTasks = TASKS.filter(
+      (task) => task.requiresTranscript && taskStatus[task.id] !== 'running',
     );
-  }, [recordingId, hasTranscript, taskStatus.transcribe, callTask]);
+    await Promise.allSettled(aiTasks.map((task) => callTask(task.id)));
+    setRunAllRunning(false);
+  }, [hasTranscript, taskStatus, callTask]);
 
   const anyRunning = Object.values(taskStatus).some((s) => s === 'running');
   const transcriptAvailable = hasTranscript || taskStatus.transcribe === 'done';
+  const runnableAiTasks = TASKS.filter(
+    (task) => task.requiresTranscript && taskStatus[task.id] !== 'running',
+  ).length;
+  const canRunAll = transcriptAvailable ? runnableAiTasks > 0 : taskStatus.transcribe !== 'running';
   const doneCount = Object.values(taskStatus).filter((s) => s === 'done').length;
 
   return (
@@ -230,15 +243,15 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
           <button
             type="button"
             onClick={runAll}
-            disabled={anyRunning}
+            disabled={!canRunAll || runAllRunning}
             className="inline-flex items-center gap-2 rounded-[18px] bg-accent px-5 py-2.5 text-sm font-semibold text-onAccent transition hover:bg-accentSoft disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {anyRunning ? (
+            {runAllRunning ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <PlayCircle className="h-4 w-4" />
             )}
-            Iniciar Tudo
+            {runAllRunning ? 'Rodando...' : 'Iniciar Tudo'}
           </button>
         </div>
       </div>
@@ -258,7 +271,7 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
         {TASKS.map((task) => {
           const status = taskStatus[task.id];
           const Icon = task.icon;
-          const canRun = !anyRunning && !(task.requiresTranscript && !transcriptAvailable);
+          const canRun = status !== 'running' && !(task.requiresTranscript && !transcriptAvailable);
           const errorMsg = taskErrors[task.id];
 
           return (
@@ -305,9 +318,15 @@ export function PipelinePanel({ recordingId, hasTranscript, initialPipelineResul
                       <Loader2 className="h-4 w-4 animate-spin text-accent" />
                     </div>
                   ) : status === 'done' ? (
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ok/15">
-                      <Check className="h-3.5 w-3.5 text-ok" />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => canRun && void callTask(task.id)}
+                      disabled={!canRun}
+                      title="Refazer"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-ok/15 transition hover:bg-ok/25 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-ok" />
+                    </button>
                   ) : status === 'failed' ? (
                     <button
                       type="button"

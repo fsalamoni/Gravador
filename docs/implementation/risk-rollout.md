@@ -72,8 +72,13 @@
 - Added structured-output compatibility fallback (`generateObject` -> `generateText` + strict JSON parse/validation) for models/providers without tool-use/json-schema support.
 - Added embeddings robustness: per-agent embed override parity, OpenAI-key-aware fallback to local Ollama embeddings, and clearer UI hints for embedding provider requirements.
 - Recalibrated model catalog comparative ratings (including stronger Qwen tiers) and added explicit UX legend clarifying scores are benchmark-based heuristics, not absolute guarantees.
+- Added reactive task-completion refresh in recording detail (`router.refresh()` in pipeline task success path), mitigating stale transcript/artifact rendering without manual page reload.
+- Added transcript correction API (`PATCH /api/recordings/[id]/transcript`) with version increments and `transcript_revisions` audit records, mitigating inability to correct transcripts and lack of edit traceability.
+- Added re-transcription revision logging (`source=retranscribe`) in both web run-task route and worker pipeline, preserving historical diff trail across automated and manual transcript updates.
+- Removed global pipeline trigger lock in UI task cards, mitigating user blocking when one generation is in progress and enabling independent parallel retries/re-runs.
 - Local validation after transcription UX package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Local validation after AI agent reliability package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- Local validation after reactive display + transcript edit/history package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 - Expanded managed-Firestore staged tests to include auth/session/access/error contracts (`401`, `403`, `400`, `404`) for lifecycle and artifact routes, reducing risk that managed runtime diverges from local/emulator authorization behavior.
 - Local validation after managed-suite expansion remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

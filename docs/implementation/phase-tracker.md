@@ -65,6 +65,10 @@
 - [x] Add structured-output fallback path (`generateObject` -> `generateText` + strict JSON schema parse) to handle providers/models without tool-use/json-schema support.
 - [x] Fix embeddings resilience and discoverability: honor per-agent embed provider/model overrides, auto-fallback away from OpenAI when key is missing, and clarify embedding provider behavior in UI copy.
 - [x] Recalibrate model catalog ratings with realistic comparative heuristics (including stronger Qwen positioning) and explicit transparency note in selection/catalog modals.
+- [x] Make recording detail reactive after task completion without manual reload (`router.refresh()` on task completion + server-state sync for task cards), so transcript/artifacts appear automatically.
+- [x] Add transcript full-text editing workflow with save endpoint (`PATCH /api/recordings/[id]/transcript`) and visible revision history (`transcript_revisions`).
+- [x] Keep transcript change audit trail for both manual edits (`source=manual_edit`) and re-transcriptions (`source=retranscribe`) with version increments.
+- [x] Remove global task-start lock in pipeline panel so generation tasks are independent/parallel and each task can be re-run individually after completion.
 
 ## Release gating before each phase transition
 
@@ -96,3 +100,4 @@
 - [x] Local validation for managed-Firestore auth/runtime expansion package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Managed auth/runtime expansion package commit `ecf7f8b` verified end-to-end (`CI` run `24854596037` success, `Pages` run `24854596023` success, `Firebase Hosting` run `24854596062` success, `Firestore Managed E2E` run `24854615993` success on `database_id=anotes`).
 - [x] Local validation for AI agent reliability + embeddings/rating realism package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local validation for reactive artifact display + transcript editing/history + independent parallel task execution package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
