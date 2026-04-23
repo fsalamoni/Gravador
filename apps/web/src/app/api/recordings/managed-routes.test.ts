@@ -16,7 +16,7 @@ vi.mock('@/lib/firebase-server', () => ({
 }));
 
 import { DELETE } from './[id]/artifacts/[kind]/route';
-import { PATCH as patchLifecycle } from './[id]/lifecycle/route';
+import { GET as getLifecycle, PATCH as patchLifecycle } from './[id]/lifecycle/route';
 
 const RUN_MANAGED_FIRESTORE_E2E = process.env.RUN_MANAGED_FIRESTORE_E2E === 'true';
 const describeIfManaged = RUN_MANAGED_FIRESTORE_E2E ? describe : describe.skip;
@@ -189,6 +189,141 @@ describeIfManaged('recording routes against managed Firestore', () => {
       expect(recordingData.lifecycle?.status).toBe('archived');
       expect(recordingData.lifecycle?.lastEvent).toBe('artifact_deleted');
       expect(recordingData.lifecycle?.recordingVersion).toBe(2);
+    } finally {
+      await cleanupManagedRecording({ recordingId, workspaceId });
+    }
+  }, 60_000);
+
+  it('returns 401 when there is no authenticated session user', async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const recordingId = `managed-e2e-unauth-rec-${suffix}`;
+    const workspaceId = `managed-e2e-unauth-ws-${suffix}`;
+
+    await seedManagedRecording({
+      recordingId,
+      workspaceId,
+      ownerId: 'owner-managed-e2e',
+    });
+
+    try {
+      mockGetApiSessionUser.mockResolvedValue(null);
+
+      const lifecycleGetResponse = await getLifecycle(lifecycleRequest('archive', recordingId), {
+        params: Promise.resolve({ id: recordingId }),
+      });
+
+      expect(lifecycleGetResponse.status).toBe(401);
+      expect(await lifecycleGetResponse.json()).toMatchObject({ error: 'unauthorized' });
+
+      const lifecyclePatchResponse = await patchLifecycle(
+        lifecycleRequest('archive', recordingId),
+        {
+          params: Promise.resolve({ id: recordingId }),
+        },
+      );
+
+      expect(lifecyclePatchResponse.status).toBe(401);
+      expect(await lifecyclePatchResponse.json()).toMatchObject({ error: 'unauthorized' });
+
+      const artifactDeleteResponse = (await DELETE(artifactRequest('DELETE', recordingId), {
+        params: Promise.resolve({ id: recordingId, kind: 'mindmap' }),
+      })) as Response;
+
+      expect(artifactDeleteResponse.status).toBe(401);
+      expect(await artifactDeleteResponse.json()).toMatchObject({ error: 'unauthorized' });
+    } finally {
+      await cleanupManagedRecording({ recordingId, workspaceId });
+    }
+  }, 60_000);
+
+  it('enforces forbidden access and allows workspace members in managed Firestore', async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const recordingId = `managed-e2e-access-rec-${suffix}`;
+    const workspaceId = `managed-e2e-access-ws-${suffix}`;
+
+    await seedManagedRecording({
+      recordingId,
+      workspaceId,
+      ownerId: 'owner-managed-e2e',
+    });
+
+    try {
+      mockGetApiSessionUser.mockResolvedValue({ uid: 'intruder-managed-e2e' });
+
+      const forbiddenResponse = await patchLifecycle(lifecycleRequest('archive', recordingId), {
+        params: Promise.resolve({ id: recordingId }),
+      });
+
+      expect(forbiddenResponse.status).toBe(403);
+      expect(await forbiddenResponse.json()).toMatchObject({ error: 'forbidden' });
+
+      await db
+        .collection('workspaces')
+        .doc(workspaceId)
+        .collection('members')
+        .doc('intruder-managed-e2e')
+        .set({ role: 'member', createdAt: Timestamp.now() });
+
+      const allowedResponse = await patchLifecycle(lifecycleRequest('archive', recordingId), {
+        params: Promise.resolve({ id: recordingId }),
+      });
+
+      expect(allowedResponse.status).toBe(200);
+
+      const allowedBody = (await allowedResponse.json()) as {
+        lifecycle: { status: string };
+        notificationEvent: string | null;
+      };
+
+      expect(allowedBody.notificationEvent).toBe('recording.lifecycle.archived');
+      expect(allowedBody.lifecycle.status).toBe('archived');
+    } finally {
+      await cleanupManagedRecording({ recordingId, workspaceId });
+    }
+  }, 60_000);
+
+  it('returns validation and not-found contracts in managed Firestore mode', async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const recordingId = `managed-e2e-errors-rec-${suffix}`;
+    const workspaceId = `managed-e2e-errors-ws-${suffix}`;
+
+    await seedManagedRecording({
+      recordingId,
+      workspaceId,
+      ownerId: 'owner-managed-e2e',
+    });
+
+    try {
+      const invalidActionResponse = await patchLifecycle(lifecycleRequest('invalid', recordingId), {
+        params: Promise.resolve({ id: recordingId }),
+      });
+
+      expect(invalidActionResponse.status).toBe(400);
+      expect(await invalidActionResponse.json()).toMatchObject({ error: 'invalid_action' });
+
+      const missingRecordingResponse = await patchLifecycle(
+        lifecycleRequest('archive', `${recordingId}-missing`),
+        {
+          params: Promise.resolve({ id: `${recordingId}-missing` }),
+        },
+      );
+
+      expect(missingRecordingResponse.status).toBe(404);
+      expect(await missingRecordingResponse.json()).toMatchObject({ error: 'not_found' });
+
+      await db
+        .collection('recordings')
+        .doc(recordingId)
+        .collection('ai_outputs')
+        .doc('mindmap')
+        .delete();
+
+      const missingArtifactResponse = (await DELETE(artifactRequest('DELETE', recordingId), {
+        params: Promise.resolve({ id: recordingId, kind: 'mindmap' }),
+      })) as Response;
+
+      expect(missingArtifactResponse.status).toBe(404);
+      expect(await missingArtifactResponse.json()).toMatchObject({ error: 'not_found' });
     } finally {
       await cleanupManagedRecording({ recordingId, workspaceId });
     }

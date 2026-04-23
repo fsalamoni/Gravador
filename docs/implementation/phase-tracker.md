@@ -56,6 +56,7 @@
 - [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
+- [x] Expand managed-Firestore staged suite with auth/session/access/error boundary assertions for lifecycle and artifact routes (401/403/404/400 contracts).
 - [x] Harden workflow runtime compatibility by upgrading core setup actions to Node 24-targeting majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`).
 - [x] Migrate GitHub Pages delivery from legacy dynamic workflow to repository-managed `pages.yml` (checkout/configure-pages/upload-pages-artifact/deploy-pages on current majors) with extended deploy timeout and retries.
 - [x] Harden web recorder upload reliability by adding server-side upload fallback route (`/api/recordings/upload`) and automatic retry path when browser Firebase Storage returns unauthorized/session-race failures.
@@ -88,3 +89,4 @@
 - [x] Local validation for transcription UX readiness package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Workflow monitoring closure captured on 2026-04-23 (`CI` run `24851165328` success, `Firebase Hosting` run `24851165327` success, `Pages` run `24850067296` success, `Audio Edit Runner` run `24851861930` skipped by disabled activation flags).
 - [x] Transcription UX + docs/index/cache package commit `baf23be` verified end-to-end (`CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success).
+- [x] Local validation for managed-Firestore auth/runtime expansion package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

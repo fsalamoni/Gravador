@@ -72,6 +72,6 @@ jobs:
             echo ""
             echo "- Target database: ${{ inputs.database_id }}"
             echo "- Command: pnpm run test:web:firestore-managed"
-            echo "- Scope: recordings lifecycle + artifact route semantics"
+            echo "- Scope: recordings lifecycle + artifact semantics with auth/session/access/error boundary assertions"
             echo "- Data hygiene: test uses managed-e2e prefixed docs and cleanup on completion"
           } >> "$GITHUB_STEP_SUMMARY"
