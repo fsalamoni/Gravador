@@ -192,7 +192,7 @@ describeIfManaged('recording routes against managed Firestore', () => {
     } finally {
       await cleanupManagedRecording({ recordingId, workspaceId });
     }
-  });
+  }, 60_000);
 
   afterAll(async () => {
     if (app) {
