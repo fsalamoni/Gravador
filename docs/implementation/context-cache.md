@@ -17,6 +17,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Managed route test now uses explicit timeout `60_000` (`apps/web/src/app/api/recordings/managed-routes.test.ts`) to accommodate staging network/database variance.
 - Commit `6630bf7` outcomes: `CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by superseding timeout-hotfix push, `Firestore Managed E2E` run `24844398345` failure (timeout-only).
 - Commit `3d7477f` closure: `CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success, `Firestore Managed E2E` run `24844650008` success.
+- Workflow runtime hardening migrated setup actions to current majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`) across CI/deploy/release/runner/smoke/managed workflows to remove Node 20 deprecation warnings.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
@@ -48,7 +49,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Route-level integration coverage now exists for artifact-kind transitions in `apps/web/src/app/api/recordings/[id]/artifacts/[kind]/route.test.ts` (update/delete/restore transitions, artifact versioning, lifecycle last-event metadata).
 - Firestore Emulator-backed route integration suite now exists at `apps/web/src/app/api/recordings/emulator-routes.test.ts` covering lifecycle transitions, artifact delete/restore/update transactions, workspace-member authorization, and missing-artifact guards against real emulator transaction semantics.
 - Root script `test:web:firestore-emulator` now executes `firebase emulators:exec --only firestore "pnpm --filter @gravador/web run test:firestore-emulator"`; `apps/web/package.json` now exposes `test:firestore-emulator`.
-- CI tests workflow now provisions Java (`actions/setup-java@v4`) and executes `pnpm run test:web:firestore-emulator` to keep emulator-backed coverage continuously enforced.
+- CI tests workflow now provisions Java (`actions/setup-java@v5`) and executes `pnpm run test:web:firestore-emulator` to keep emulator-backed coverage continuously enforced.
 - Local emulator execution currently requires Java on PATH; default `pnpm --filter @gravador/web run test` keeps emulator suite skipped unless `FIRESTORE_EMULATOR_HOST` is set.
 - Emulator CI surfaced a production-relevant persistence bug in lifecycle mutations: Firestore `set(..., { merge: true })` with dot-path keys did not apply expected nested updates in emulator/production semantics; route `apps/web/src/app/api/recordings/[id]/lifecycle/route.ts` now uses `update(...)` for lifecycle field-path writes.
 - Commit `631d646` release verification: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.

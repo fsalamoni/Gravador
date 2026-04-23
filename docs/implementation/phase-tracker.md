@@ -56,6 +56,7 @@
 - [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
+- [x] Harden workflow runtime compatibility by upgrading core setup actions to Node 24-targeting majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`).
 
 ## Release gating before each phase transition
 
@@ -76,3 +77,4 @@
 - [x] Local hardening package validation green after notification queue + runner gate + managed e2e scaffolding (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Hardening package commit `6630bf7` verified with expected supersession behavior (`CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by timeout hotfix push, managed workflow run `24844398345` failed on default Vitest timeout).
 - [x] Managed timeout hotfix commit `3d7477f` verified end-to-end (`CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success, `Firestore Managed E2E` run `24844650008` success).
+- [x] Workflow runtime hardening package merged: deprecated Node 20 action warnings removed by upgrading core setup actions across CI/deploy/runner/smoke/managed/release workflows.

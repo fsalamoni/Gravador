@@ -55,6 +55,7 @@
 - Managed route test timeout was raised to `60_000` on hotfix commit `3d7477f`, and staged workflow `Firestore Managed E2E` run `24844650008` completed with success.
 - Release closure for commit `6630bf7`: `CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by superseding timeout hotfix.
 - Release closure for commit `3d7477f`: `CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success.
+- Workflow runtime hardening package upgraded deprecated setup actions across automation surfaces (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`) to avoid Node 20 deprecation churn and preserve deterministic CI diagnostics.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path
