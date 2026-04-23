@@ -47,6 +47,10 @@
 - Emulator-backed CI caught and resolved a lifecycle mutation persistence defect: `apps/web/src/app/api/recordings/[id]/lifecycle/route.ts` now uses Firestore `update(...)` for dot-path field writes instead of `set(..., { merge: true })`, ensuring correct nested lifecycle/version transitions under real Firestore semantics.
 - Initial emulator package commit `f4368f2` behaved as expected for defect exposure (`CI` run `24815425692` failure, `pages` run `24815425349` success, `firebase-hosting` run `24815425679` cancelled after superseding hotfix push).
 - Hotfix release verification for commit `e0edb97`: `CI` run `24815525379` success (including `pnpm run test:web:firestore-emulator`), `firebase-hosting` run `24815525377` success, `pages` run `24815524886` success.
+- Added centralized notification queue writes (`apps/web/src/lib/notification-queue.ts`) and route integration for lifecycle/artifact/audio-edit events under `NEXT_PUBLIC_FF_NOTIFICATIONS_V1`, reducing risk of silent notification-event loss between API response and downstream provider dispatch.
+- Added worker-level feature gate enforcement in `workers/ai-pipeline/src/tasks/process-audio-edit-jobs.ts` so audio-edit jobs are not claimed when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`; runner workflow now propagates this flag explicitly.
+- Added staged managed-Firestore route validation assets (`apps/web/src/app/api/recordings/managed-routes.test.ts`, `test:web:firestore-managed`, `.github/workflows/firestore-managed-e2e.yml`) to collect production-like transaction evidence without coupling to default CI runtime.
+- Hardened deploy preflight warnings by surfacing missing `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` when notifications flag is enabled (`firebase-hosting.yml`, `release-platform.yml`).
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path
@@ -59,7 +63,7 @@
 
 ### Remaining concerns
 
-- Lifecycle/artifact/merge transition coverage now includes in-memory and Firestore Emulator route evidence, but still lacks staged managed-Firestore e2e verification across full auth/session/runtime boundaries.
+- Lifecycle/artifact/merge transition coverage now includes in-memory + Firestore Emulator evidence and a managed-Firestore staged workflow path, but still lacks first strict-pass managed execution evidence across full auth/session/runtime boundaries.
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.

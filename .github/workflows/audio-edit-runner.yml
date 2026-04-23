@@ -84,6 +84,7 @@ jobs:
           FIREBASE_STORAGE_BUCKET: hocapp-44760.firebasestorage.app
           FIRESTORE_DATABASE_ID: anotes
           INTERNAL_JOBS_SECRET: ${{ secrets.INTERNAL_JOBS_SECRET }}
+          NEXT_PUBLIC_FF_AUDIO_EDITING_V1: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }}
           AUDIO_EDIT_EXECUTOR_BASE_URL: ${{ vars['AUDIO_EDIT_EXECUTOR_BASE_URL'] || 'https://anotes.web.app' }}
           AUDIO_EDIT_JOB_BATCH_SIZE: ${{ vars['AUDIO_EDIT_JOB_BATCH_SIZE'] || '5' }}
           AUDIO_EDIT_JOB_QUERY_LIMIT: ${{ vars['AUDIO_EDIT_JOB_QUERY_LIMIT'] || '50' }}

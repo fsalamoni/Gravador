@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with integration-level route coverage now expanded across merge execute and lifecycle/artifact transition APIs, now including Firestore Emulator-backed route integration evidence and CI wiring (release-verified on hotfix commit `e0edb97`)
-- Focus: operational activation closure (provision missing secrets/variables for runner + notifications smoke), Expo capacity plan, and staged production-like lifecycle/artifact e2e evidence beyond emulator scope
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with route-level transition coverage now reinforced by notification queue contracts and managed-Firestore e2e scaffolding in addition to Firestore Emulator CI evidence
+- Focus: collect strict-pass operational evidence after secret/variable provisioning (`ENABLE_AUDIO_EDIT_RUNNER`, `ENABLE_NOTIFICATIONS_SMOKE`, provider credentials), run staged managed-Firestore workflow validation, and unblock mobile distribution capacity constraints
 
 ## Files
 

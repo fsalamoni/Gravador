@@ -7,6 +7,12 @@ This file captures decisions and assumptions that must survive long implementati
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
 - Hotfix commit `e0edb97` closure: `CI` run `24815525379` success (including `pnpm run test:web:firestore-emulator`), `firebase-hosting` run `24815525377` success, `pages` run `24815524886` success.
+- Recording lifecycle/artifact/audio-edit routes now enqueue deterministic notification events into `notification_queue` (status=`pending`, attempts/metadata envelope) when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.
+- Notification queue contract is centralized in `apps/web/src/lib/notification-queue.ts` and reused across route handlers to keep payload shape consistent.
+- Audio-edit worker now hard-gates batch processing on `NEXT_PUBLIC_FF_AUDIO_EDITING_V1`; when disabled, `processAudioEditJobBatch` returns a zero-impact summary without claiming jobs.
+- Scheduled runner workflow now propagates `NEXT_PUBLIC_FF_AUDIO_EDITING_V1` into worker runtime env, keeping workflow-level and worker-level gating aligned.
+- Deploy workflows (`firebase-hosting.yml`, `release-platform.yml`) now warn when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true` but `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` is missing.
+- Staged managed-Firestore route validation path now exists via `apps/web/src/app/api/recordings/managed-routes.test.ts`, script `test:web:firestore-managed`, and manual workflow `.github/workflows/firestore-managed-e2e.yml`.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
@@ -78,6 +84,7 @@ This file captures decisions and assumptions that must survive long implementati
 ## Current package objective
 
 - Close remaining operational rollout after Phase 5 merge execution + integration coverage delivery: activate runner/smoke workflows in staging/prod variables and collect strict-pass evidence.
+- Execute managed-Firestore staged workflow evidence on a configured environment and append run conclusions to rollout docs.
 
 ## Immediate next contracts to lock
 

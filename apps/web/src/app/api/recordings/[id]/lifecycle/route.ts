@@ -1,5 +1,7 @@
 import { getApiSessionUser } from '@/lib/api-session';
+import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb } from '@/lib/firebase-server';
+import { enqueueNotificationEvent } from '@/lib/notification-queue';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
@@ -120,6 +122,27 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const refreshed = await access.ref.get();
   const data = refreshed.data() ?? {};
+  const notificationEvent = getNotificationEventForLifecycleEvent(EVENT_BY_ACTION[body.action]);
+
+  if (featureFlags.notificationsV1 && notificationEvent) {
+    try {
+      await enqueueNotificationEvent({
+        db,
+        event: notificationEvent,
+        recordingId,
+        workspaceId: typeof access.data.workspaceId === 'string' ? access.data.workspaceId : null,
+        actorId: user.uid,
+        source: 'recording_lifecycle',
+        metadata: { action: body.action },
+      });
+    } catch (error) {
+      console.error('[recordings:lifecycle] unable to enqueue notification event', {
+        recordingId,
+        action: body.action,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   return NextResponse.json({
     ok: true,
@@ -129,6 +152,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     ),
     lifecycle: getRecordingLifecycleState(data.lifecycle),
     retention: getRecordingRetentionPolicy(data.retention),
-    notificationEvent: getNotificationEventForLifecycleEvent(EVENT_BY_ACTION[body.action]),
+    notificationEvent,
   });
 }

@@ -1,5 +1,7 @@
 import { getApiSessionUser } from '@/lib/api-session';
+import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb } from '@/lib/firebase-server';
+import { enqueueNotificationEvent } from '@/lib/notification-queue';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
@@ -165,6 +167,34 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
 
   const updated = await context.artifactRef.get();
   const data = updated.data() ?? {};
+  const notificationEvent = getNotificationEventForLifecycleEvent('artifact_updated');
+
+  if (featureFlags.notificationsV1 && notificationEvent) {
+    try {
+      await enqueueNotificationEvent({
+        db: context.db,
+        event: notificationEvent,
+        recordingId: context.recordingId,
+        workspaceId:
+          typeof context.access.data.workspaceId === 'string'
+            ? context.access.data.workspaceId
+            : null,
+        actorId: context.user.uid,
+        source: 'recording_artifact',
+        metadata: {
+          action: 'patch',
+          kind: context.kind,
+        },
+      });
+    } catch (error) {
+      console.error('[recordings:artifact] unable to enqueue notification event', {
+        recordingId: context.recordingId,
+        action: 'patch',
+        kind: context.kind,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   return NextResponse.json({
     ok: true,
@@ -177,7 +207,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<Params> 
       payload: data.payload,
       lifecycle: getArtifactLifecycleState(data),
     },
-    notificationEvent: getNotificationEventForLifecycleEvent('artifact_updated'),
+    notificationEvent,
   });
 }
 
@@ -230,10 +260,39 @@ export async function POST(req: Request, { params }: { params: Promise<Params> }
   }
 
   const updated = await context.artifactRef.get();
+  const notificationEvent = getNotificationEventForLifecycleEvent('artifact_restored');
+
+  if (featureFlags.notificationsV1 && notificationEvent) {
+    try {
+      await enqueueNotificationEvent({
+        db: context.db,
+        event: notificationEvent,
+        recordingId: context.recordingId,
+        workspaceId:
+          typeof context.access.data.workspaceId === 'string'
+            ? context.access.data.workspaceId
+            : null,
+        actorId: context.user.uid,
+        source: 'recording_artifact',
+        metadata: {
+          action: 'restore',
+          kind: context.kind,
+        },
+      });
+    } catch (error) {
+      console.error('[recordings:artifact] unable to enqueue notification event', {
+        recordingId: context.recordingId,
+        action: 'restore',
+        kind: context.kind,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     item: updated.data() ?? {},
-    notificationEvent: getNotificationEventForLifecycleEvent('artifact_restored'),
+    notificationEvent,
   });
 }
 
@@ -285,8 +344,37 @@ export async function DELETE(req: Request, { params }: { params: Promise<Params>
     throw error;
   }
 
+  const notificationEvent = getNotificationEventForLifecycleEvent('artifact_deleted');
+
+  if (featureFlags.notificationsV1 && notificationEvent) {
+    try {
+      await enqueueNotificationEvent({
+        db: context.db,
+        event: notificationEvent,
+        recordingId: context.recordingId,
+        workspaceId:
+          typeof context.access.data.workspaceId === 'string'
+            ? context.access.data.workspaceId
+            : null,
+        actorId: context.user.uid,
+        source: 'recording_artifact',
+        metadata: {
+          action: 'delete',
+          kind: context.kind,
+        },
+      });
+    } catch (error) {
+      console.error('[recordings:artifact] unable to enqueue notification event', {
+        recordingId: context.recordingId,
+        action: 'delete',
+        kind: context.kind,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return NextResponse.json({
     ok: true,
-    notificationEvent: getNotificationEventForLifecycleEvent('artifact_deleted'),
+    notificationEvent,
   });
 }

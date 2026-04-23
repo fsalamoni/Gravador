@@ -61,6 +61,15 @@ export type AudioEditBatchResult = {
   failedDispatch: number;
 };
 
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (!value) return fallback;
+
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
 function parseNumeric(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -301,6 +310,19 @@ export async function processAudioEditJobBatch(params?: {
   batchSize?: number;
   queryLimit?: number;
 }): Promise<AudioEditBatchResult> {
+  if (!parseBoolean(process.env.NEXT_PUBLIC_FF_AUDIO_EDITING_V1, false)) {
+    console.log(
+      '[audio-edit-runner] skipping batch because NEXT_PUBLIC_FF_AUDIO_EDITING_V1 is disabled',
+    );
+    return {
+      scanned: 0,
+      claimed: 0,
+      dispatched: 0,
+      skipped: 0,
+      failedDispatch: 0,
+    };
+  }
+
   const db = getDb();
   const batchSize = Math.max(1, params?.batchSize ?? DEFAULT_BATCH_SIZE);
   const queryLimit = Math.max(batchSize, params?.queryLimit ?? DEFAULT_QUERY_SIZE);

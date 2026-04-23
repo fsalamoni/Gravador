@@ -15,6 +15,16 @@ vi.mock('@/lib/firebase-server', () => ({
   getServerDb: mockGetServerDb,
 }));
 
+vi.mock('@/lib/feature-flags', () => ({
+  featureFlags: {
+    workspaceDownloads: true,
+    recordingLifecycleV1: true,
+    audioEditingV1: true,
+    notificationsV1: true,
+    bulkOpsV1: true,
+  },
+}));
+
 import { DELETE, POST, PATCH as patchArtifact } from './[id]/artifacts/[kind]/route';
 import { PATCH as patchLifecycle } from './[id]/lifecycle/route';
 
@@ -210,6 +220,21 @@ describeIfEmulator('recording routes against Firestore Emulator', () => {
     expect(persisted.lifecycle?.lastEvent).toBe('version_bumped');
     expect(persisted.lifecycle?.lastEventBy).toBe('owner-1');
     expect(persisted.lifecycle?.lastEventAt).toBeInstanceOf(Timestamp);
+
+    const queuedNotifications = await db
+      .collection('notification_queue')
+      .where('recordingId', '==', recordingId)
+      .get();
+
+    expect(queuedNotifications.size).toBe(4);
+    expect(queuedNotifications.docs.map((doc) => doc.data().event)).toEqual(
+      expect.arrayContaining([
+        'recording.lifecycle.archived',
+        'recording.lifecycle.trashed',
+        'recording.lifecycle.restored',
+        'recording.lifecycle.version_bumped',
+      ]),
+    );
   });
 
   it('runs artifact delete/restore/update transactions against emulator', async () => {
@@ -288,6 +313,20 @@ describeIfEmulator('recording routes against Firestore Emulator', () => {
 
     expect(recording.lifecycle?.lastEvent).toBe('artifact_updated');
     expect(recording.lifecycle?.lastEventBy).toBe('owner-1');
+
+    const queuedNotifications = await db
+      .collection('notification_queue')
+      .where('recordingId', '==', recordingId)
+      .get();
+
+    expect(queuedNotifications.size).toBe(3);
+    expect(queuedNotifications.docs.map((doc) => doc.data().event)).toEqual(
+      expect.arrayContaining([
+        'recording.artifact.deleted',
+        'recording.artifact.restored',
+        'recording.artifact.updated',
+      ]),
+    );
   });
 
   it('enforces workspace access via recording-access against emulator state', async () => {

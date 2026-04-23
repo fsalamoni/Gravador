@@ -20,3 +20,19 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 4. Keep fallback behavior deterministic when a flag is disabled.
 5. Bulk merge must preserve artifact payloads side-by-side by contract while the flag is active.
 6. Audio editing flows (`/api/recordings/[id]/audio-editing` + lifecycle panel controls) must stay hidden/inert when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
+7. Audio-edit worker claiming must remain no-op when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false` (runner workflow must propagate this flag into worker env).
+8. Notification event side effects must enqueue into `notification_queue` only when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.
+
+## Activation checkpoints
+
+### Audio editing (`NEXT_PUBLIC_FF_AUDIO_EDITING_V1`)
+
+1. Enable flag in environment vars used by web runtime and `audio-edit-runner.yml`.
+2. Confirm `audio-edit-runner` summary reports non-zero scanned/claimed jobs only when the flag is enabled.
+3. Verify `/api/recordings/[id]/audio-editing` returns `404` when disabled and operational responses when enabled.
+
+### Notifications (`NEXT_PUBLIC_FF_NOTIFICATIONS_V1`)
+
+1. Provision `WHATSAPP_CLOUD_*` and `EMAIL_NOTIFICATIONS_WEBHOOK_*` secrets.
+2. Confirm deploy preflight does not emit missing-token warnings.
+3. Run `notifications-smoke.yml` in strict mode and retain workflow evidence.

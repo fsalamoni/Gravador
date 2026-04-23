@@ -63,6 +63,14 @@ Run Firestore Emulator-backed route integration evidence locally (requires Java 
 pnpm test:web:firestore-emulator
 ```
 
+Run staged managed-Firestore route validation manually (uses real Firestore project/database and should target a dedicated staging dataset):
+
+```bash
+RUN_MANAGED_FIRESTORE_E2E=true FIREBASE_PROJECT_ID=<project-id> FIRESTORE_DATABASE_ID=anotes pnpm test:web:firestore-managed
+```
+
+A manual GitHub Actions workflow is also available for this path: `Firestore Managed E2E` (`.github/workflows/firestore-managed-e2e.yml`).
+
 Self-host everything (no cloud dependency):
 
 ```bash

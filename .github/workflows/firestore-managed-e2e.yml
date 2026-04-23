@@ -1,0 +1,77 @@
+name: Firestore Managed E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      database_id:
+        description: Firestore database ID to validate (for example anotes)
+        required: true
+        default: anotes
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  managed-firestore-routes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check required secrets
+        shell: bash
+        env:
+          HAS_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          HAS_PID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
+        run: |
+          missing=()
+          [[ "$HAS_SA" == "true" ]] || missing+=("FIREBASE_SERVICE_ACCOUNT")
+          [[ "$HAS_PID" == "true" ]] || missing+=("FIREBASE_PROJECT_ID")
+
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing required secrets for managed Firestore e2e: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Execute managed Firestore route tests
+        env:
+          RUN_MANAGED_FIRESTORE_E2E: 'true'
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIRESTORE_DATABASE_ID: ${{ inputs.database_id }}
+        run: pnpm run test:web:firestore-managed
+
+      - name: Publish summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Firestore Managed E2E"
+            echo ""
+            echo "- Target database: ${{ inputs.database_id }}"
+            echo "- Command: pnpm run test:web:firestore-managed"
+            echo "- Scope: recordings lifecycle + artifact route semantics"
+            echo "- Data hygiene: test uses managed-e2e prefixed docs and cleanup on completion"
+          } >> "$GITHUB_STEP_SUMMARY"

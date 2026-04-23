@@ -18,6 +18,7 @@ import {
 import { featureFlags } from '@/lib/feature-flags';
 import { getServerDb, getServerStorage } from '@/lib/firebase-server';
 import { enqueueAudioEditJob } from '@/lib/jobs';
+import { enqueueNotificationEvent } from '@/lib/notification-queue';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   RECORDING_LIFECYCLE_SCHEMA_VERSION,
@@ -592,6 +593,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     actorId: context.user.uid,
   });
 
+  const queueNotificationEvent = featureFlags.notificationsV1
+    ? getNotificationEventForAudioEditState('queued')
+    : null;
+
+  if (queueNotificationEvent) {
+    try {
+      await enqueueNotificationEvent({
+        db: getServerDb(),
+        event: queueNotificationEvent,
+        recordingId: context.access.ref.id,
+        workspaceId,
+        actorId: context.user.uid,
+        source: 'recording_audio_edit',
+        metadata: {
+          action: 'queue_edit',
+          preset: parsed.preset,
+          queuedVersionId: queuedRef.id,
+          sourceVersionId,
+          jobId,
+        },
+      });
+    } catch (error) {
+      console.error('[recordings:audio-editing] unable to enqueue notification event', {
+        recordingId: context.access.ref.id,
+        action: 'queue_edit',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     action: 'queue_edit',
@@ -601,9 +632,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     nextVersionNumber,
     sourceVersionId,
     preset: parsed.preset,
-    notificationEvent: featureFlags.notificationsV1
-      ? getNotificationEventForAudioEditState('queued')
-      : null,
+    notificationEvent: queueNotificationEvent,
   });
 }
 
@@ -722,6 +751,41 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   }
 
+  const processNotificationEvent = featureFlags.notificationsV1
+    ? getNotificationEventForAudioEditState(
+        result.ok ? 'completed' : result.canRetry ? 'retry_scheduled' : 'failed',
+      )
+    : null;
+
+  if (processNotificationEvent) {
+    try {
+      await enqueueNotificationEvent({
+        db,
+        event: processNotificationEvent,
+        recordingId,
+        workspaceId,
+        actorId,
+        source: 'recording_audio_edit',
+        metadata: {
+          action: 'process_job',
+          queuedVersionId: body.queuedVersionId,
+          sourceVersionId: body.sourceVersionId,
+          preset: body.preset,
+          attempt,
+          maxAttempts,
+          retryScheduled: !result.ok && result.canRetry,
+          error: result.ok ? null : result.error,
+        },
+      });
+    } catch (error) {
+      console.error('[recordings:audio-editing] unable to enqueue notification event', {
+        recordingId,
+        action: 'process_job',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return NextResponse.json({
     ok: result.ok,
     recordingId,
@@ -734,10 +798,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     retryScheduled: !result.ok && result.canRetry,
     nextAttemptAt: result.ok ? null : result.nextAttemptAt,
     error: result.ok ? null : result.error,
-    notificationEvent: featureFlags.notificationsV1
-      ? getNotificationEventForAudioEditState(
-          result.ok ? 'completed' : result.canRetry ? 'retry_scheduled' : 'failed',
-        )
-      : null,
+    notificationEvent: processNotificationEvent,
   });
 }

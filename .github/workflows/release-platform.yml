@@ -215,6 +215,7 @@ jobs:
           HAS_WHATSAPP_TOKEN: ${{ secrets['WHATSAPP_CLOUD_ACCESS_TOKEN'] != '' }}
           HAS_WHATSAPP_PHONE_ID: ${{ secrets['WHATSAPP_CLOUD_PHONE_NUMBER_ID'] != '' }}
           HAS_EMAIL_WEBHOOK_URL: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_URL'] != '' }}
+          HAS_EMAIL_WEBHOOK_TOKEN: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN'] != '' }}
           AUDIO_EDITING_FLAG: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }}
           NOTIFICATIONS_FLAG: ${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] || 'false' }}
         run: |
@@ -243,6 +244,9 @@ jobs:
             fi
             if [[ "$HAS_EMAIL_WEBHOOK_URL" != "true" ]]; then
               echo "::warning::NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true but EMAIL_NOTIFICATIONS_WEBHOOK_URL is missing."
+            fi
+            if [[ "$HAS_EMAIL_WEBHOOK_TOKEN" != "true" ]]; then
+              echo "::warning::NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true but EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN is missing."
             fi
           fi
       - uses: google-github-actions/auth@v2

@@ -42,6 +42,7 @@
 - [x] Build richer WhatsApp/email setup modals with guided onboarding.
 - [~] Add send/test flows for email integration and notification paths (test + send APIs and UI actions delivered; provider wiring remains env-dependent).
 - [~] Validate first-wave notification scope end-to-end (contract and deterministic flag behavior validated via API/unit tests; smoke workflow `notifications-smoke.yml` added, awaiting provider activation/strict pass evidence).
+- [x] Persist notification event queue contracts for recording lifecycle/artifact/audio-edit transitions (`notification_queue`, status=`pending`, retry metadata fields) when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.
 
 ## Phase 5 - bulk operations and reliability hardening
 
@@ -52,7 +53,9 @@
 - [x] Harden mobile startup/auth bootstrap to prevent blank-screen deadlocks (auth timeout fallback + startup error boundary + resilient firebase/i18n init).
 - [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; scheduled workflow `audio-edit-runner.yml` delivered, awaiting environment activation.
 - [x] Add runner observability/failure thresholds (JSON batch summary + `AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH` contract).
+- [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
+- [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
 
 ## Release gating before each phase transition
 
@@ -70,3 +73,4 @@
 - [x] CI contract now includes Firestore Emulator-backed route integration execution (`pnpm run test:web:firestore-emulator`) with explicit Java setup on runner.
 - [x] Emulator-coverage package commit `f4368f2` correctly surfaced a Firestore field-path lifecycle persistence defect (`CI` run `24815425692` failure), which triggered immediate corrective hotfix.
 - [x] Hotfix commit `e0edb97` verified end-to-end (`CI` run `24815525379` success including `test:web:firestore-emulator`, `firebase-hosting` run `24815525377` success, `pages` run `24815524886` success).
+- [x] Local hardening package validation green after notification queue + runner gate + managed e2e scaffolding (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
