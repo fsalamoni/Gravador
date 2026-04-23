@@ -44,6 +44,7 @@
 - Added route-level integration regression tests for lifecycle transitions (`apps/web/src/app/api/recordings/[id]/lifecycle/route.test.ts`) and artifact transitions (`apps/web/src/app/api/recordings/[id]/artifacts/[kind]/route.test.ts`) covering status/version/metadata invariants and guard rails.
 - Added Firestore Emulator-backed route integration suite (`apps/web/src/app/api/recordings/emulator-routes.test.ts`) validating lifecycle transitions, artifact transaction behavior, and workspace access checks against real emulator transaction semantics.
 - Added deterministic emulator execution scripts (`apps/web` `test:firestore-emulator` + root `test:web:firestore-emulator`) and wired CI tests job to run emulator coverage with explicit Java runtime setup.
+- Emulator-backed CI caught and resolved a lifecycle mutation persistence defect: `apps/web/src/app/api/recordings/[id]/lifecycle/route.ts` now uses Firestore `update(...)` for dot-path field writes instead of `set(..., { merge: true })`, ensuring correct nested lifecycle/version transitions under real Firestore semantics.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path

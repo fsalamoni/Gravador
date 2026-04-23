@@ -47,6 +47,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Root script `test:web:firestore-emulator` now executes `firebase emulators:exec --only firestore "pnpm --filter @gravador/web run test:firestore-emulator"`; `apps/web/package.json` now exposes `test:firestore-emulator`.
 - CI tests workflow now provisions Java (`actions/setup-java@v4`) and executes `pnpm run test:web:firestore-emulator` to keep emulator-backed coverage continuously enforced.
 - Local emulator execution currently requires Java on PATH; default `pnpm --filter @gravador/web run test` keeps emulator suite skipped unless `FIRESTORE_EMULATOR_HOST` is set.
+- Emulator CI surfaced a production-relevant persistence bug in lifecycle mutations: Firestore `set(..., { merge: true })` with dot-path keys did not apply expected nested updates in emulator/production semantics; route `apps/web/src/app/api/recordings/[id]/lifecycle/route.ts` now uses `update(...)` for lifecycle field-path writes.
 - Commit `631d646` release verification: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 - Commit `a685f43` release verification: `CI` run `24806002660` success, `firebase-hosting` run `24806002669` success, `EAS preview` run `24806015351` success (`quota_blocked` degraded output contract).
 - Scheduled `audio-edit-runner` remains gated while activation vars are absent (`24806076695` skipped).

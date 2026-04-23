@@ -116,7 +116,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
-  await access.ref.set(updates, { merge: true });
+  await access.ref.update(updates);
 
   const refreshed = await access.ref.get();
   const data = refreshed.data() ?? {};
