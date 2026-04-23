@@ -17,6 +17,7 @@
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:web:firestore-emulator": "firebase emulators:exec --only firestore \"pnpm --filter @gravador/web run test:firestore-emulator\"",
     "smoke:notifications": "node scripts/smoke-notifications.mjs --strict",
     "worker:audio-jobs:once": "pnpm --filter @gravador/ai-pipeline run audio-jobs:once",
     "worker:audio-jobs:loop": "pnpm --filter @gravador/ai-pipeline run audio-jobs:loop",

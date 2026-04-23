@@ -43,6 +43,10 @@ This file captures decisions and assumptions that must survive long implementati
 - Reusable fake Firestore test harness now exists at `apps/web/src/test-utils/fake-firestore.ts` with support for transaction flow, dot-path updates, `FieldValue.increment`, and `FieldValue.serverTimestamp` semantics.
 - Route-level integration coverage now exists for lifecycle transitions in `apps/web/src/app/api/recordings/[id]/lifecycle/route.test.ts` (archive/trash/restore/version bump, plus auth/validation/not-found guards).
 - Route-level integration coverage now exists for artifact-kind transitions in `apps/web/src/app/api/recordings/[id]/artifacts/[kind]/route.test.ts` (update/delete/restore transitions, artifact versioning, lifecycle last-event metadata).
+- Firestore Emulator-backed route integration suite now exists at `apps/web/src/app/api/recordings/emulator-routes.test.ts` covering lifecycle transitions, artifact delete/restore/update transactions, workspace-member authorization, and missing-artifact guards against real emulator transaction semantics.
+- Root script `test:web:firestore-emulator` now executes `firebase emulators:exec --only firestore "pnpm --filter @gravador/web run test:firestore-emulator"`; `apps/web/package.json` now exposes `test:firestore-emulator`.
+- CI tests workflow now provisions Java (`actions/setup-java@v4`) and executes `pnpm run test:web:firestore-emulator` to keep emulator-backed coverage continuously enforced.
+- Local emulator execution currently requires Java on PATH; default `pnpm --filter @gravador/web run test` keeps emulator suite skipped unless `FIRESTORE_EMULATOR_HOST` is set.
 - Commit `631d646` release verification: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 - Commit `a685f43` release verification: `CI` run `24806002660` success, `firebase-hosting` run `24806002669` success, `EAS preview` run `24806015351` success (`quota_blocked` degraded output contract).
 - Scheduled `audio-edit-runner` remains gated while activation vars are absent (`24806076695` skipped).
@@ -85,4 +89,4 @@ This file captures decisions and assumptions that must survive long implementati
 
 - Activation contract for `ENABLE_AUDIO_EDIT_RUNNER=true` with first successful scheduled batches recorded in workflow summaries.
 - End-to-end strict smoke evidence for notifications (`ENABLE_NOTIFICATIONS_SMOKE=true`, providers configured) with no failed checks.
-- Expand beyond in-memory route harness into Firestore emulator-backed or staged e2e coverage for lifecycle + artifact transition matrices.
+- Expand from emulator-backed route evidence into staged managed-Firestore e2e coverage for lifecycle + artifact transition matrices (including auth/session boundary assertions).

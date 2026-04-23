@@ -42,6 +42,8 @@
 - Added route-level integration regression tests for merge execute transaction semantics in `apps/web/src/app/api/recordings/bulk/route.test.ts` (copy-on-missing, no-overwrite, and execution audit assertions) using an in-memory Firestore harness.
 - Added reusable in-memory Firestore transaction harness (`apps/web/src/test-utils/fake-firestore.ts`) with transform support (`FieldValue.increment` and `serverTimestamp`) to stabilize route-level API integration tests.
 - Added route-level integration regression tests for lifecycle transitions (`apps/web/src/app/api/recordings/[id]/lifecycle/route.test.ts`) and artifact transitions (`apps/web/src/app/api/recordings/[id]/artifacts/[kind]/route.test.ts`) covering status/version/metadata invariants and guard rails.
+- Added Firestore Emulator-backed route integration suite (`apps/web/src/app/api/recordings/emulator-routes.test.ts`) validating lifecycle transitions, artifact transaction behavior, and workspace access checks against real emulator transaction semantics.
+- Added deterministic emulator execution scripts (`apps/web` `test:firestore-emulator` + root `test:web:firestore-emulator`) and wired CI tests job to run emulator coverage with explicit Java runtime setup.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path
@@ -54,7 +56,7 @@
 
 ### Remaining concerns
 
-- Lifecycle/artifact/merge transition coverage now exists at route level, but still depends on an in-memory harness (no Firestore emulator/staging e2e transaction evidence yet).
+- Lifecycle/artifact/merge transition coverage now includes in-memory and Firestore Emulator route evidence, but still lacks staged managed-Firestore e2e verification across full auth/session/runtime boundaries.
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.

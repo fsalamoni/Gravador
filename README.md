@@ -57,6 +57,12 @@ The `preview` profile now targets the live backend at `https://anotes.web.app` a
 The live web workspace is Google Auth only. Firebase Authentication must keep the Google provider enabled for both local validation and production access.
 The mobile app now also gates access through Google Auth. The Firebase mobile app registrations and the iOS/web OAuth client IDs are already wired. Firebase currently has both the local Android debug SHA and the non-debug SHA `d1da8de8c1a53582915aea1ddb51f8e5392cf35c` registered, and the repo now wires the matching non-debug Android client ID into EAS build profiles. The remaining blocker for an APK from this machine is Expo/EAS authentication.
 
+Run Firestore Emulator-backed route integration evidence locally (requires Java on PATH):
+
+```bash
+pnpm test:web:firestore-emulator
+```
+
 Self-host everything (no cloud dependency):
 
 ```bash

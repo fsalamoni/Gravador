@@ -29,6 +29,7 @@
 - [x] Add timeline/progress/waveform parity checks and behavior tests (timeline + waveform + edit/version coverage delivered).
 - [x] Implement side-by-side artifact handling for merge operations.
 - [x] Add integration-level lifecycle/artifact route transition coverage (archive/trash/restore/version-bump + artifact update/delete/restore invariants).
+- [x] Add Firestore Emulator-backed route integration coverage for lifecycle/artifact transitions and workspace access checks.
 
 ## Phase 3 - audio editing and enhancement
 
@@ -66,3 +67,4 @@
 - [x] Scheduled runner behavior remains deterministic while activation toggles are absent (`audio-edit-runner` run 24806076695 skipped).
 - [x] Local package verification green after lifecycle/artifact route integration-coverage expansion (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Release package commit `631d646` verified end-to-end (`CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success).
+- [x] CI contract now includes Firestore Emulator-backed route integration execution (`pnpm run test:web:firestore-emulator`) with explicit Java setup on runner.

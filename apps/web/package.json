@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "test": "vitest run",
+    "test:firestore-emulator": "vitest run src/app/api/recordings/emulator-routes.test.ts",
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
