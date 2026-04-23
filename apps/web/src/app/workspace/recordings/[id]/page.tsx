@@ -1,7 +1,7 @@
 import type { AudioVersionRecord } from '@/lib/audio-editing';
 import { getEditVersionParityReport } from '@/lib/edit-version-parity';
 import { featureFlags } from '@/lib/feature-flags';
-import { getServerDb, getServerStorage, getSessionUser } from '@/lib/firebase-server';
+import { getServerDb, getSessionUser } from '@/lib/firebase-server';
 import { getAccessibleRecording } from '@/lib/recording-access';
 import {
   getArtifactLifecycleState,
@@ -170,20 +170,7 @@ export default async function RecordingPage({
     activeAudioVersion?.status === 'ready' && activeAudioVersion.storagePath
       ? activeAudioVersion.storagePath
       : fallbackStoragePath;
-  let audioUrl = '';
-  if (playbackStoragePath) {
-    try {
-      const storage = getServerStorage();
-      const bucket = storage.bucket();
-      const [url] = await bucket.file(playbackStoragePath).getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 3600 * 1000,
-      });
-      audioUrl = url;
-    } catch {
-      // Audio may not be uploaded yet
-    }
-  }
+  const audioUrl = playbackStoragePath ? `/api/recordings/${id}/audio` : '';
 
   const timelineParity = getTimelineParityReport(recording.durationMs, segments);
   const editVersionParity = getEditVersionParityReport(

@@ -14,15 +14,72 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [waveReady, setWaveReady] = useState(false);
+  const [audioUnavailable, setAudioUnavailable] = useState(false);
 
   const waveformParity = getWaveformParityReport(expectedDurationMs, duration);
   const hasParityWarning = !!waveformParity && waveReady && waveformParity.hasWarning;
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    const audio = audioRef.current;
+    const handleLoadedMetadata = () => {
+      if (Number.isFinite(audio.duration)) {
+        setDuration(audio.duration * 1000);
+      }
+      setAudioUnavailable(false);
+    };
+
+    const handleTimeUpdate = () => {
+      if (!waveReady) {
+        setCurrent(audio.currentTime * 1000);
+      }
+    };
+
+    const handlePlay = () => setPlaying(true);
+    const handlePause = () => setPlaying(false);
+    const handleEnded = () => {
+      setPlaying(false);
+      setCurrent(0);
+    };
+    const handleError = () => {
+      setAudioUnavailable(true);
+      setWaveReady(false);
+      setPlaying(false);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+    };
+  }, [waveReady]);
 
   useEffect(() => {
     if (!containerRef.current || !src || !audioRef.current) return;
 
     const audio = audioRef.current;
     audio.src = src;
+    audio.load();
+    setAudioUnavailable(false);
+    setWaveReady(false);
+    setCurrent(0);
+    setDuration(0);
+
+    if (wsRef.current) {
+      wsRef.current.destroy();
+      wsRef.current = null;
+    }
 
     const ws = WaveSurfer.create({
       container: containerRef.current,
@@ -47,6 +104,9 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
     ws.on('play', () => setPlaying(true));
     ws.on('pause', () => setPlaying(false));
     ws.on('finish', () => setPlaying(false));
+    ws.on('error', () => {
+      setWaveReady(false);
+    });
 
     wsRef.current = ws;
     return () => {
@@ -89,11 +149,13 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       <div className="rounded-[28px] border border-border bg-bg/55 p-5">
-        {src ? (
+        {src && !audioUnavailable ? (
           <div ref={containerRef} />
         ) : (
           <div className="flex h-[104px] items-center justify-center rounded-[22px] border border-dashed border-border text-sm text-mute">
-            O áudio ainda não está disponível para reprodução.
+            {src
+              ? 'Não foi possível carregar o áudio para reprodução.'
+              : 'O áudio ainda não está disponível para reprodução.'}
           </div>
         )}
       </div>
@@ -106,7 +168,7 @@ export function Player({ src, expectedDurationMs }: { src: string; expectedDurat
           type="button"
           onClick={handlePlayPause}
           className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-onAccent transition hover:bg-accentSoft disabled:opacity-60"
-          disabled={!src}
+          disabled={!src || audioUnavailable}
           aria-label={playing ? 'Pause audio' : 'Play audio'}
         >
           {playing ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
