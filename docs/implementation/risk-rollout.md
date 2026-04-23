@@ -51,6 +51,10 @@
 - Added worker-level feature gate enforcement in `workers/ai-pipeline/src/tasks/process-audio-edit-jobs.ts` so audio-edit jobs are not claimed when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`; runner workflow now propagates this flag explicitly.
 - Added staged managed-Firestore route validation assets (`apps/web/src/app/api/recordings/managed-routes.test.ts`, `test:web:firestore-managed`, `.github/workflows/firestore-managed-e2e.yml`) to collect production-like transaction evidence without coupling to default CI runtime.
 - Hardened deploy preflight warnings by surfacing missing `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` when notifications flag is enabled (`firebase-hosting.yml`, `release-platform.yml`).
+- Initial managed workflow run `24844398345` failed because the single managed-Firestore test exceeded Vitest's default 5s timeout under real network latency; assertions themselves did not report semantic mismatches.
+- Managed route test timeout was raised to `60_000` on hotfix commit `3d7477f`, and staged workflow `Firestore Managed E2E` run `24844650008` completed with success.
+- Release closure for commit `6630bf7`: `CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by superseding timeout hotfix.
+- Release closure for commit `3d7477f`: `CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path
@@ -63,7 +67,7 @@
 
 ### Remaining concerns
 
-- Lifecycle/artifact/merge transition coverage now includes in-memory + Firestore Emulator evidence and a managed-Firestore staged workflow path, but still lacks first strict-pass managed execution evidence across full auth/session/runtime boundaries.
+- Lifecycle/artifact/merge transition coverage now includes in-memory + Firestore Emulator evidence plus first strict-pass managed-Firestore staged execution (`24844650008`), but still lacks expanded auth/session/runtime boundary matrices.
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.

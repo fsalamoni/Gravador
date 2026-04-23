@@ -13,6 +13,10 @@ This file captures decisions and assumptions that must survive long implementati
 - Scheduled runner workflow now propagates `NEXT_PUBLIC_FF_AUDIO_EDITING_V1` into worker runtime env, keeping workflow-level and worker-level gating aligned.
 - Deploy workflows (`firebase-hosting.yml`, `release-platform.yml`) now warn when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true` but `EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN` is missing.
 - Staged managed-Firestore route validation path now exists via `apps/web/src/app/api/recordings/managed-routes.test.ts`, script `test:web:firestore-managed`, and manual workflow `.github/workflows/firestore-managed-e2e.yml`.
+- Initial managed workflow run `24844398345` failed only due default Vitest test timeout (5s) on real Firestore latency; no functional assertion mismatch was detected.
+- Managed route test now uses explicit timeout `60_000` (`apps/web/src/app/api/recordings/managed-routes.test.ts`) to accommodate staging network/database variance.
+- Commit `6630bf7` outcomes: `CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by superseding timeout-hotfix push, `Firestore Managed E2E` run `24844398345` failure (timeout-only).
+- Commit `3d7477f` closure: `CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success, `Firestore Managed E2E` run `24844650008` success.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
@@ -85,6 +89,7 @@ This file captures decisions and assumptions that must survive long implementati
 
 - Close remaining operational rollout after Phase 5 merge execution + integration coverage delivery: activate runner/smoke workflows in staging/prod variables and collect strict-pass evidence.
 - Execute managed-Firestore staged workflow evidence on a configured environment and append run conclusions to rollout docs.
+- Expand managed-Firestore staged suite beyond single route matrix test into broader auth/session/runtime boundary assertions.
 
 ## Immediate next contracts to lock
 
