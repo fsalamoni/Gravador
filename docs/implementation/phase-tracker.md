@@ -61,6 +61,10 @@
 - [x] Migrate GitHub Pages delivery from legacy dynamic workflow to repository-managed `pages.yml` (checkout/configure-pages/upload-pages-artifact/deploy-pages on current majors) with extended deploy timeout and retries.
 - [x] Harden web recorder upload reliability by adding server-side upload fallback route (`/api/recordings/upload`) and automatic retry path when browser Firebase Storage returns unauthorized/session-race failures.
 - [x] Harden transcription provider onboarding UX on web/mobile with one-click profiles, readiness scorecards, and save-time guardrails (model requirement + provider key guidance).
+- [x] Harden AI agent execution reliability with provider/model fallback orchestration across web route and worker (`runAgentTaskWithFallback`) for summary/action-items/mindmap/chapters/quotes/sentiment/flashcards.
+- [x] Add structured-output fallback path (`generateObject` -> `generateText` + strict JSON schema parse) to handle providers/models without tool-use/json-schema support.
+- [x] Fix embeddings resilience and discoverability: honor per-agent embed provider/model overrides, auto-fallback away from OpenAI when key is missing, and clarify embedding provider behavior in UI copy.
+- [x] Recalibrate model catalog ratings with realistic comparative heuristics (including stronger Qwen positioning) and explicit transparency note in selection/catalog modals.
 
 ## Release gating before each phase transition
 
@@ -91,3 +95,4 @@
 - [x] Transcription UX + docs/index/cache package commit `baf23be` verified end-to-end (`CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success).
 - [x] Local validation for managed-Firestore auth/runtime expansion package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Managed auth/runtime expansion package commit `ecf7f8b` verified end-to-end (`CI` run `24854596037` success, `Pages` run `24854596023` success, `Firebase Hosting` run `24854596062` success, `Firestore Managed E2E` run `24854615993` success on `database_id=anotes`).
+- [x] Local validation for AI agent reliability + embeddings/rating realism package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

@@ -1,6 +1,8 @@
 /**
  * Static model registry for all supported providers.
  * Ratings are 0–100 for: extraction, synthesis, reasoning, writing.
+ * These scores are comparative heuristic benchmarks (not absolute truth) and
+ * are periodically recalibrated against public evaluations and production behavior.
  * Pricing is per 1M tokens (USD). Context in tokens.
  */
 
@@ -650,7 +652,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Alibaba reasoning model with strong multilingual',
     contextTokens: 128_000,
     pricing: { input: 0.29, output: 0.39 },
-    ratings: { extraction: 78, synthesis: 76, reasoning: 85, writing: 75 },
+    ratings: { extraction: 86, synthesis: 86, reasoning: 93, writing: 86 },
   },
   {
     id: 'qwen-2.5-coder-32b',
@@ -668,7 +670,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'General-purpose Qwen 2.5 model',
     contextTokens: 128_000,
     pricing: { input: 0.29, output: 0.39 },
-    ratings: { extraction: 76, synthesis: 75, reasoning: 78, writing: 74 },
+    ratings: { extraction: 85, synthesis: 85, reasoning: 88, writing: 85 },
   },
   {
     id: 'llama-guard-3-8b',
@@ -814,7 +816,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Large Qwen — excellent multilingual',
     contextTokens: 128_000,
     pricing: { input: 0, output: 0 },
-    ratings: { extraction: 82, synthesis: 80, reasoning: 83, writing: 80 },
+    ratings: { extraction: 90, synthesis: 90, reasoning: 93, writing: 90 },
   },
   {
     id: 'qwen2.5:32b',
@@ -850,7 +852,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Latest Qwen generation — strong all-around',
     contextTokens: 128_000,
     pricing: { input: 0, output: 0 },
-    ratings: { extraction: 80, synthesis: 78, reasoning: 82, writing: 78 },
+    ratings: { extraction: 88, synthesis: 88, reasoning: 91, writing: 88 },
   },
   {
     id: 'qwen3:8b',
@@ -1275,7 +1277,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Qwen 2.5 72B via OpenRouter',
     contextTokens: 128_000,
     pricing: { input: 0.36, output: 0.36 },
-    ratings: { extraction: 82, synthesis: 80, reasoning: 83, writing: 80 },
+    ratings: { extraction: 90, synthesis: 90, reasoning: 93, writing: 90 },
   },
   {
     id: 'qwen/qwq-32b',
@@ -1284,7 +1286,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Qwen reasoning model via OpenRouter',
     contextTokens: 128_000,
     pricing: { input: 0.2, output: 0.2 },
-    ratings: { extraction: 78, synthesis: 76, reasoning: 85, writing: 75 },
+    ratings: { extraction: 86, synthesis: 86, reasoning: 93, writing: 86 },
   },
   {
     id: 'qwen/qwen3-235b-a22b',
@@ -1293,7 +1295,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Largest Qwen 3 via OpenRouter',
     contextTokens: 128_000,
     pricing: { input: 0.88, output: 0.88 },
-    ratings: { extraction: 88, synthesis: 86, reasoning: 89, writing: 86 },
+    ratings: { extraction: 92, synthesis: 92, reasoning: 95, writing: 92 },
   },
   {
     id: 'qwen/qwen3-32b',
@@ -1302,7 +1304,7 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     description: 'Qwen 3 32B via OpenRouter',
     contextTokens: 128_000,
     pricing: { input: 0.2, output: 0.2 },
-    ratings: { extraction: 80, synthesis: 78, reasoning: 82, writing: 78 },
+    ratings: { extraction: 88, synthesis: 88, reasoning: 91, writing: 88 },
   },
   {
     id: 'cohere/command-r-plus',

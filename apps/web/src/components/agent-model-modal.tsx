@@ -46,7 +46,8 @@ const AGENT_TIPS: Record<AgentFitKey, { type: string; why: string; recommended: 
   embed: {
     type: 'Modelo de Embedding vetorial',
     why: 'Gera vetores semânticos para busca por similaridade. Apenas modelos de embedding são compatíveis.',
-    recommended: 'text-embedding-3-small (OpenAI) · text-embedding-3-large · nomic-embed (Ollama)',
+    recommended:
+      'text-embedding-3-small (OpenAI, requer OPENAI_API_KEY) · text-embedding-3-large · nomic-embed (Ollama local)',
   },
 };
 
@@ -164,6 +165,9 @@ export function AgentModelModal({
           <div>
             <h2 className="text-xl font-bold text-text">Selecionar Modelo — {agentLabel}</h2>
             <p className="mt-1 text-sm text-mute">{agentDescription}</p>
+            <p className="mt-1 text-xs text-mute">
+              Notas são comparativas (benchmark + observação de produção), não garantia absoluta.
+            </p>
           </div>
           <button
             type="button"

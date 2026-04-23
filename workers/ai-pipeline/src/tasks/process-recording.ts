@@ -1,13 +1,8 @@
 import {
+  type GenerationProvider,
   type TranscribeResult,
   chunkAndEmbed,
-  runActionItems,
-  runChapters,
-  runFlashcards,
-  runMindmap,
-  runQuotes,
-  runSentiment,
-  runSummary,
+  runAgentTaskWithFallback,
   transcribe,
 } from '@gravador/ai';
 import type { Locale, TranscriptSegment } from '@gravador/core';
@@ -103,7 +98,7 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     const locale: Locale = tx.detectedLocale ?? payload.locale ?? recording.locale ?? 'pt-BR';
 
     await setStatus(db, recordingId, 'summarizing');
-    const resolve = (agent: string) => ({
+    const resolveChat = (agent: string) => ({
       provider: (workspaceAI.agentModels[agent]?.provider ?? workspaceAI.chatProvider) as
         | 'anthropic'
         | 'openai'
@@ -113,72 +108,45 @@ export async function processRecording(payload: { recordingId: string; locale?: 
       model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
     });
 
+    const resolveEmbedding = (agent: string) => ({
+      provider: (workspaceAI.agentModels[agent]?.provider ?? workspaceAI.embeddingProvider) as
+        | 'openai'
+        | 'ollama'
+        | undefined,
+      model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.embeddingModel,
+    });
+
+    const runChatTask = (
+      task:
+        | 'summary'
+        | 'actionItems'
+        | 'mindmap'
+        | 'chapters'
+        | 'quotes'
+        | 'sentiment'
+        | 'flashcards',
+    ) => {
+      const resolved = resolveChat(task);
+      return runAgentTaskWithFallback({
+        task,
+        preferredProvider: resolved.provider as GenerationProvider,
+        preferredModel: resolved.model,
+        keys: workspaceAI.keys,
+        locale,
+        fullText: tx.fullText,
+        segments,
+      });
+    };
+
     const [summary, actions, mindmap, chapters, quotes, sentiment, flashcards] =
       await Promise.allSettled([
-        withRetry('summary', () =>
-          runSummary({
-            segments,
-            fullText: tx.fullText,
-            locale,
-            provider: resolve('summarize').provider,
-            model: resolve('summarize').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
-        withRetry('actionItems', () =>
-          runActionItems({
-            segments,
-            locale,
-            provider: resolve('actionItems').provider,
-            model: resolve('actionItems').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
-        withRetry('mindmap', () =>
-          runMindmap({
-            fullText: tx.fullText,
-            locale,
-            provider: resolve('mindmap').provider,
-            model: resolve('mindmap').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
-        withRetry('chapters', () =>
-          runChapters({
-            segments,
-            locale,
-            provider: resolve('chapters').provider,
-            model: resolve('chapters').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
-        withRetry('quotes', () =>
-          runQuotes({
-            segments,
-            locale,
-            provider: resolve('quotes').provider,
-            model: resolve('quotes').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
-        withRetry('sentiment', () =>
-          runSentiment({
-            fullText: tx.fullText,
-            locale,
-            provider: resolve('sentiment').provider,
-            model: resolve('sentiment').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
-        withRetry('flashcards', () =>
-          runFlashcards({
-            fullText: tx.fullText,
-            locale,
-            provider: resolve('flashcards').provider,
-            model: resolve('flashcards').model,
-            keys: workspaceAI.keys,
-          }),
-        ),
+        withRetry('summary', () => runChatTask('summary')),
+        withRetry('actionItems', () => runChatTask('actionItems')),
+        withRetry('mindmap', () => runChatTask('mindmap')),
+        withRetry('chapters', () => runChatTask('chapters')),
+        withRetry('quotes', () => runChatTask('quotes')),
+        withRetry('sentiment', () => runChatTask('sentiment')),
+        withRetry('flashcards', () => runChatTask('flashcards')),
       ]);
 
     const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
@@ -270,10 +238,11 @@ export async function processRecording(payload: { recordingId: string; locale?: 
     }
 
     await setStatus(db, recordingId, 'embedding');
+    const embedding = resolveEmbedding('embed');
     const chunks = await withRetry('embedding', () =>
       chunkAndEmbed(segments, {
-        provider: workspaceAI.embeddingProvider,
-        model: workspaceAI.embeddingModel,
+        provider: embedding.provider,
+        model: embedding.model,
         keys: workspaceAI.keys,
       }),
     );
@@ -293,7 +262,9 @@ export async function processRecording(payload: { recordingId: string; locale?: 
             endMs: c.endMs,
             content: c.content,
             embedding: FieldValue.vector(c.embedding),
-            model: workspaceAI.embeddingModel ?? 'text-embedding-3-small',
+            model:
+              embedding.model ??
+              (embedding.provider === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small'),
             createdAt: FieldValue.serverTimestamp(),
           },
         })),

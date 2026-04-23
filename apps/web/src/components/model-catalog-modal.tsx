@@ -121,6 +121,9 @@ export function ModelCatalogModal({
                 {selectedIds.size} selecionados
               </span>
             </p>
+            <p className="mt-1 text-xs text-mute">
+              Notas são comparativas (benchmark + observação de produção), não garantia absoluta.
+            </p>
           </div>
           <button
             type="button"

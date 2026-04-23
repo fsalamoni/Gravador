@@ -5,6 +5,13 @@ This file captures decisions and assumptions that must survive long implementati
 ## Locked decisions
 
 
+- Chat-oriented agents now execute through centralized multi-candidate fallback orchestration (`runAgentTaskWithFallback`) in both `apps/web/src/app/api/recordings/[id]/run-task/route.ts` and `workers/ai-pipeline/src/tasks/process-recording.ts`, retrying only recoverable provider/model routing failures.
+- Structured-output tasks now use `packages/ai/src/pipelines/structured-output.ts`: first attempt with `generateObject`, fallback to `generateText` + strict JSON candidate parsing + Zod validation when tool-use/json-schema capabilities are unavailable.
+- Embeddings resolution now honors per-agent overrides (`agentModels.embed`) and provider-aware fallback semantics; OpenAI embeddings automatically fall back to Ollama when `OPENAI_API_KEY` is absent, with clearer provider-specific error signaling.
+- Model registry ratings were recalibrated to comparative realistic heuristics (including stronger Qwen tiers) and UX now explicitly labels ratings as comparative benchmarks, not absolute guarantees.
+- Local verification for this package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
+
+
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
 - Hotfix commit `e0edb97` closure: `CI` run `24815525379` success (including `pnpm run test:web:firestore-emulator`), `firebase-hosting` run `24815525377` success, `pages` run `24815524886` success.
 - Recording lifecycle/artifact/audio-edit routes now enqueue deterministic notification events into `notification_queue` (status=`pending`, attempts/metadata envelope) when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.

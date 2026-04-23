@@ -68,7 +68,12 @@
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 - Added transcription UX hardening in web/mobile settings with one-click operational profiles (speed/quality/privacy), readiness scorecards, and save guardrails for empty-model scenarios; this reduces setup ambiguity before transcription execution.
 - Added cloud-key readiness hints (Groq/OpenAI) and local endpoint reminders (faster-whisper) directly in settings to lower first-run failure probability.
+- Added chat-agent provider/model fallback orchestration (`runAgentTaskWithFallback`) in both synchronous API execution and background worker pipeline, reducing user-visible 500 failures when preferred models/providers are unavailable.
+- Added structured-output compatibility fallback (`generateObject` -> `generateText` + strict JSON parse/validation) for models/providers without tool-use/json-schema support.
+- Added embeddings robustness: per-agent embed override parity, OpenAI-key-aware fallback to local Ollama embeddings, and clearer UI hints for embedding provider requirements.
+- Recalibrated model catalog comparative ratings (including stronger Qwen tiers) and added explicit UX legend clarifying scores are benchmark-based heuristics, not absolute guarantees.
 - Local validation after transcription UX package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- Local validation after AI agent reliability package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 - Expanded managed-Firestore staged tests to include auth/session/access/error contracts (`401`, `403`, `400`, `404`) for lifecycle and artifact routes, reducing risk that managed runtime diverges from local/emulator authorization behavior.
 - Local validation after managed-suite expansion remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

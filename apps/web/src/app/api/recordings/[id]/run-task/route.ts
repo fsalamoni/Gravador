@@ -6,14 +6,9 @@ import {
   getRecordingLifecycleState,
 } from '@/lib/recording-lifecycle';
 import {
+  type GenerationProvider,
   chunkAndEmbed,
-  runActionItems,
-  runChapters,
-  runFlashcards,
-  runMindmap,
-  runQuotes,
-  runSentiment,
-  runSummary,
+  runAgentTaskWithFallback,
   transcribe,
 } from '@gravador/ai';
 import type { Locale, TranscriptSegment } from '@gravador/core';
@@ -57,7 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const workspaceAI = await loadWorkspaceAI(db, recording.workspaceId as string);
 
-  const resolve = (agent: string) => ({
+  const resolveChat = (agent: string) => ({
     provider: (workspaceAI.agentModels[agent]?.provider ?? workspaceAI.chatProvider) as
       | 'anthropic'
       | 'openai'
@@ -66,6 +61,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       | 'openrouter',
     model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
   });
+
+  const resolveEmbedding = (agent: string) => ({
+    provider: (workspaceAI.agentModels[agent]?.provider ?? workspaceAI.embeddingProvider) as
+      | 'openai'
+      | 'ollama'
+      | undefined,
+    model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.embeddingModel,
+  });
+
+  const runChatTask = (
+    task:
+      | 'summary'
+      | 'actionItems'
+      | 'mindmap'
+      | 'chapters'
+      | 'quotes'
+      | 'sentiment'
+      | 'flashcards',
+    context: { locale: Locale; fullText: string; segments: TranscriptSegment[] },
+  ) => {
+    const resolved = resolveChat(task);
+    return runAgentTaskWithFallback({
+      task,
+      preferredProvider: resolved.provider as GenerationProvider,
+      preferredModel: resolved.model,
+      keys: workspaceAI.keys,
+      locale: context.locale,
+      fullText: context.fullText,
+      segments: context.segments,
+    });
+  };
   const sourceRecordingVersion = recordingLifecycle.recordingVersion;
 
   // Map task → pipelineResults key
@@ -151,29 +177,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       };
     });
 
+    const chatContext = { locale, fullText, segments };
+
     const outputsCollection = db.collection('recordings').doc(recordingId).collection('ai_outputs');
 
     if (task === 'summary') {
-      const result = await runSummary({
-        segments,
-        fullText,
-        locale,
-        provider: resolve('summarize').provider,
-        model: resolve('summarize').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('summary', chatContext);
       await insertOutput(outputsCollection, recordingId, 'summary', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
       });
     } else if (task === 'actionItems') {
-      const result = await runActionItems({
-        segments,
-        locale,
-        provider: resolve('actionItems').provider,
-        model: resolve('actionItems').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('actionItems', chatContext);
       await insertOutput(outputsCollection, recordingId, 'action_items', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
@@ -212,69 +227,40 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         await insertBatch.commit();
       }
     } else if (task === 'mindmap') {
-      const result = await runMindmap({
-        fullText,
-        locale,
-        provider: resolve('mindmap').provider,
-        model: resolve('mindmap').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('mindmap', chatContext);
       await insertOutput(outputsCollection, recordingId, 'mindmap', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
       });
     } else if (task === 'chapters') {
-      const result = await runChapters({
-        segments,
-        locale,
-        provider: resolve('chapters').provider,
-        model: resolve('chapters').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('chapters', chatContext);
       await insertOutput(outputsCollection, recordingId, 'chapters', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
       });
     } else if (task === 'quotes') {
-      const result = await runQuotes({
-        segments,
-        locale,
-        provider: resolve('quotes').provider,
-        model: resolve('quotes').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('quotes', chatContext);
       await insertOutput(outputsCollection, recordingId, 'quotes', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
       });
     } else if (task === 'sentiment') {
-      const result = await runSentiment({
-        fullText,
-        locale,
-        provider: resolve('sentiment').provider,
-        model: resolve('sentiment').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('sentiment', chatContext);
       await insertOutput(outputsCollection, recordingId, 'sentiment', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
       });
     } else if (task === 'flashcards') {
-      const result = await runFlashcards({
-        fullText,
-        locale,
-        provider: resolve('flashcards').provider,
-        model: resolve('flashcards').model,
-        keys: workspaceAI.keys,
-      });
+      const result = await runChatTask('flashcards', chatContext);
       await insertOutput(outputsCollection, recordingId, 'flashcards', result, locale, {
         actorId: user.uid,
         sourceRecordingVersion,
       });
     } else if (task === 'embed') {
+      const embedding = resolveEmbedding('embed');
       const chunks = await chunkAndEmbed(segments, {
-        provider: workspaceAI.embeddingProvider,
-        model: workspaceAI.embeddingModel,
+        provider: embedding.provider,
+        model: embedding.model,
         keys: workspaceAI.keys,
       });
 
@@ -305,7 +291,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
               endMs: c.endMs,
               content: c.content,
               embedding: FieldValue.vector(c.embedding),
-              model: workspaceAI.embeddingModel ?? 'text-embedding-3-small',
+              model:
+                embedding.model ??
+                (embedding.provider === 'ollama' ? 'nomic-embed-text' : 'text-embedding-3-small'),
               createdAt: FieldValue.serverTimestamp(),
             });
           }

@@ -7,3 +7,4 @@ export { chatWithRecording, type ChatMessage } from './chat.ts';
 export { runQuotes } from './quotes.ts';
 export { runSentiment } from './sentiment.ts';
 export { runFlashcards } from './flashcards.ts';
+export { runAgentTaskWithFallback, type AgentTaskKind } from './agent-fallbacks.ts';

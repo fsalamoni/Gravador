@@ -110,7 +110,7 @@ const TASKS: TaskDef[] = [
   {
     id: 'embed',
     label: 'Embeddings',
-    description: 'Indexa para busca semântica no Chat',
+    description: 'Indexa para busca semântica no Chat (OpenAI ou fallback local)',
     icon: Layers,
     requiresTranscript: true,
     pipelineKey: 'embed',

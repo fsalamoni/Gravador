@@ -11,11 +11,21 @@ export type ChatModelName =
   | 'claude-opus-4-7'
   | 'gpt-4.1'
   | 'gpt-4.1-mini'
+  | 'gpt-4o'
+  | 'gpt-4o-mini'
   | 'gemini-2.5-pro'
   | 'gemini-2.5-flash'
   | 'llama3.1:70b'
   | 'llama3.1:8b'
   | (string & {});
+
+export type GenerationProvider =
+  | 'anthropic'
+  | 'openai'
+  | 'google'
+  | 'groq'
+  | 'ollama'
+  | 'openrouter';
 
 export interface ProviderKeys {
   openai?: string;
@@ -24,6 +34,129 @@ export interface ProviderKeys {
   google?: string;
   openrouter?: string;
   ollamaBaseUrl?: string;
+}
+
+export interface ChatModelCandidate {
+  provider: GenerationProvider;
+  model: ChatModelName;
+}
+
+const OPENROUTER_MODEL_ALIASES: Record<string, string> = {
+  'gpt-4.1': 'openai/gpt-4.1',
+  'gpt-4.1-mini': 'openai/gpt-4.1-mini',
+  'gpt-4o': 'openai/gpt-4o',
+  'gpt-4o-mini': 'openai/gpt-4o-mini',
+  'claude-sonnet-4-6': 'anthropic/claude-sonnet-4-6',
+  'claude-opus-4-7': 'anthropic/claude-opus-4',
+  'gemini-2.5-pro': 'google/gemini-2.5-pro-preview',
+  'gemini-2.5-flash': 'google/gemini-2.5-flash-preview',
+};
+
+const FALLBACK_PROVIDER_ORDER: GenerationProvider[] = [
+  'anthropic',
+  'openai',
+  'google',
+  'openrouter',
+  'groq',
+  'ollama',
+];
+
+export function getDefaultChatModel(provider: GenerationProvider): ChatModelName {
+  switch (provider) {
+    case 'anthropic':
+      return 'claude-sonnet-4-6';
+    case 'openai':
+      return 'gpt-4o-mini';
+    case 'google':
+      return 'gemini-2.5-flash';
+    case 'groq':
+      return 'llama3-groq-70b-tool-use';
+    case 'openrouter':
+      return 'openai/gpt-4o-mini';
+    case 'ollama':
+      return 'llama3.1:8b';
+  }
+}
+
+export function normalizeChatModel(
+  provider: GenerationProvider,
+  model: string | undefined,
+): ChatModelName {
+  const trimmed = (model ?? '').trim();
+  if (!trimmed) return getDefaultChatModel(provider);
+  if (provider === 'openrouter') {
+    return (OPENROUTER_MODEL_ALIASES[trimmed] ?? trimmed) as ChatModelName;
+  }
+  return trimmed as ChatModelName;
+}
+
+export function hasConfiguredProviderKey(
+  provider: GenerationProvider,
+  keys: ProviderKeys = {},
+): boolean {
+  switch (provider) {
+    case 'anthropic':
+      return Boolean(keys.anthropic ?? process.env.ANTHROPIC_API_KEY);
+    case 'openai':
+      return Boolean(keys.openai ?? process.env.OPENAI_API_KEY);
+    case 'google':
+      return Boolean(keys.google ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+    case 'groq':
+      return Boolean(keys.groq ?? process.env.GROQ_API_KEY);
+    case 'openrouter':
+      return Boolean(keys.openrouter ?? process.env.OPENROUTER_API_KEY);
+    case 'ollama':
+      return true;
+  }
+}
+
+export function buildChatModelCandidates(
+  preferred: { provider?: GenerationProvider; model?: string },
+  keys: ProviderKeys = {},
+): ChatModelCandidate[] {
+  const primaryProvider = preferred.provider ?? 'anthropic';
+  const candidates: ChatModelCandidate[] = [];
+  const seen = new Set<string>();
+
+  const add = (provider: GenerationProvider, model: string | undefined) => {
+    if (!hasConfiguredProviderKey(provider, keys)) return;
+    const normalizedModel = normalizeChatModel(provider, model);
+    const key = `${provider}:${normalizedModel}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ provider, model: normalizedModel });
+  };
+
+  add(primaryProvider, preferred.model);
+  add(primaryProvider, undefined);
+
+  for (const provider of FALLBACK_PROVIDER_ORDER) {
+    add(provider, undefined);
+  }
+
+  return candidates;
+}
+
+export function isRecoverableModelRoutingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalized = message.toLowerCase();
+  return [
+    'missing openai_api_key',
+    'missing anthropic_api_key',
+    'missing google_generative_ai_api_key',
+    'missing groq_api_key',
+    'missing openrouter_api_key',
+    'does not exist',
+    'do not have access',
+    'model not found',
+    'unknown model',
+    'no endpoints found that support tool use',
+    'does not support tool',
+    'unsupported response_format',
+    'json_schema',
+    'disable "json"',
+    'structured output',
+  ].some((token) => normalized.includes(token));
 }
 
 function normalizeOllamaBaseUrl(raw: string | undefined): string {
@@ -43,26 +176,27 @@ export function resolveChatModel(
   model: ChatModelName,
   keys: ProviderKeys = {},
 ): LanguageModel {
+  const normalizedModel = normalizeChatModel(provider as GenerationProvider, model);
   switch (provider) {
     case 'anthropic': {
       const apiKey = keys.anthropic ?? process.env.ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error('Missing ANTHROPIC_API_KEY');
-      return createAnthropic({ apiKey })(model);
+      return createAnthropic({ apiKey })(normalizedModel);
     }
     case 'openai': {
       const apiKey = keys.openai ?? process.env.OPENAI_API_KEY;
       if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
-      return createOpenAI({ apiKey })(model);
+      return createOpenAI({ apiKey })(normalizedModel);
     }
     case 'google': {
       const apiKey = keys.google ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       if (!apiKey) throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY');
-      return createGoogleGenerativeAI({ apiKey })(model);
+      return createGoogleGenerativeAI({ apiKey })(normalizedModel);
     }
     case 'groq': {
       const apiKey = keys.groq ?? process.env.GROQ_API_KEY;
       if (!apiKey) throw new Error('Missing GROQ_API_KEY');
-      return createGroq({ apiKey })(model);
+      return createGroq({ apiKey })(normalizedModel);
     }
     case 'openrouter': {
       const apiKey = keys.openrouter ?? process.env.OPENROUTER_API_KEY;
@@ -70,12 +204,14 @@ export function resolveChatModel(
       return createOpenAI({
         apiKey,
         baseURL: 'https://openrouter.ai/api/v1',
-      })(model);
+      })(normalizedModel);
     }
     case 'ollama': {
       const baseRoot = normalizeOllamaBaseUrl(keys.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL);
       // Ollama provider ships its own @ai-sdk/provider copy; cast to unblock the version gap
-      return createOllama({ baseURL: `${baseRoot}/api` })(model) as unknown as LanguageModel;
+      return createOllama({ baseURL: `${baseRoot}/api` })(
+        normalizedModel,
+      ) as unknown as LanguageModel;
     }
   }
 }
@@ -249,8 +385,13 @@ export async function embedTexts(
   texts: string[],
   opts: { provider?: 'openai' | 'ollama'; model?: string; keys?: ProviderKeys } = {},
 ): Promise<number[][]> {
+  const requestedProvider =
+    opts.provider ?? (process.env.AI_EMBEDDING_PROVIDER as 'openai' | 'ollama' | undefined);
+  const hasOpenAIKey = Boolean(opts.keys?.openai ?? process.env.OPENAI_API_KEY);
   const provider =
-    opts.provider ?? (process.env.AI_EMBEDDING_PROVIDER as 'openai' | 'ollama') ?? 'openai';
+    requestedProvider === 'openai' && !hasOpenAIKey
+      ? 'ollama'
+      : (requestedProvider ?? (hasOpenAIKey ? 'openai' : 'ollama'));
   const model =
     opts.model ??
     process.env.AI_EMBEDDING_MODEL ??
@@ -258,7 +399,11 @@ export async function embedTexts(
 
   if (provider === 'openai') {
     const apiKey = opts.keys?.openai ?? process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new Error(
+        'Missing OPENAI_API_KEY and no embedding fallback provider configured. Configure OpenAI key or select Ollama embeddings.',
+      );
+    }
     const res = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
@@ -273,11 +418,16 @@ export async function embedTexts(
   const baseRoot = normalizeOllamaBaseUrl(opts.keys?.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL);
   const out: number[][] = [];
   for (const input of texts) {
-    const res = await fetch(`${baseRoot}/api/embeddings`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, prompt: input }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${baseRoot}/api/embeddings`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model, prompt: input }),
+      });
+    } catch {
+      throw new Error(`Ollama embed failed: service unreachable at ${baseRoot}`);
+    }
     if (!res.ok) throw new Error(`Ollama embed failed: ${res.status}`);
     const json = (await res.json()) as { embedding: number[] };
     out.push(json.embedding);

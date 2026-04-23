@@ -1,8 +1,14 @@
 import type { Locale, TranscriptSegment } from '@gravador/core';
-import { generateObject } from 'ai';
 import { z } from 'zod';
 import { PROMPT_VERSION, getPrompts } from '../prompts/index.ts';
-import { type ChatModelName, type ProviderKeys, resolveChatModel } from '../providers/index.ts';
+import {
+  type ChatModelName,
+  type GenerationProvider,
+  type ProviderKeys,
+  normalizeChatModel,
+  resolveChatModel,
+} from '../providers/index.ts';
+import { generateStructuredObject } from './structured-output.ts';
 
 const schema = z.object({
   chapters: z.array(
@@ -19,16 +25,16 @@ export async function runChapters(input: {
   segments: TranscriptSegment[];
   locale: Locale;
   model?: ChatModelName;
-  provider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
+  provider?: GenerationProvider;
   keys?: ProviderKeys;
 }) {
   const started = Date.now();
-  const provider = input.provider ?? 'anthropic';
-  const model = input.model ?? (provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4.1-mini');
+  const provider = (input.provider ?? 'anthropic') as GenerationProvider;
+  const model = normalizeChatModel(provider, input.model);
 
   const prompt = input.segments.map((s) => `[${s.startMs}ms-${s.endMs}ms] ${s.text}`).join('\n');
 
-  const { object } = await generateObject({
+  const object = await generateStructuredObject({
     model: resolveChatModel(provider, model, input.keys),
     system: getPrompts(input.locale).chapters,
     prompt,
