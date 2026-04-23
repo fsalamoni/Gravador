@@ -18,6 +18,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Commit `6630bf7` outcomes: `CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by superseding timeout-hotfix push, `Firestore Managed E2E` run `24844398345` failure (timeout-only).
 - Commit `3d7477f` closure: `CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success, `Firestore Managed E2E` run `24844650008` success.
 - Workflow runtime hardening migrated setup actions to current majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`) across CI/deploy/release/runner/smoke/managed workflows to remove Node 20 deprecation warnings.
+- Workflow runtime hardening commit `f1264e3` closed with `CI` run `24845757841` success (run attempt 2), `firebase-hosting` run `24845757805` success, and `pages` run `24845756522` success.
+- First CI attempt for `f1264e3` failed in checkout due transient GitHub fetch infra error (`RPC failed; HTTP 500`, `expected packfile`) with no source-code regression; rerun completed green.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.

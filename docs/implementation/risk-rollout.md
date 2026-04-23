@@ -56,6 +56,8 @@
 - Release closure for commit `6630bf7`: `CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by superseding timeout hotfix.
 - Release closure for commit `3d7477f`: `CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success.
 - Workflow runtime hardening package upgraded deprecated setup actions across automation surfaces (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`) to avoid Node 20 deprecation churn and preserve deterministic CI diagnostics.
+- Runtime hardening release verification for commit `f1264e3`: `CI` run `24845757841` success (attempt 2), `firebase-hosting` run `24845757805` success, `pages` run `24845756522` success.
+- CI checkout instability observed during first attempt for `f1264e3` (`RPC failed; HTTP 500` on fetch) was classified as transient GitHub infra failure; rerun passed without repository code changes, preserving confidence in package integrity.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path

@@ -78,3 +78,4 @@
 - [x] Hardening package commit `6630bf7` verified with expected supersession behavior (`CI` run `24844354014` success, `pages` run `24844352856` success, `firebase-hosting` run `24844354027` cancelled by timeout hotfix push, managed workflow run `24844398345` failed on default Vitest timeout).
 - [x] Managed timeout hotfix commit `3d7477f` verified end-to-end (`CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success, `Firestore Managed E2E` run `24844650008` success).
 - [x] Workflow runtime hardening package merged: deprecated Node 20 action warnings removed by upgrading core setup actions across CI/deploy/runner/smoke/managed/release workflows.
+- [x] Workflow runtime hardening commit `f1264e3` verified end-to-end (`CI` run `24845757841` success on rerun attempt 2 after transient checkout fetch HTTP 500, `firebase-hosting` run `24845757805` success, `pages` run `24845756522` success).
