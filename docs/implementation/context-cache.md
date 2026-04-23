@@ -20,6 +20,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Workflow runtime hardening migrated setup actions to current majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`) across CI/deploy/release/runner/smoke/managed workflows to remove Node 20 deprecation warnings.
 - Workflow runtime hardening commit `f1264e3` closed with `CI` run `24845757841` success (run attempt 2), `firebase-hosting` run `24845757805` success, and `pages` run `24845756522` success.
 - First CI attempt for `f1264e3` failed in checkout due transient GitHub fetch infra error (`RPC failed; HTTP 500`, `expected packfile`) with no source-code regression; rerun completed green.
+- Docs sync commit `a18f7db` achieved `CI` run `24846181284` success, but dynamic pages run `24846180263` failed (including rerun attempt 2) with repeated `Deploy to GitHub Pages` polling timeout (`Timeout reached, aborting!`).
+- Pages automation currently originates from GitHub-managed dynamic workflow path `dynamic/pages/pages-build-deployment` (`build_type: legacy`), so timeout controls and action versions are not repository-editable.
+- Mitigation path locked: migrate to repository-managed Pages workflow (`.github/workflows/pages.yml`) using current action majors and explicit deploy timeout/error settings, then switch repository Pages build type from `legacy` to `workflow`.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
