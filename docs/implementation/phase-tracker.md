@@ -68,3 +68,5 @@
 - [x] Local package verification green after lifecycle/artifact route integration-coverage expansion (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Release package commit `631d646` verified end-to-end (`CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success).
 - [x] CI contract now includes Firestore Emulator-backed route integration execution (`pnpm run test:web:firestore-emulator`) with explicit Java setup on runner.
+- [x] Emulator-coverage package commit `f4368f2` correctly surfaced a Firestore field-path lifecycle persistence defect (`CI` run `24815425692` failure), which triggered immediate corrective hotfix.
+- [x] Hotfix commit `e0edb97` verified end-to-end (`CI` run `24815525379` success including `test:web:firestore-emulator`, `firebase-hosting` run `24815525377` success, `pages` run `24815524886` success).

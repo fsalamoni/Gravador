@@ -4,18 +4,11 @@ This file captures decisions and assumptions that must survive long implementati
 
 ## Locked decisions
 
-- Delivery mode: phased rollout with feature flags.
-- Audio editing architecture: server-side FFmpeg + media versioning.
-- Data retention: keep original and edited versions until explicit delete.
-- Notifications scope: included in first functional wave.
-- Bulk merge behavior: preserve artifacts side-by-side (no forced merge).
-- Bulk merge execute transaction semantics must be protected by route-level regression coverage (copy-on-missing + no-overwrite invariants).
-- Recording lifecycle/artifact transition semantics must be protected by route-level regression coverage (state transitions + metadata/version invariants).
 
-## Already resolved foundation
+- Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
+- Hotfix commit `e0edb97` closure: `CI` run `24815525379` success (including `pnpm run test:web:firestore-emulator`), `firebase-hosting` run `24815525377` success, `pages` run `24815524886` success.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
-- Public download hub exists and is reused as visual baseline.
 - Internal workspace downloads route introduced for authenticated users.
 - Navigation and command palette now expose internal downloads entry.
 - Lint and typecheck are green after this package.

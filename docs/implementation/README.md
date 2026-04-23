@@ -4,7 +4,7 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with integration-level route coverage now expanded across merge execute and lifecycle/artifact transition APIs, now including Firestore Emulator-backed route integration evidence and CI wiring
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with integration-level route coverage now expanded across merge execute and lifecycle/artifact transition APIs, now including Firestore Emulator-backed route integration evidence and CI wiring (release-verified on hotfix commit `e0edb97`)
 - Focus: operational activation closure (provision missing secrets/variables for runner + notifications smoke), Expo capacity plan, and staged production-like lifecycle/artifact e2e evidence beyond emulator scope
 
 ## Files
