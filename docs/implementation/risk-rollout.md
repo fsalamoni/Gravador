@@ -42,6 +42,7 @@
 - Added route-level integration regression tests for merge execute transaction semantics in `apps/web/src/app/api/recordings/bulk/route.test.ts` (copy-on-missing, no-overwrite, and execution audit assertions) using an in-memory Firestore harness.
 - Added reusable in-memory Firestore transaction harness (`apps/web/src/test-utils/fake-firestore.ts`) with transform support (`FieldValue.increment` and `serverTimestamp`) to stabilize route-level API integration tests.
 - Added route-level integration regression tests for lifecycle transitions (`apps/web/src/app/api/recordings/[id]/lifecycle/route.test.ts`) and artifact transitions (`apps/web/src/app/api/recordings/[id]/artifacts/[kind]/route.test.ts`) covering status/version/metadata invariants and guard rails.
+- Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path
 

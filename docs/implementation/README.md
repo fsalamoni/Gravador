@@ -4,7 +4,7 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with integration-level route coverage now expanded across merge execute and lifecycle/artifact transition APIs
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with integration-level route coverage now expanded across merge execute and lifecycle/artifact transition APIs and release-verified on commit `631d646`
 - Focus: operational activation closure (provision missing secrets/variables for runner + notifications smoke), plus Expo capacity plan and emulator-backed lifecycle transition e2e evidence
 
 ## Files
