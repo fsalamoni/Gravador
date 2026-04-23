@@ -222,11 +222,14 @@ The `transcribe()` function in `@gravador/ai` supports 3 providers:
 
 | Provider              | Model             | Cost              | Notes                                    |
 |-----------------------|-------------------|-------------------|------------------------------------------|
-| **Groq** (default)    | Whisper Large v3  | Free              | Rate limit ~20 req/min. Fastest (<1x RT) |
+| **Groq** (default)    | Whisper Large v3  | ~$0.04-$0.111/h   | Fastest in most workloads (<1x RT)       |
 | **OpenAI**            | Whisper-1         | ~$0.006/min audio | No aggressive rate limit                 |
 | **Local (self-host)** | faster-whisper    | Free              | Requires own GPU                         |
 
 Configuration: `aiSettings.transcribeProvider` + `aiSettings.transcribeModel` in workspace settings. Keys stored in `aiSettings.byokKeys`.
+
+Detailed onboarding (provider registration, API keys, costs, limits, self-host setup):
+`docs/transcription-providers.md`.
 
 ## CI/CD
 

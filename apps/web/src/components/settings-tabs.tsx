@@ -34,6 +34,7 @@ import { THEMES, type ThemeId, useTheme } from './theme-provider';
 // ── Types ──
 
 type AIProvider = 'openrouter' | 'openai' | 'anthropic' | 'google' | 'groq' | 'ollama';
+type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
 
 interface AgentModelConfig {
   provider?: string;
@@ -126,6 +127,93 @@ const AGENTS: { key: string; label: string; description: string }[] = [
   { key: 'embed', label: 'Embeddings', description: 'Indexação vetorial para busca' },
   { key: 'transcribe', label: 'Transcrição', description: 'Conversão de áudio para texto' },
 ];
+
+const TRANSCRIPTION_GUIDE_URL =
+  'https://github.com/fsalamoni/Gravador/blob/main/docs/transcription-providers.md';
+
+const TRANSCRIBE_DEFAULT_MODEL: Record<TranscribeProvider, string> = {
+  groq: 'whisper-large-v3',
+  openai: 'whisper-1',
+  'local-faster-whisper': 'faster-whisper-large-v3',
+};
+
+const TRANSCRIBE_MODEL_OPTIONS: Record<
+  TranscribeProvider,
+  Array<{ id: string; label: string; note: string }>
+> = {
+  groq: [
+    {
+      id: 'whisper-large-v3',
+      label: 'whisper-large-v3 (maior precisão)',
+      note: 'Qualidade de referência no Groq para português e áudio ruidoso.',
+    },
+    {
+      id: 'whisper-large-v3-turbo',
+      label: 'whisper-large-v3-turbo (mais rápido)',
+      note: 'Menor custo/latência com pequena troca de precisão em casos difíceis.',
+    },
+  ],
+  openai: [
+    {
+      id: 'whisper-1',
+      label: 'whisper-1 (estável)',
+      note: 'Modelo consolidado da OpenAI para transcrição multipropósito.',
+    },
+  ],
+  'local-faster-whisper': [
+    {
+      id: 'faster-whisper-large-v3',
+      label: 'faster-whisper-large-v3 (maior precisão)',
+      note: 'Mais preciso, exige mais CPU/GPU.',
+    },
+    {
+      id: 'faster-whisper-medium',
+      label: 'faster-whisper-medium (equilíbrio)',
+      note: 'Boa relação qualidade/desempenho para infraestrutura moderada.',
+    },
+    {
+      id: 'faster-whisper-small',
+      label: 'faster-whisper-small (mais leve)',
+      note: 'Mais rápido em hardware limitado, com perda de acurácia.',
+    },
+  ],
+};
+
+const TRANSCRIBE_PROFILES: Array<{
+  id: string;
+  title: string;
+  description: string;
+  provider: TranscribeProvider;
+  model: string;
+}> = [
+  {
+    id: 'speed',
+    title: '⚡ Velocidade (backlog)',
+    description: 'Groq Turbo para menor latência e custo reduzido.',
+    provider: 'groq',
+    model: 'whisper-large-v3-turbo',
+  },
+  {
+    id: 'quality',
+    title: '🎯 Qualidade (baseline)',
+    description: 'OpenAI Whisper-1 como padrão consolidado de precisão.',
+    provider: 'openai',
+    model: 'whisper-1',
+  },
+  {
+    id: 'privacy',
+    title: '🔒 Privacidade (self-host)',
+    description: 'Processamento local com faster-whisper sem envio externo.',
+    provider: 'local-faster-whisper',
+    model: 'faster-whisper-large-v3',
+  },
+];
+
+function normalizeTranscribeProvider(raw: string | undefined): TranscribeProvider {
+  if (raw === 'openai') return 'openai';
+  if (raw === 'local' || raw === 'local-faster-whisper') return 'local-faster-whisper';
+  return 'groq';
+}
 
 // ── Main Component ──
 
@@ -826,10 +914,43 @@ function AgentsTab({
   const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
   const [reprocessing, setReprocessing] = useState(false);
   const [healthChecking, setHealthChecking] = useState(false);
-  const transcribeProvider =
-    settings.transcribeProvider === 'local'
-      ? 'local-faster-whisper'
-      : (settings.transcribeProvider ?? 'groq');
+  const transcribeProvider = normalizeTranscribeProvider(settings.transcribeProvider);
+  const transcribeModel = (settings.transcribeModel ?? '').trim();
+  const transcribeModelOptions = TRANSCRIBE_MODEL_OPTIONS[transcribeProvider];
+  const selectedPresetModel = transcribeModelOptions.find(
+    (option) => option.id === transcribeModel,
+  );
+  const modelSelectValue = selectedPresetModel ? selectedPresetModel.id : '__custom__';
+  const hasGroqWorkspaceKey = !!settings.byokKeys?.groq?.trim();
+  const hasOpenAIWorkspaceKey = !!settings.byokKeys?.openai?.trim();
+  const selectedProviderKeyConfigured =
+    transcribeProvider === 'groq'
+      ? hasGroqWorkspaceKey
+      : transcribeProvider === 'openai'
+        ? hasOpenAIWorkspaceKey
+        : true;
+  const selectedProviderNeedsApiKey =
+    transcribeProvider === 'groq' || transcribeProvider === 'openai';
+  const transcribeModelReady = transcribeModel.length > 0;
+  const transcribeReadinessItems: Array<{ label: string; done: boolean }> = [
+    { label: 'Provedor selecionado', done: true },
+    { label: 'Modelo configurado', done: transcribeModelReady },
+    {
+      label: selectedProviderNeedsApiKey
+        ? `API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} configurada`
+        : 'Modo local definido (verifique o LOCAL_WHISPER_URL)',
+      done: selectedProviderKeyConfigured,
+    },
+  ];
+  const transcribeReadinessDone = transcribeReadinessItems.filter((item) => item.done).length;
+  const transcribeReady = transcribeReadinessDone === transcribeReadinessItems.length;
+  const transcribeReadinessHint = !transcribeModelReady
+    ? 'Defina um modelo para evitar fallback inesperado.'
+    : selectedProviderNeedsApiKey && !selectedProviderKeyConfigured
+      ? `Falta API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} em Provedores de IA.`
+      : transcribeProvider === 'local-faster-whisper'
+        ? 'Valide que o serviço local está ativo no endpoint LOCAL_WHISPER_URL.'
+        : 'Pronto para transcrição em produção com as configurações atuais.';
 
   const togglePrompt = (key: string) =>
     setExpandedPrompts((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -986,6 +1107,140 @@ function AgentsTab({
           tabela oficial do provedor antes de estimar produção.
         </p>
 
+        <div className="mt-4 rounded-[16px] border border-border bg-surfaceAlt/35 p-4">
+          <p className="text-xs uppercase tracking-[0.24em] text-mute">Ativação sem erro</p>
+          <ol className="mt-2 space-y-1 text-sm leading-6 text-mute">
+            <li>
+              1. Em <strong className="text-text">Provedores de IA</strong>, selecione OpenAI ou
+              Groq e salve sua API key (BYOK).
+            </li>
+            <li>
+              2. Em <strong className="text-text">Agentes</strong>, escolha aqui o provedor de
+              transcrição e o modelo.
+            </li>
+            <li>
+              3. Reprocesse as gravações para aplicar a nova configuração em lotes anteriores.
+            </li>
+          </ol>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <a
+              href="https://console.groq.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
+            >
+              Conta Groq
+            </a>
+            <a
+              href="https://console.groq.com/keys"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
+            >
+              API key Groq
+            </a>
+            <a
+              href="https://platform.openai.com/api-keys"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
+            >
+              API key OpenAI
+            </a>
+            <a
+              href="https://platform.openai.com/settings/organization/billing/overview"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
+            >
+              Billing OpenAI
+            </a>
+            <a
+              href={TRANSCRIPTION_GUIDE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-accent transition hover:bg-accent/20"
+            >
+              Guia completo de transcrição
+            </a>
+          </div>
+
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+            {TRANSCRIBE_PROFILES.map((profile) => {
+              const active =
+                transcribeProvider === profile.provider && transcribeModel === profile.model;
+              return (
+                <button
+                  key={profile.id}
+                  type="button"
+                  onClick={() => {
+                    onSave({
+                      ...settings,
+                      transcribeProvider: profile.provider,
+                      transcribeModel: profile.model,
+                    });
+                  }}
+                  className={`rounded-[14px] border px-3 py-3 text-left transition ${
+                    active
+                      ? 'border-accent/70 bg-accent/12 text-text'
+                      : 'border-border bg-bg/60 text-mute hover:border-accent/35 hover:text-text'
+                  }`}
+                >
+                  <p className="font-semibold">{profile.title}</p>
+                  <p className="mt-1 leading-5">{profile.description}</p>
+                  {active ? (
+                    <p className="mt-2 text-[11px] font-semibold text-accent">Perfil ativo ✓</p>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            className={`mt-3 rounded-[12px] px-3 py-2 text-xs ${
+              transcribeReady
+                ? 'border border-ok/30 bg-ok/10 text-ok'
+                : 'border border-warning/30 bg-warning/10 text-warning'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold">Prontidão de transcrição</span>
+              <span>
+                {transcribeReadinessDone}/{transcribeReadinessItems.length} concluídos
+              </span>
+            </div>
+            <ul className="mt-2 space-y-1 text-[11px] leading-5">
+              {transcribeReadinessItems.map((item) => (
+                <li key={item.label} className="flex items-start gap-2">
+                  <span className="font-semibold">{item.done ? '✓' : '•'}</span>
+                  <span>{item.label}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2">{transcribeReadinessHint}</p>
+          </div>
+
+          {selectedProviderNeedsApiKey ? (
+            <div
+              className={`mt-3 rounded-[12px] px-3 py-2 text-xs ${
+                selectedProviderKeyConfigured
+                  ? 'border border-ok/30 bg-ok/10 text-ok'
+                  : 'border border-warning/30 bg-warning/10 text-warning'
+              }`}
+            >
+              {selectedProviderKeyConfigured
+                ? `API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} detectada no workspace.`
+                : `Nenhuma API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} salva no workspace. Configure em Provedores de IA para evitar falha de transcrição.`}
+            </div>
+          ) : (
+            <div className="mt-3 rounded-[12px] border border-ok/30 bg-ok/10 px-3 py-2 text-xs text-ok">
+              Modo local selecionado: sem API key externa; requer serviço faster-whisper ativo em
+              LOCAL_WHISPER_URL.
+            </div>
+          )}
+        </div>
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <label
@@ -998,16 +1253,11 @@ function AgentsTab({
               id="transcribe-provider"
               value={transcribeProvider}
               onChange={(e) => {
-                const provider = e.target.value;
-                const defaultModels: Record<string, string> = {
-                  groq: 'whisper-large-v3',
-                  openai: 'whisper-1',
-                  'local-faster-whisper': 'faster-whisper-large-v3',
-                };
+                const provider = normalizeTranscribeProvider(e.target.value);
                 onSave({
                   ...settings,
                   transcribeProvider: provider,
-                  transcribeModel: defaultModels[provider] ?? '',
+                  transcribeModel: TRANSCRIBE_DEFAULT_MODEL[provider],
                 });
               }}
               className="mt-1.5 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
@@ -1024,22 +1274,43 @@ function AgentsTab({
             >
               Modelo
             </label>
-            <input
+            <select
               id="transcribe-model"
-              type="text"
-              value={settings.transcribeModel ?? ''}
+              value={modelSelectValue}
               onChange={(e) => {
+                if (e.target.value === '__custom__') {
+                  if (selectedPresetModel) {
+                    onSave({ ...settings, transcribeModel: '' });
+                  }
+                  return;
+                }
                 onSave({ ...settings, transcribeModel: e.target.value });
               }}
-              placeholder={
-                transcribeProvider === 'openai'
-                  ? 'whisper-1'
-                  : transcribeProvider === 'local-faster-whisper'
-                    ? 'faster-whisper-large-v3'
-                    : 'whisper-large-v3'
-              }
-              className="mt-1.5 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 font-mono text-sm text-text outline-none placeholder:text-mute/50 focus:border-accent/50"
-            />
+              className="mt-1.5 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 text-sm text-text outline-none focus:border-accent/50"
+            >
+              {transcribeModelOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+              <option value="__custom__">Personalizado (digitar manualmente)</option>
+            </select>
+            <p className="mt-2 text-xs text-mute">
+              {selectedPresetModel
+                ? selectedPresetModel.note
+                : 'Modelo personalizado ativo. Use o identificador exato aceito pelo provedor selecionado.'}
+            </p>
+            {modelSelectValue === '__custom__' && (
+              <input
+                type="text"
+                value={transcribeModel}
+                onChange={(e) => {
+                  onSave({ ...settings, transcribeModel: e.target.value });
+                }}
+                placeholder={TRANSCRIBE_DEFAULT_MODEL[transcribeProvider]}
+                className="mt-2 w-full rounded-[14px] border border-border bg-bg/70 px-4 py-3 font-mono text-sm text-text outline-none placeholder:text-mute/50 focus:border-accent/50"
+              />
+            )}
           </div>
         </div>
       </div>

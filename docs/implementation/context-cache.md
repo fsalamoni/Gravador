@@ -28,6 +28,10 @@ This file captures decisions and assumptions that must survive long implementati
 - Incident captured (web recorder): browser upload to `anotes/audio-raw/<workspaceId>/<id>.m4a` can fail with Firebase Storage `storage/unauthorized` despite active workspace session, likely from client auth token/rules drift race during upload.
 - Mitigation locked: `useWebRecorder` now retries unauthorized uploads through server endpoint `/api/recordings/upload`, and when client auth user is temporarily null it directly uses server upload path instead of failing fast.
 - New server contract: `/api/recordings/upload` requires authenticated API session, validates workspace access via `canAccessWorkspace`, stores audio with Admin Storage, and writes canonical `recordings` document with lifecycle/retention defaults.
+- Transcription settings UX now includes one-click profiles (`speed`, `quality`, `privacy`) in both web and mobile settings to reduce provider/model decision friction.
+- Transcription setup now exposes explicit readiness scorecards (provider, model, key/local readiness) across web/mobile to prevent avoidable runtime misconfiguration.
+- Mobile transcription save flow now enforces non-empty model input and returns targeted guidance when cloud provider keys are still missing in workspace settings.
+- Monitoring snapshot (2026-04-23): `CI` run `24851165328` success, `Firebase Hosting` run `24851165327` success, `Pages` run `24850067296` success, and scheduled `Audio Edit Runner` run `24851861930` skipped as expected with activation vars disabled.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.

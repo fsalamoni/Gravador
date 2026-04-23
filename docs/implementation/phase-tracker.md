@@ -59,6 +59,7 @@
 - [x] Harden workflow runtime compatibility by upgrading core setup actions to Node 24-targeting majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`).
 - [x] Migrate GitHub Pages delivery from legacy dynamic workflow to repository-managed `pages.yml` (checkout/configure-pages/upload-pages-artifact/deploy-pages on current majors) with extended deploy timeout and retries.
 - [x] Harden web recorder upload reliability by adding server-side upload fallback route (`/api/recordings/upload`) and automatic retry path when browser Firebase Storage returns unauthorized/session-race failures.
+- [x] Harden transcription provider onboarding UX on web/mobile with one-click profiles, readiness scorecards, and save-time guardrails (model requirement + provider key guidance).
 
 ## Release gating before each phase transition
 
@@ -81,6 +82,8 @@
 - [x] Managed timeout hotfix commit `3d7477f` verified end-to-end (`CI` run `24844621121` success, `firebase-hosting` run `24844621167` success, `pages` run `24844619948` success, `Firestore Managed E2E` run `24844650008` success).
 - [x] Workflow runtime hardening package merged: deprecated Node 20 action warnings removed by upgrading core setup actions across CI/deploy/runner/smoke/managed/release workflows.
 - [x] Workflow runtime hardening commit `f1264e3` verified end-to-end (`CI` run `24845757841` success on rerun attempt 2 after transient checkout fetch HTTP 500, `firebase-hosting` run `24845757805` success, `pages` run `24845756522` success).
-- [~] Docs sync commit `a18f7db` partially verified (`CI` run `24846181284` success) while legacy dynamic pages run `24846180263` failed twice on `Deploy to GitHub Pages` timeout; migration to repository-managed pages workflow is in progress.
+- [x] Historical docs sync incident `a18f7db` is closed by repository-managed pages migration (`b17963b`), with legacy dynamic timeout path retired.
 - [x] Pages migration commit `b17963b` verified with repository-managed workflow mode active (`CI` run `24848972653` success, `Pages` run `24848972662` success, repository Pages `build_type=workflow` and `status=built`; superseded legacy dynamic run `24848971863` cancelled during cutover).
 - [x] Local hotfix validation for recorder unauthorized incident completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build` all green after fallback route integration).
+- [x] Local validation for transcription UX readiness package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Workflow monitoring closure captured on 2026-04-23 (`CI` run `24851165328` success, `Firebase Hosting` run `24851165327` success, `Pages` run `24850067296` success, `Audio Edit Runner` run `24851861930` skipped by disabled activation flags).

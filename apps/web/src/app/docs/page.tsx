@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpenText, FileText, Github, ServerCog } from 'lucide-react';
+import { ArrowUpRight, AudioLines, BookOpenText, FileText, Github, ServerCog } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 
@@ -10,6 +10,10 @@ const references = [
   {
     key: 'selfHost',
     href: 'https://github.com/fsalamoni/gravador/blob/main/docs/self-host.en.md',
+  },
+  {
+    key: 'transcription',
+    href: 'https://github.com/fsalamoni/gravador/blob/main/docs/transcription-providers.md',
   },
   {
     key: 'credits',
@@ -26,6 +30,7 @@ export default async function DocsPage() {
   const icons = {
     deploy: ServerCog,
     selfHost: BookOpenText,
+    transcription: AudioLines,
     credits: FileText,
     repo: Github,
   } as const;

@@ -4,8 +4,8 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with route-level transition coverage reinforced by notification queue contracts, managed-Firestore staged evidence, workflow runtime hardening (core GitHub Actions upgraded off Node 20-targeted majors), and GitHub Pages migration from legacy dynamic mode to repository-managed workflow mode (latest verified release commit `b17963b`)
-- Focus: collect strict-pass operational evidence after secret/variable provisioning (`ENABLE_AUDIO_EDIT_RUNNER`, `ENABLE_NOTIFICATIONS_SMOKE`, provider credentials), expand managed-Firestore coverage from route-level staged checks to broader auth/runtime boundaries, and keep mobile distribution capacity constraints explicitly tracked
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with route-level transition coverage reinforced by notification queue contracts, managed-Firestore staged evidence, workflow runtime hardening (core GitHub Actions upgraded off Node 20-targeted majors), repository-managed Pages workflow stabilized, and transcription onboarding UX hardening delivered across web/mobile.
+- Focus: collect strict-pass operational evidence after secret/variable provisioning (`ENABLE_AUDIO_EDIT_RUNNER`, `ENABLE_NOTIFICATIONS_SMOKE`, provider credentials), expand managed-Firestore coverage from route-level staged checks to broader auth/runtime boundaries, preserve docs/index/cache synchronization after each package, and keep mobile distribution capacity constraints explicitly tracked.
 
 ## Files
 

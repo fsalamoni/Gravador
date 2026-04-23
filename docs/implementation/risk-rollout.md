@@ -13,6 +13,7 @@
 - Background execution risk: queued audio-edit jobs can accumulate if no worker/cron consumes `kind=audio-editing`.
 - Delivery risk: notification providers (WhatsApp Cloud/email webhook) may be unavailable per environment.
 - Recorder delivery risk: browser-side Firebase Storage uploads can intermittently return `storage/unauthorized` (token hydration/rules timing), causing user-visible failure to save recordings.
+- Configuration risk: transcription provider/model selections can be saved in partial states (missing model or cloud key), leading to avoidable run-time failures.
 
 ### Mitigations applied
 
@@ -65,6 +66,9 @@
 - Added recorder upload fallback path via `/api/recordings/upload`: when client upload fails with `storage/unauthorized` (or when client auth user is temporarily unavailable), upload is retried server-side with session authentication and workspace-access validation.
 - Local reliability verification after fallback integration: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, and `pnpm --filter @gravador/web run build` all green.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
+- Added transcription UX hardening in web/mobile settings with one-click operational profiles (speed/quality/privacy), readiness scorecards, and save guardrails for empty-model scenarios; this reduces setup ambiguity before transcription execution.
+- Added cloud-key readiness hints (Groq/OpenAI) and local endpoint reminders (faster-whisper) directly in settings to lower first-run failure probability.
+- Local validation after transcription UX package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 
 ### Rollback path
 
@@ -80,3 +84,4 @@
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.
+- Transcription UX now minimizes misconfiguration risk, but cloud execution still depends on valid BYOK secrets and local execution still depends on a reachable `LOCAL_WHISPER_URL` runtime endpoint.

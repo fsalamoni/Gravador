@@ -85,6 +85,8 @@
     "deployBody": "Cloud Run, Firebase Hosting, preview mobile e configuração de ambientes obrigatórios.",
     "selfHostTitle": "Guia de self-host",
     "selfHostBody": "Setup local e self-host com Docker para rodar a stack fora da nuvem gerenciada.",
+    "transcriptionTitle": "Guia de transcrição",
+    "transcriptionBody": "Seleção de provedor, onboarding de API key, fluxo self-host, custos, limites e recomendações de modelo.",
     "creditsTitle": "Créditos",
     "creditsBody": "Referências open source, inspirações e projetos-base usados pelo Nexus.",
     "repoTitle": "Repositório",

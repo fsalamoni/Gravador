@@ -36,6 +36,78 @@ const PROVIDER_DETAILS: Array<{
   },
 ];
 
+const PROVIDER_MODELS: Record<
+  TranscribeProvider,
+  Array<{ id: string; title: string; note: string }>
+> = {
+  groq: [
+    {
+      id: 'whisper-large-v3',
+      title: 'whisper-large-v3',
+      note: 'Maior precisao',
+    },
+    {
+      id: 'whisper-large-v3-turbo',
+      title: 'whisper-large-v3-turbo',
+      note: 'Mais rapido',
+    },
+  ],
+  openai: [
+    {
+      id: 'whisper-1',
+      title: 'whisper-1',
+      note: 'Padrao estavel',
+    },
+  ],
+  'local-faster-whisper': [
+    {
+      id: 'faster-whisper-large-v3',
+      title: 'faster-whisper-large-v3',
+      note: 'Maior precisao',
+    },
+    {
+      id: 'faster-whisper-medium',
+      title: 'faster-whisper-medium',
+      note: 'Equilibrio',
+    },
+    {
+      id: 'faster-whisper-small',
+      title: 'faster-whisper-small',
+      note: 'Mais leve',
+    },
+  ],
+};
+
+const TRANSCRIPTION_PROFILES: Array<{
+  id: string;
+  title: string;
+  description: string;
+  provider: TranscribeProvider;
+  model: string;
+}> = [
+  {
+    id: 'speed',
+    title: '⚡ Velocidade',
+    description: 'Groq Turbo para menor latência e menor custo por hora.',
+    provider: 'groq',
+    model: 'whisper-large-v3-turbo',
+  },
+  {
+    id: 'quality',
+    title: '🎯 Qualidade',
+    description: 'OpenAI Whisper-1 para baseline estável de precisão.',
+    provider: 'openai',
+    model: 'whisper-1',
+  },
+  {
+    id: 'privacy',
+    title: '🔒 Privacidade',
+    description: 'faster-whisper local para não enviar áudio a terceiros.',
+    provider: 'local-faster-whisper',
+    model: 'faster-whisper-large-v3',
+  },
+];
+
 function defaultModelFor(provider: TranscribeProvider) {
   if (provider === 'openai') return 'whisper-1';
   if (provider === 'local-faster-whisper') return 'faster-whisper-large-v3';
@@ -60,6 +132,33 @@ export default function SettingsScreen() {
   const [aiSettings, setAiSettings] = useState<Record<string, unknown>>({});
   const [transcribeProvider, setTranscribeProvider] = useState<TranscribeProvider>('groq');
   const [transcribeModel, setTranscribeModel] = useState(defaultModelFor('groq'));
+  const trimmedTranscribeModel = transcribeModel.trim();
+  const byokKeysRaw =
+    aiSettings.byokKeys && typeof aiSettings.byokKeys === 'object'
+      ? (aiSettings.byokKeys as Record<string, unknown>)
+      : {};
+  const hasGroqKey = typeof byokKeysRaw.groq === 'string' && byokKeysRaw.groq.trim().length > 0;
+  const hasOpenAIKey =
+    typeof byokKeysRaw.openai === 'string' && byokKeysRaw.openai.trim().length > 0;
+  const providerNeedsKey = transcribeProvider === 'groq' || transcribeProvider === 'openai';
+  const providerKeyConfigured =
+    transcribeProvider === 'groq'
+      ? hasGroqKey
+      : transcribeProvider === 'openai'
+        ? hasOpenAIKey
+        : true;
+  const readinessItems: Array<{ label: string; done: boolean }> = [
+    { label: 'Provedor selecionado', done: true },
+    { label: 'Modelo preenchido', done: trimmedTranscribeModel.length > 0 },
+    {
+      label: providerNeedsKey
+        ? `API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} configurada`
+        : 'Modo local selecionado (validar endpoint)',
+      done: providerKeyConfigured,
+    },
+  ];
+  const readinessDone = readinessItems.filter((item) => item.done).length;
+  const transcriptionReady = readinessDone === readinessItems.length;
 
   useEffect(() => {
     let active = true;
@@ -104,13 +203,19 @@ export default function SettingsScreen() {
   }, []);
 
   const saveTranscriptionSettings = async () => {
+    const normalizedModel = trimmedTranscribeModel || defaultModelFor(transcribeProvider);
+    if (!normalizedModel) {
+      setSettingsNotice('Informe um modelo antes de salvar a configuração de transcrição.');
+      return;
+    }
+
     setSavingAI(true);
     setSettingsNotice(null);
     try {
       const nextAiSettings: Record<string, unknown> = {
         ...aiSettings,
         transcribeProvider,
-        transcribeModel: transcribeModel.trim() || defaultModelFor(transcribeProvider),
+        transcribeModel: normalizedModel,
       };
 
       const res = await authedApiFetch('/api/settings', {
@@ -124,7 +229,11 @@ export default function SettingsScreen() {
       }
 
       setAiSettings(nextAiSettings);
-      setSettingsNotice('Configuração de transcrição atualizada com sucesso.');
+      setSettingsNotice(
+        providerNeedsKey && !providerKeyConfigured
+          ? `Configuração salva. Falta API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} no web para evitar falha na execução.`
+          : 'Configuração de transcrição atualizada com sucesso.',
+      );
     } catch (error) {
       setSettingsNotice(
         error instanceof Error ? error.message : 'Erro ao salvar configuração de transcrição.',
@@ -215,6 +324,69 @@ export default function SettingsScreen() {
             cobrados na sua conta BYOK quando aplicável.
           </Text>
 
+          <View className="mt-4 rounded-[20px] border border-border bg-surfaceAlt px-4 py-4">
+            <Text className="font-medium text-text">Ativação sem erro</Text>
+            <Text className="mt-2 text-sm leading-6 text-mute">
+              Para Groq/OpenAI, configure a API key BYOK no web em Configurações {'>'} Provedores de
+              IA. Para modo local, mantenha o serviço faster-whisper ativo no endpoint da
+              infraestrutura.
+            </Text>
+          </View>
+
+          <View
+            className={`mt-4 rounded-[20px] border px-4 py-4 ${
+              transcriptionReady ? 'border-ok/40 bg-ok/10' : 'border-warning/40 bg-warning/10'
+            }`}
+          >
+            <Text className={`font-medium ${transcriptionReady ? 'text-ok' : 'text-warning'}`}>
+              Prontidão de transcrição: {readinessDone}/{readinessItems.length}
+            </Text>
+            <View className="mt-2 gap-1">
+              {readinessItems.map((item) => (
+                <Text
+                  key={item.label}
+                  className={`text-xs leading-5 ${item.done ? 'text-text' : 'text-mute'}`}
+                >
+                  {item.done ? '✓' : '•'} {item.label}
+                </Text>
+              ))}
+            </View>
+            <Text className="mt-2 text-xs leading-5 text-mute">
+              {trimmedTranscribeModel.length === 0
+                ? 'Preencha o modelo para evitar fallback inesperado.'
+                : providerNeedsKey && !providerKeyConfigured
+                  ? `Falta API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} no workspace web.`
+                  : transcribeProvider === 'local-faster-whisper'
+                    ? 'Valide o serviço local no endpoint LOCAL_WHISPER_URL.'
+                    : 'Setup pronto para rodar transcrição em produção.'}
+            </Text>
+          </View>
+
+          <View className="mt-4 gap-2">
+            <Text className="text-xs uppercase tracking-[0.24em] text-mute">Perfis rápidos</Text>
+            {TRANSCRIPTION_PROFILES.map((profile) => {
+              const active =
+                transcribeProvider === profile.provider && trimmedTranscribeModel === profile.model;
+              return (
+                <Pressable
+                  key={profile.id}
+                  onPress={() => {
+                    setTranscribeProvider(profile.provider);
+                    setTranscribeModel(profile.model);
+                    setSettingsNotice(null);
+                  }}
+                  className={`rounded-[18px] border px-4 py-3 ${
+                    active ? 'border-accent bg-accent/15' : 'border-border bg-surfaceAlt'
+                  }`}
+                >
+                  <Text className="font-semibold text-text">{profile.title}</Text>
+                  <Text className="mt-1 text-xs leading-5 text-mute">{profile.description}</Text>
+                  {active ? <Text className="mt-2 text-xs text-accent">Perfil ativo ✓</Text> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View className="mt-4 gap-3">
             {PROVIDER_DETAILS.map((provider) => {
               const selected = transcribeProvider === provider.id;
@@ -239,6 +411,23 @@ export default function SettingsScreen() {
 
           <View className="mt-4 gap-3">
             <Text className="text-xs uppercase tracking-[0.24em] text-mute">Modelo</Text>
+            <View className="gap-2">
+              {PROVIDER_MODELS[transcribeProvider].map((model) => {
+                const selected = transcribeModel.trim() === model.id;
+                return (
+                  <Pressable
+                    key={model.id}
+                    onPress={() => setTranscribeModel(model.id)}
+                    className={`rounded-[16px] border px-4 py-3 ${
+                      selected ? 'border-accent bg-accent/15' : 'border-border bg-surfaceAlt'
+                    }`}
+                  >
+                    <Text className="font-semibold text-text">{model.title}</Text>
+                    <Text className="mt-1 text-xs leading-5 text-mute">{model.note}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <TextInput
               value={transcribeModel}
               onChangeText={setTranscribeModel}
@@ -247,11 +436,14 @@ export default function SettingsScreen() {
               autoCapitalize="none"
               className="rounded-[16px] border border-border bg-surfaceAlt px-4 py-3 text-text"
             />
+            <Text className="text-xs leading-5 text-mute">
+              Aceita modelo personalizado: use o ID exato suportado pelo provedor selecionado.
+            </Text>
           </View>
 
           <Pressable
             onPress={saveTranscriptionSettings}
-            disabled={savingAI || settingsLoading}
+            disabled={savingAI || settingsLoading || trimmedTranscribeModel.length === 0}
             className="mt-4 rounded-[22px] bg-accent px-4 py-4 disabled:opacity-60"
           >
             <Text className="text-center font-semibold text-[#120d0a]">

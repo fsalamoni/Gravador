@@ -9,6 +9,7 @@
 - 🎙️ **One-tap capture** — iOS home-screen widget, Android Quick Settings tile, lock-screen/Control Center shortcuts, Siri & Google Assistant intents.
 - 🔇 **Background recording** with persistent notification, live waveform and offline queue.
 - 🤖 **AI pipeline** — transcription (Whisper v3 on Groq / OpenAI / local `faster-whisper`), speaker diarization, summary, action items, mind map, chapters, key quotes, sentiment.
+- 🧭 **Transcription provider guide** — registration, API keys, costs, limits and self-host activation in [`docs/transcription-providers.md`](docs/transcription-providers.md).
 - 💬 **Chat with any recording** via RAG (Firestore vector embeddings) with streaming responses.
 - 🌐 **Web workspace** — synced transcript player (wavesurfer.js), semantic + keyword search, folders/tags, multi-user workspaces.
 - 🔗 **Share** public links with password and expiration, export to PDF / Markdown / DOCX / Notion / Obsidian.
