@@ -57,7 +57,7 @@
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
 - [x] Harden workflow runtime compatibility by upgrading core setup actions to Node 24-targeting majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`).
-- [~] Migrate GitHub Pages delivery from legacy dynamic workflow to repository-managed `pages.yml` (checkout/configure-pages/upload-pages-artifact/deploy-pages on current majors) with extended deploy timeout and retries.
+- [x] Migrate GitHub Pages delivery from legacy dynamic workflow to repository-managed `pages.yml` (checkout/configure-pages/upload-pages-artifact/deploy-pages on current majors) with extended deploy timeout and retries.
 
 ## Release gating before each phase transition
 
@@ -81,3 +81,4 @@
 - [x] Workflow runtime hardening package merged: deprecated Node 20 action warnings removed by upgrading core setup actions across CI/deploy/runner/smoke/managed/release workflows.
 - [x] Workflow runtime hardening commit `f1264e3` verified end-to-end (`CI` run `24845757841` success on rerun attempt 2 after transient checkout fetch HTTP 500, `firebase-hosting` run `24845757805` success, `pages` run `24845756522` success).
 - [~] Docs sync commit `a18f7db` partially verified (`CI` run `24846181284` success) while legacy dynamic pages run `24846180263` failed twice on `Deploy to GitHub Pages` timeout; migration to repository-managed pages workflow is in progress.
+- [x] Pages migration commit `b17963b` verified with repository-managed workflow mode active (`CI` run `24848972653` success, `Pages` run `24848972662` success, repository Pages `build_type=workflow` and `status=built`; superseded legacy dynamic run `24848971863` cancelled during cutover).

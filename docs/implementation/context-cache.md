@@ -23,6 +23,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Docs sync commit `a18f7db` achieved `CI` run `24846181284` success, but dynamic pages run `24846180263` failed (including rerun attempt 2) with repeated `Deploy to GitHub Pages` polling timeout (`Timeout reached, aborting!`).
 - Pages automation currently originates from GitHub-managed dynamic workflow path `dynamic/pages/pages-build-deployment` (`build_type: legacy`), so timeout controls and action versions are not repository-editable.
 - Mitigation path locked: migrate to repository-managed Pages workflow (`.github/workflows/pages.yml`) using current action majors and explicit deploy timeout/error settings, then switch repository Pages build type from `legacy` to `workflow`.
+- Mitigation executed on commit `b17963b`: repository now contains `.github/workflows/pages.yml`, Pages config switched to `build_type: workflow`, and repository Pages status returned to `built`.
+- Migration verification evidence: `CI` run `24848972653` success, repository-managed `Pages` run `24848972662` success (`build` + `deploy` jobs green), and legacy dynamic run `24848971863` cancelled during cutover to avoid deployment contention.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
