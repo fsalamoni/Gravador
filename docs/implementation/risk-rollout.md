@@ -39,6 +39,7 @@
 - Release verification on commit `6e4e1f0`: `CI` run `24805210132` success, `firebase-hosting` run `24805210127` success, `EAS preview` run `24805231408` success with explicit quota-blocked summary.
 - Operational workflow dispatch checks succeeded (`audio-edit-runner` run `24805361685`, `notifications-smoke` run `24805363134`) with expected `skipped` outcomes while activation vars remain disabled.
 - Upgraded bulk merge from prepare-only to transactional execute mode (`/api/recordings/bulk`, `mode=execute`) with side-by-side reconciliation (copy missing active artifacts only), execution audit payloads, and version bump only when artifacts are copied.
+- Added route-level integration regression tests for merge execute transaction semantics in `apps/web/src/app/api/recordings/bulk/route.test.ts` (copy-on-missing, no-overwrite, and execution audit assertions) using an in-memory Firestore harness.
 
 ### Rollback path
 
@@ -51,7 +52,7 @@
 ### Remaining concerns
 
 - No dedicated e2e tests for lifecycle transition matrix yet.
-- Bulk merge execute path currently has unit coverage for reconciliation planning but still lacks API integration tests for Firestore transaction semantics.
+- Merge execute now has API integration-style route coverage, but still depends on an in-memory harness (no Firestore emulator/staging e2e transaction evidence yet).
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.

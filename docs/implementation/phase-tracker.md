@@ -45,6 +45,7 @@
 
 - [~] Multi-select delete flow with safety constraints and clear confirmations (v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
 - [x] Multi-select merge flow with side-by-side artifacts and auditability (prepare + execute path delivered with non-destructive reconciliation and execution audit metadata).
+- [x] Add integration-level merge execute transaction regression coverage (API route harness validating copy-on-missing and no-overwrite invariants).
 - [x] Add regression checks around permission/auth/path isolation.
 - [x] Harden mobile startup/auth bootstrap to prevent blank-screen deadlocks (auth timeout fallback + startup error boundary + resilient firebase/i18n init).
 - [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; scheduled workflow `audio-edit-runner.yml` delivered, awaiting environment activation.
@@ -62,4 +63,4 @@
 - [x] CI workflow healthy (run 24806002660 for commit `a685f43` completed with success).
 - [x] New operational workflows validated syntactically (`audio-edit-runner` run 24805361685 and `notifications-smoke` run 24805363134 dispatched and skipped by activation flags as expected).
 - [x] Scheduled runner behavior remains deterministic while activation toggles are absent (`audio-edit-runner` run 24806076695 skipped).
-- [x] Local package verification green after merge execution delivery (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local package verification green after merge execute integration-coverage package (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
