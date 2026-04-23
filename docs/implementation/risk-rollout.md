@@ -72,6 +72,7 @@
 - Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 - Expanded managed-Firestore staged tests to include auth/session/access/error contracts (`401`, `403`, `400`, `404`) for lifecycle and artifact routes, reducing risk that managed runtime diverges from local/emulator authorization behavior.
 - Local validation after managed-suite expansion remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- Managed verification for expanded auth/runtime matrix completed on commit `ecf7f8b` (`Firestore Managed E2E` run `24854615993` success on `database_id=anotes`) alongside green release workflows (`CI` `24854596037`, `Pages` `24854596023`, `Firebase Hosting` `24854596062`).
 
 ### Rollback path
 
@@ -83,7 +84,7 @@
 
 ### Remaining concerns
 
-- Lifecycle/artifact/merge transition coverage now includes in-memory + Firestore Emulator evidence plus managed staged auth/session/runtime boundary assertions; next gap is strict-pass evidence for this expanded matrix in a new managed workflow run.
+- Lifecycle/artifact/merge transition coverage now includes in-memory + Firestore Emulator evidence plus strict-pass managed staged auth/session/runtime boundary evidence (`24854615993`); remaining gap is continuous expansion as new route behaviors are added.
 - Audio-edit runner workflow exists but still requires environment-level activation (`ENABLE_AUDIO_EDIT_RUNNER`) and missing secret provisioning (`INTERNAL_JOBS_SECRET`) before non-skipped evidence can be collected.
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.

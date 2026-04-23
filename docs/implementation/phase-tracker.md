@@ -90,3 +90,4 @@
 - [x] Workflow monitoring closure captured on 2026-04-23 (`CI` run `24851165328` success, `Firebase Hosting` run `24851165327` success, `Pages` run `24850067296` success, `Audio Edit Runner` run `24851861930` skipped by disabled activation flags).
 - [x] Transcription UX + docs/index/cache package commit `baf23be` verified end-to-end (`CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success).
 - [x] Local validation for managed-Firestore auth/runtime expansion package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Managed auth/runtime expansion package commit `ecf7f8b` verified end-to-end (`CI` run `24854596037` success, `Pages` run `24854596023` success, `Firebase Hosting` run `24854596062` success, `Firestore Managed E2E` run `24854615993` success on `database_id=anotes`).

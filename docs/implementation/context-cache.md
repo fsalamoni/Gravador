@@ -35,6 +35,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Release closure snapshot (commit `baf23be`, 2026-04-23): `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 - Managed Firestore staged route suite now covers auth/runtime boundaries beyond transaction semantics: unauthorized session (`401`), forbidden workspace access (`403`), invalid action (`400`), and not-found recording/artifact (`404`) assertions for lifecycle/artifact routes.
 - `.github/workflows/firestore-managed-e2e.yml` summary scope now explicitly includes auth/session/access/error boundary coverage in addition to lifecycle/artifact semantics.
+- Release closure snapshot (commit `ecf7f8b`, 2026-04-23): `CI` run `24854596037` success, `Pages` run `24854596023` success, `Firebase Hosting` run `24854596062` success, `Firestore Managed E2E` run `24854615993` success (`database_id=anotes`).
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
@@ -106,11 +107,10 @@ This file captures decisions and assumptions that must survive long implementati
 ## Current package objective
 
 - Close remaining operational rollout after Phase 5 merge execution + integration coverage delivery: activate runner/smoke workflows in staging/prod variables and collect strict-pass evidence.
-- Execute managed-Firestore staged workflow evidence on a configured environment and append run conclusions to rollout docs.
-- Expand managed-Firestore staged suite beyond single route matrix test into broader auth/session/runtime boundary assertions.
+- Preserve deterministic managed-Firestore staged coverage for lifecycle/artifact auth/runtime boundaries as the non-emulator release gate.
 
 ## Immediate next contracts to lock
 
 - Activation contract for `ENABLE_AUDIO_EDIT_RUNNER=true` with first successful scheduled batches recorded in workflow summaries.
 - End-to-end strict smoke evidence for notifications (`ENABLE_NOTIFICATIONS_SMOKE=true`, providers configured) with no failed checks.
-- Expand from emulator-backed route evidence into staged managed-Firestore e2e coverage for lifecycle + artifact transition matrices (including auth/session boundary assertions).
+- Keep expanding managed route assertions as new lifecycle/artifact behaviors are introduced, preserving explicit auth/session/error boundary checks.
