@@ -69,6 +69,7 @@
 - Added transcription UX hardening in web/mobile settings with one-click operational profiles (speed/quality/privacy), readiness scorecards, and save guardrails for empty-model scenarios; this reduces setup ambiguity before transcription execution.
 - Added cloud-key readiness hints (Groq/OpenAI) and local endpoint reminders (faster-whisper) directly in settings to lower first-run failure probability.
 - Local validation after transcription UX package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 
 ### Rollback path
 

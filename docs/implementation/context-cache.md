@@ -32,6 +32,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Transcription setup now exposes explicit readiness scorecards (provider, model, key/local readiness) across web/mobile to prevent avoidable runtime misconfiguration.
 - Mobile transcription save flow now enforces non-empty model input and returns targeted guidance when cloud provider keys are still missing in workspace settings.
 - Monitoring snapshot (2026-04-23): `CI` run `24851165328` success, `Firebase Hosting` run `24851165327` success, `Pages` run `24850067296` success, and scheduled `Audio Edit Runner` run `24851861930` skipped as expected with activation vars disabled.
+- Release closure snapshot (commit `baf23be`, 2026-04-23): `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.
