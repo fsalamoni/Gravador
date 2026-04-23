@@ -25,6 +25,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Mitigation path locked: migrate to repository-managed Pages workflow (`.github/workflows/pages.yml`) using current action majors and explicit deploy timeout/error settings, then switch repository Pages build type from `legacy` to `workflow`.
 - Mitigation executed on commit `b17963b`: repository now contains `.github/workflows/pages.yml`, Pages config switched to `build_type: workflow`, and repository Pages status returned to `built`.
 - Migration verification evidence: `CI` run `24848972653` success, repository-managed `Pages` run `24848972662` success (`build` + `deploy` jobs green), and legacy dynamic run `24848971863` cancelled during cutover to avoid deployment contention.
+- Incident captured (web recorder): browser upload to `anotes/audio-raw/<workspaceId>/<id>.m4a` can fail with Firebase Storage `storage/unauthorized` despite active workspace session, likely from client auth token/rules drift race during upload.
+- Mitigation locked: `useWebRecorder` now retries unauthorized uploads through server endpoint `/api/recordings/upload`, and when client auth user is temporarily null it directly uses server upload path instead of failing fast.
+- New server contract: `/api/recordings/upload` requires authenticated API session, validates workspace access via `canAccessWorkspace`, stores audio with Admin Storage, and writes canonical `recordings` document with lifecycle/retention defaults.
 
 - Firestore ownership hotfix is live for workspace-owner recording creation.
 - Internal workspace downloads route introduced for authenticated users.

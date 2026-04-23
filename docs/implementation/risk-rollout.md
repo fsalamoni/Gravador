@@ -12,6 +12,7 @@
 - UX signal risk: parity diagnostics can produce false-positive warnings on sparse/noisy segment timelines.
 - Background execution risk: queued audio-edit jobs can accumulate if no worker/cron consumes `kind=audio-editing`.
 - Delivery risk: notification providers (WhatsApp Cloud/email webhook) may be unavailable per environment.
+- Recorder delivery risk: browser-side Firebase Storage uploads can intermittently return `storage/unauthorized` (token hydration/rules timing), causing user-visible failure to save recordings.
 
 ### Mitigations applied
 
@@ -61,6 +62,8 @@
 - Docs-sync commit `a18f7db` exposed recurring Pages deployment timeout on GitHub-managed dynamic workflow (`run 24846180263`, attempts 1 and 2 failed in `Deploy to GitHub Pages` with `Timeout reached, aborting!`) while CI remained green.
 - Mitigation completed on commit `b17963b`: replaced `legacy` Pages build mode with repository-managed `.github/workflows/pages.yml` (current actions + deploy timeout/error tuning), switched repository Pages config to `build_type=workflow`, and restored Pages to `status=built`.
 - Migration closure evidence: `CI` run `24848972653` success, repository-managed `Pages` run `24848972662` success (build+deploy), and superseded dynamic run `24848971863` cancelled during cutover.
+- Added recorder upload fallback path via `/api/recordings/upload`: when client upload fails with `storage/unauthorized` (or when client auth user is temporarily unavailable), upload is retried server-side with session authentication and workspace-access validation.
+- Local reliability verification after fallback integration: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, and `pnpm --filter @gravador/web run build` all green.
 - Release verification for commit `631d646`: `CI` run `24812229786` success, `firebase-hosting` run `24812229815` success, `pages` run `24812229219` success, `EAS preview` run `24812235239` success.
 
 ### Rollback path

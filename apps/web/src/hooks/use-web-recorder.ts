@@ -11,6 +11,46 @@ export interface UseWebRecorderOptions {
   workspaceId: string;
 }
 
+function isStorageUnauthorizedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const maybeCode =
+    'code' in error && typeof error.code === 'string' ? error.code.toLowerCase() : '';
+  const maybeMessage =
+    'message' in error && typeof error.message === 'string' ? error.message.toLowerCase() : '';
+
+  return (
+    maybeCode === 'storage/unauthorized' ||
+    maybeCode === 'storage/unauthenticated' ||
+    maybeMessage.includes('storage/unauthorized') ||
+    maybeMessage.includes('does not have permission')
+  );
+}
+
+async function uploadRecordingViaServer(params: {
+  blob: Blob;
+  mimeType: string;
+  workspaceId: string;
+  durationMs: number;
+}) {
+  const form = new FormData();
+  form.set('workspaceId', params.workspaceId);
+  form.set('durationMs', String(Math.max(0, Math.round(params.durationMs))));
+  form.set('mimeType', params.mimeType);
+  form.set('audio', params.blob, `${shortId()}.m4a`);
+
+  const response = await fetch('/api/recordings/upload', {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+  });
+
+  if (response.ok) return;
+
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  throw new Error(body?.error ? `upload_api_failed:${body.error}` : 'upload_api_failed');
+}
+
 export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -96,7 +136,20 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
       setIsUploading(true);
       setStatusMessage('Enviando áudio e registrando a gravação…');
       const userId = auth.currentUser?.uid;
-      if (!userId) throw new Error('User not authenticated');
+
+      if (!userId) {
+        await uploadRecordingViaServer({
+          blob,
+          mimeType,
+          workspaceId,
+          durationMs: finalDurationMs,
+        });
+        setDurationMs(0);
+        setStatusMessage(
+          'Gravação salva. Use os botões de IA na página para iniciar o processamento.',
+        );
+        return;
+      }
 
       const id = shortId();
       const storagePath = `anotes/audio-raw/${workspaceId}/${id}.m4a`; // Using .m4a as extension but keeping mimeType
@@ -136,6 +189,25 @@ export function useWebRecorder({ workspaceId }: UseWebRecorderOptions) {
         'Gravação salva. Use os botões de IA na página para iniciar o processamento.',
       );
     } catch (error) {
+      if (isStorageUnauthorizedError(error)) {
+        try {
+          console.warn('[web-recorder] storage upload unauthorized; retrying via server route');
+          await uploadRecordingViaServer({
+            blob,
+            mimeType,
+            workspaceId,
+            durationMs: finalDurationMs,
+          });
+          setDurationMs(0);
+          setStatusMessage(
+            'Gravação salva. Use os botões de IA na página para iniciar o processamento.',
+          );
+          return;
+        } catch (fallbackError) {
+          console.error('Error uploading recording via server fallback:', fallbackError);
+        }
+      }
+
       console.error('Error uploading recording:', error);
       setStatusMessage('Falha ao salvar a gravação. Tente novamente.');
     } finally {
