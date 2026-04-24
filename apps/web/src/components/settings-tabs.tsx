@@ -128,6 +128,49 @@ const AGENTS: { key: string; label: string; description: string }[] = [
   { key: 'transcribe', label: 'Transcrição', description: 'Conversão de áudio para texto' },
 ];
 
+const EMBEDDING_MODEL_RULES: Record<
+  AIProvider,
+  { supported: boolean; acceptedModels: string[]; note: string }
+> = {
+  openrouter: {
+    supported: false,
+    acceptedModels: [],
+    note: 'Embeddings via OpenRouter ainda não são consumidos diretamente pelo pipeline.',
+  },
+  openai: {
+    supported: true,
+    acceptedModels: ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'],
+    note: 'Suporte nativo no pipeline de embeddings (requer OPENAI_API_KEY).',
+  },
+  anthropic: {
+    supported: false,
+    acceptedModels: [],
+    note: 'Anthropic está habilitado para LLM/chat, sem endpoint direto de embeddings neste fluxo.',
+  },
+  google: {
+    supported: false,
+    acceptedModels: [],
+    note: 'Google está habilitado para LLM/chat, sem endpoint direto de embeddings neste fluxo.',
+  },
+  groq: {
+    supported: false,
+    acceptedModels: [],
+    note: 'Groq está habilitado para chat/transcrição, sem endpoint direto de embeddings neste fluxo.',
+  },
+  ollama: {
+    supported: true,
+    acceptedModels: [
+      'nomic-embed-text',
+      'nomic-embed-text:latest',
+      'mxbai-embed-large',
+      'mxbai-embed-large:latest',
+      'all-minilm',
+      'all-minilm:latest',
+    ],
+    note: 'Suporte nativo via endpoint /api/embeddings do Ollama local.',
+  },
+};
+
 const TRANSCRIPTION_GUIDE_URL =
   'https://github.com/fsalamoni/Gravador/blob/main/docs/transcription-providers.md';
 
@@ -393,14 +436,21 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
     [openRouterApiModels, ollamaApiModels],
   );
 
-  /** All personal catalog models for the current provider (for agent selection).
-   *  If no models are manually selected, show ALL available models from the provider. */
+  /** All personal catalog models across providers (for agent selection).
+   *  If no models are manually selected, show all available models from the active provider. */
   const agentCatalogModels = useMemo(() => {
-    const all = getProviderModels(selectedProvider);
-    const ids = new Set(settings.selectedModels ?? []);
-    if (ids.size === 0) return all;
-    return all.filter((m) => ids.has(m.id));
-  }, [getProviderModels, selectedProvider, settings.selectedModels]);
+    const selectedIds = settings.selectedModels ?? [];
+    if (selectedIds.length === 0) {
+      return getProviderModels(selectedProvider);
+    }
+
+    const models = selectedIds
+      .map((modelId) => findModelById(modelId))
+      .filter((model): model is ModelSpec => Boolean(model));
+
+    // Deduplicate in case the same id is repeated in persisted settings.
+    return Array.from(new Map(models.map((model) => [model.id, model])).values());
+  }, [findModelById, getProviderModels, selectedProvider, settings.selectedModels]);
 
   return (
     <div className="space-y-5">
@@ -488,6 +538,7 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
           setShowKey={setShowKey}
           selectedModelIds={selectedModelIds}
           getProviderModels={getProviderModels}
+          findModelById={findModelById}
           onSave={save}
           onProviderChange={(provider) => {
             const newSettings = { ...settings, chatProvider: provider };
@@ -622,6 +673,7 @@ function ProvidersTab({
   setShowKey,
   selectedModelIds,
   getProviderModels,
+  findModelById,
   onSave,
   onProviderChange,
   onKeyChange,
@@ -641,6 +693,7 @@ function ProvidersTab({
   setShowKey: (v: boolean) => void;
   selectedModelIds: Set<string>;
   getProviderModels: (provider: string) => ModelSpec[];
+  findModelById: (id: string) => ModelSpec | undefined;
   onSave: (s: AISettings) => Promise<void>;
   onProviderChange: (p: AIProvider) => void;
   onKeyChange: (key: string) => void;
@@ -656,7 +709,20 @@ function ProvidersTab({
 }) {
   const currentKey = settings.byokKeys?.[selectedProvider] ?? '';
   const providerModels = getProviderModels(selectedProvider);
-  const catalogCount = providerModels.filter((m) => selectedModelIds.has(m.id)).length;
+  const resolvedCatalogEntries = (settings.selectedModels ?? []).map((modelId) => ({
+    id: modelId,
+    model: findModelById(modelId),
+  }));
+  const personalCatalogModels = resolvedCatalogEntries
+    .filter((entry): entry is { id: string; model: ModelSpec } => Boolean(entry.model))
+    .map((entry) => entry.model);
+  const unresolvedCatalogModelIds = resolvedCatalogEntries
+    .filter((entry) => !entry.model)
+    .map((entry) => entry.id);
+  const catalogCount = selectedModelIds.size;
+  const canResolveCatalogWarnings = !openRouterLoading && !ollamaLoading;
+  const providerLabelFor = (provider: string) =>
+    PROVIDERS.find((item) => item.id === provider)?.label ?? provider;
 
   return (
     <div className="space-y-4">
@@ -701,6 +767,44 @@ function ProvidersTab({
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-5 rounded-[18px] border border-border bg-surfaceAlt/35 p-4">
+          <p className="text-xs uppercase tracking-[0.24em] text-mute">
+            Embeddings por provedor (modelos aceitos)
+          </p>
+          <p className="mt-2 text-sm leading-6 text-mute">
+            Use esta referência antes de adicionar modelos ao catálogo pessoal para o agente de
+            embeddings.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {PROVIDERS.map((provider) => {
+              const rule = EMBEDDING_MODEL_RULES[provider.id];
+              return (
+                <div
+                  key={`embedding-rule-${provider.id}`}
+                  className="rounded-[14px] border border-border bg-bg/60 px-3 py-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-text">{provider.label}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        rule.supported ? 'bg-ok/15 text-ok' : 'bg-warning/15 text-warning'
+                      }`}
+                    >
+                      {rule.supported ? 'Aceito' : 'Nao suportado'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-mute">{rule.note}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-mute">
+                    {rule.acceptedModels.length > 0
+                      ? `Modelos aceitos: ${rule.acceptedModels.join(', ')}`
+                      : 'Modelos aceitos: nenhum diretamente no pipeline atual.'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {selectedProvider === 'openrouter' && openRouterError && (
@@ -811,9 +915,9 @@ function ProvidersTab({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BookOpen className="h-5 w-5 text-accent" />
-            <h2 className="text-xl font-semibold text-text">Catálogo Pessoal</h2>
+            <h2 className="text-xl font-semibold text-text">Catálogo Pessoal (global)</h2>
             <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent">
-              {catalogCount} de {providerModels.length}
+              {catalogCount} selecionados
             </span>
           </div>
           <button
@@ -825,8 +929,8 @@ function ProvidersTab({
           </button>
         </div>
         <p className="mt-3 text-sm leading-7 text-mute">
-          Selecione os modelos que deseja usar. Apenas modelos do catálogo pessoal aparecem na
-          seleção de agentes.
+          O card do provedor define quais modelos entram no seu catálogo. A lista abaixo mostra
+          todos os modelos selecionados, de todos os provedores.
         </p>
 
         {catalogCount === 0 ? (
@@ -836,14 +940,13 @@ function ProvidersTab({
           </div>
         ) : (
           <div className="mt-4 space-y-2">
-            {providerModels
-              .filter((m) => selectedModelIds.has(m.id))
+            {personalCatalogModels
               .sort((a, b) => avgRating(b) - avgRating(a))
               .map((m) => (
                 <div
                   key={m.id}
                   className={`flex items-center justify-between rounded-[20px] border p-4 transition ${
-                    settings.chatModel === m.id
+                    settings.chatModel === m.id && settings.chatProvider === m.provider
                       ? 'border-accent bg-accent/10'
                       : 'border-border bg-bg/40 hover:border-accent/40'
                   }`}
@@ -851,13 +954,18 @@ function ProvidersTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`font-semibold ${settings.chatModel === m.id ? 'text-accent' : 'text-text'}`}
+                        className={`font-semibold ${settings.chatModel === m.id && settings.chatProvider === m.provider ? 'text-accent' : 'text-text'}`}
                       >
                         {m.name}
                       </span>
-                      {settings.chatModel === m.id && <Check className="h-4 w-4 text-accent" />}
+                      {settings.chatModel === m.id && settings.chatProvider === m.provider && (
+                        <Check className="h-4 w-4 text-accent" />
+                      )}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full border border-border px-2 py-0.5 text-mute">
+                        {providerLabelFor(m.provider)}
+                      </span>
                       <span className="rounded-full bg-accent/15 px-2 py-0.5 font-medium text-accent">
                         Média {avgRating(m)}
                       </span>
@@ -874,17 +982,32 @@ function ProvidersTab({
                   </div>
                   <button
                     type="button"
-                    onClick={() => onSave({ ...settings, chatModel: m.id })}
+                    onClick={() =>
+                      onSave({
+                        ...settings,
+                        chatProvider: m.provider as AIProvider,
+                        chatModel: m.id,
+                      })
+                    }
                     className={`ml-4 rounded-[14px] px-4 py-2 text-xs font-semibold transition ${
-                      settings.chatModel === m.id
+                      settings.chatModel === m.id && settings.chatProvider === m.provider
                         ? 'bg-accent text-onAccent'
                         : 'border border-border text-mute hover:border-accent hover:text-accent'
                     }`}
                   >
-                    {settings.chatModel === m.id ? 'Padrão ✓' : 'Usar como padrão'}
+                    {settings.chatModel === m.id && settings.chatProvider === m.provider
+                      ? 'Padrao ✓'
+                      : 'Usar como padrao'}
                   </button>
                 </div>
               ))}
+
+            {canResolveCatalogWarnings && unresolvedCatalogModelIds.length > 0 && (
+              <div className="rounded-[18px] border border-warning/30 bg-warning/10 px-4 py-3 text-xs text-warning">
+                Alguns IDs do catálogo nao foram encontrados no registro local:{' '}
+                {unresolvedCatalogModelIds.join(', ')}
+              </div>
+            )}
           </div>
         )}
       </div>

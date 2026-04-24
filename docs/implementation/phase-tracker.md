@@ -69,6 +69,9 @@
 - [x] Add transcript full-text editing workflow with save endpoint (`PATCH /api/recordings/[id]/transcript`) and visible revision history (`transcript_revisions`).
 - [x] Keep transcript change audit trail for both manual edits (`source=manual_edit`) and re-transcriptions (`source=retranscribe`) with version increments.
 - [x] Remove global task-start lock in pipeline panel so generation tasks are independent/parallel and each task can be re-run individually after completion.
+- [x] Rework personal model catalog UX to be global across providers: provider cards now scope model selection input, while catalog rendering lists all user-selected models regardless of provider.
+- [x] Add embeddings compatibility matrix in settings for all providers, explicitly indicating accepted models and current runtime support boundaries.
+- [x] Ensure default chat model selection from the global catalog also updates `chatProvider` to the selected model provider, preventing provider/model mismatch.
 
 ## Release gating before each phase transition
 
@@ -101,3 +104,4 @@
 - [x] Managed auth/runtime expansion package commit `ecf7f8b` verified end-to-end (`CI` run `24854596037` success, `Pages` run `24854596023` success, `Firebase Hosting` run `24854596062` success, `Firestore Managed E2E` run `24854615993` success on `database_id=anotes`).
 - [x] Local validation for AI agent reliability + embeddings/rating realism package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for reactive artifact display + transcript editing/history + independent parallel task execution package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local validation for global catalog + embeddings compatibility matrix package completed (`pnpm lint`, `pnpm --filter @gravador/web run typecheck`).

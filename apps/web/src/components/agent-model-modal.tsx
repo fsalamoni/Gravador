@@ -214,7 +214,7 @@ export function AgentModelModal({
         <div className="flex-1 overflow-auto">
           {models.length === 0 ? (
             <div className="px-6 py-12 text-center text-mute">
-              Nenhum modelo no catálogo pessoal para este provedor.
+              Nenhum modelo no catálogo pessoal.
               <br />
               Vá em <strong>Provedores de IA</strong> e adicione modelos ao catálogo primeiro.
             </div>
