@@ -34,6 +34,8 @@
 - Added route-level regression coverage for integrations sync contract (`apps/web/src/app/api/integrations/sync/route.test.ts`) covering invalid input rejection, storage test-mode behavior, and structured failure-code persistence.
 - Updated integrations UI to block unsupported test actions for storage providers, reducing operator confusion between test-only notification flows and storage sync flows.
 - Upgraded Google deploy actions to Node 24-compatible majors (`google-github-actions/auth@v3`, `google-github-actions/setup-gcloud@v3`) across `firebase-hosting.yml`, `release-platform.yml`, and `firestore-managed-e2e.yml` to mitigate Node 20 deprecation warnings before enforced runtime cutoff.
+- Hardened `notifications-smoke.yml` and `audio-edit-runner.yml` with explicit disabled-path summaries plus strict manual-dispatch failure behavior when activation variables are off, reducing false-green operational confirmations caused by silent skipped jobs.
+- Hardened `scripts/smoke-notifications.mjs` with provider-readiness enforcement, timeout-safe HTTP probes, safe JSON parsing, and webhook URL validation to reduce flaky/ambiguous smoke outcomes.
 - Added bulk contract hardening to reject unsafe recording IDs (`/`, `\\`, `..`) and regression test coverage.
 - Added bulk-delete confirmation hardening (`confirmation.expectedCount` + typed phrase `LIXEIRA <count>`) to prevent accidental multi-recording trash actions.
 - Added delete-path route regressions in `apps/web/src/app/api/recordings/bulk/route.test.ts` for confirmation mismatch failures and successful trashed transitions.
@@ -95,6 +97,7 @@
 - Local validation after bulk-delete safety hardening package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Local validation after integrations sync hardening package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Local validation after workflow Node20-deprecation hardening package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- Local validation after operational smoke/runner guardrails package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, plus `scripts/smoke-notifications.mjs` runtime sanity check).
 - Release verification for commit `ac8d6c4`: `CI` run `24919485100` success, `Pages` run `24919485092` success, `Firebase Hosting` run `24919485096` success, `Firestore Managed E2E` run `24919545153` success (`database_id=anotes`).
 - Firebase Hosting run `24919485096` no longer emits Node 20 deprecation warnings for Google actions after upgrading to `google-github-actions/auth@v3` and `google-github-actions/setup-gcloud@v3`.
 - Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.

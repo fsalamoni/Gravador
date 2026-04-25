@@ -31,6 +31,10 @@ This file captures decisions and assumptions that must survive long implementati
 - Local verification for workflow Node20-deprecation hardening package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
 - Release closure snapshot (commit `ac8d6c4`, 2026-04-24 local): `CI` run `24919485100` success, `Pages` run `24919485092` success, `Firebase Hosting` run `24919485096` success, `Firestore Managed E2E` run `24919545153` success (`database_id=anotes`).
 - Firebase Hosting logs for run `24919485096` no longer contain the previous Node 20 deprecation annotation for Google action majors after migration to `auth@v3`/`setup-gcloud@v3`.
+- Operational workflows now publish explicit disabled summaries when `ENABLE_NOTIFICATIONS_SMOKE` or `ENABLE_AUDIO_EDIT_RUNNER` are not enabled, replacing silent job skips with actionable operator guidance in run summaries.
+- Manual dispatch of disabled runner/smoke workflows now fails fast in strict mode, preventing false-green confirmation when activation flags are off.
+- `scripts/smoke-notifications.mjs` now enforces provider-readiness (`notifications_provider_readiness`) and applies timeout-safe probe behavior + safe JSON parsing for more deterministic strict outcomes.
+- Local verification for operational smoke/runner guardrails package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, plus non-strict runtime sanity execution of `scripts/smoke-notifications.mjs`.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.

@@ -1,5 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 function parseBoolean(value, fallback = false) {
   if (typeof value !== 'string') return fallback;
   const normalized = value.trim().toLowerCase();
@@ -27,6 +29,60 @@ function truncate(value, max = 300) {
   return value.length > max ? `${value.slice(0, max)}...` : value;
 }
 
+function safeJsonParse(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function getRequestSignal() {
+  if (typeof AbortSignal === 'undefined') {
+    return undefined;
+  }
+  if (typeof AbortSignal.timeout !== 'function') {
+    return undefined;
+  }
+  return AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+}
+
+function isTimeoutError(error) {
+  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
+function hasWhatsAppProviderConfigured() {
+  const accessToken = process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim();
+  const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
+  return Boolean(accessToken && phoneNumberId);
+}
+
+function hasEmailWebhookConfigured() {
+  const webhookUrl = process.env.EMAIL_NOTIFICATIONS_WEBHOOK_URL?.trim();
+  return Boolean(webhookUrl);
+}
+
+function evaluateProviderReadiness() {
+  const hasWhatsApp = hasWhatsAppProviderConfigured();
+  const hasEmailWebhook = hasEmailWebhookConfigured();
+  const configuredProviders = Number(hasWhatsApp) + Number(hasEmailWebhook);
+
+  return {
+    check: 'notifications_provider_readiness',
+    status: configuredProviders > 0 ? 'passed' : 'failed',
+    message:
+      configuredProviders > 0
+        ? 'At least one notification provider is configured.'
+        : 'No notification provider is configured (WhatsApp Cloud and email webhook are both missing).',
+    details: {
+      hasWhatsApp,
+      hasEmailWebhook,
+      configuredProviders,
+    },
+  };
+}
+
 async function probeWhatsAppCloud() {
   const accessToken = process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim();
   const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID?.trim();
@@ -49,17 +105,18 @@ async function probeWhatsAppCloud() {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: getRequestSignal(),
     });
 
     const bodyText = await response.text();
-    const body = bodyText ? JSON.parse(bodyText) : null;
+    const body = safeJsonParse(bodyText);
 
     if (!response.ok) {
       return {
         check: 'whatsapp_cloud',
         status: 'failed',
         message: `Graph API responded ${response.status}.`,
-        details: truncate(bodyText),
+        details: body ?? truncate(bodyText),
       };
     }
 
@@ -77,7 +134,9 @@ async function probeWhatsAppCloud() {
     return {
       check: 'whatsapp_cloud',
       status: 'failed',
-      message: 'Network failure while probing WhatsApp Cloud API.',
+      message: isTimeoutError(error)
+        ? `Timeout while probing WhatsApp Cloud API (${REQUEST_TIMEOUT_MS}ms).`
+        : 'Network failure while probing WhatsApp Cloud API.',
       details: truncate(error instanceof Error ? error.message : String(error)),
     };
   }
@@ -96,6 +155,22 @@ async function probeEmailWebhook(sendTest) {
     };
   }
 
+  let normalizedWebhookUrl = webhookUrl;
+  try {
+    const parsed = new URL(webhookUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('unsupported_protocol');
+    }
+    normalizedWebhookUrl = parsed.toString();
+  } catch {
+    return {
+      check: 'email_webhook',
+      status: 'failed',
+      message: 'EMAIL_NOTIFICATIONS_WEBHOOK_URL is invalid.',
+      details: truncate(webhookUrl),
+    };
+  }
+
   const headers = {
     'content-type': 'application/json',
     ...(webhookToken ? { 'x-gravador-email-token': webhookToken } : {}),
@@ -103,9 +178,10 @@ async function probeEmailWebhook(sendTest) {
 
   if (!sendTest) {
     try {
-      const response = await fetch(webhookUrl, {
+      const response = await fetch(normalizedWebhookUrl, {
         method: 'GET',
         headers,
+        signal: getRequestSignal(),
       });
 
       if (response.status >= 500) {
@@ -128,7 +204,9 @@ async function probeEmailWebhook(sendTest) {
       return {
         check: 'email_webhook',
         status: 'failed',
-        message: 'Network failure while probing email webhook reachability.',
+        message: isTimeoutError(error)
+          ? `Timeout while probing email webhook reachability (${REQUEST_TIMEOUT_MS}ms).`
+          : 'Network failure while probing email webhook reachability.',
         details: truncate(error instanceof Error ? error.message : String(error)),
       };
     }
@@ -145,9 +223,10 @@ async function probeEmailWebhook(sendTest) {
   }
 
   try {
-    const response = await fetch(webhookUrl, {
+    const response = await fetch(normalizedWebhookUrl, {
       method: 'POST',
       headers,
+      signal: getRequestSignal(),
       body: JSON.stringify({
         event: 'notification.test',
         to: smokeTo,
@@ -185,7 +264,9 @@ async function probeEmailWebhook(sendTest) {
     return {
       check: 'email_webhook',
       status: 'failed',
-      message: 'Network failure while sending webhook smoke payload.',
+      message: isTimeoutError(error)
+        ? `Timeout while sending webhook smoke payload (${REQUEST_TIMEOUT_MS}ms).`
+        : 'Network failure while sending webhook smoke payload.',
       details: truncate(error instanceof Error ? error.message : String(error)),
     };
   }
@@ -211,6 +292,7 @@ async function main() {
 
   const checks = [];
   checks.push(evaluateNotificationsFlag());
+  checks.push(evaluateProviderReadiness());
   checks.push(await probeWhatsAppCloud());
   checks.push(await probeEmailWebhook(sendEmailTest));
 

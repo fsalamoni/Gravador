@@ -159,3 +159,25 @@ jobs:
         run: |
           echo "Audio edit runner failed. Check previous step logs and summary."
           exit 1
+
+  runner-disabled:
+    if: ${{ vars['ENABLE_AUDIO_EDIT_RUNNER'] != 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Publish disabled summary
+        run: |
+          {
+            echo "## Audio Edit Runner"
+            echo ""
+            echo "- Workflow status: skipped"
+            echo "- Reason: ENABLE_AUDIO_EDIT_RUNNER is not set to true."
+            echo "- Action: set repository variable ENABLE_AUDIO_EDIT_RUNNER=true to enable batch dispatch."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail strict manual dispatch when workflow is disabled
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "::error::Audio edit runner is disabled (ENABLE_AUDIO_EDIT_RUNNER!=true)."
+          exit 1

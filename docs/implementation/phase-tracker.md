@@ -41,6 +41,7 @@
 
 - [x] Build richer WhatsApp/email setup modals with guided onboarding.
 - [x] Add send/test flows for email integration and notification paths (strict sync contract validation for `mode`/`integrationId`/`limit`, storage test-mode guard to prevent false-positive test success, and route-level regression coverage delivered; provider wiring for real delivery remains env-dependent).
+- [x] Strengthen notification smoke contract with provider-readiness enforcement and timeout-safe probe behavior to prevent strict false-pass when providers are unconfigured/unreachable.
 - [~] Validate first-wave notification scope end-to-end (contract and deterministic flag behavior validated via API/unit tests; smoke workflow `notifications-smoke.yml` added, awaiting provider activation/strict pass evidence).
 - [x] Persist notification event queue contracts for recording lifecycle/artifact/audio-edit transitions (`notification_queue`, status=`pending`, retry metadata fields) when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.
 
@@ -54,6 +55,7 @@
 - [~] Add audio-edit job consumer runner (`workers/ai-pipeline`) honoring `scheduling.nextAttemptAt` with retry-safe dispatch; scheduled workflow `audio-edit-runner.yml` delivered, awaiting environment activation.
 - [x] Add runner observability/failure thresholds (JSON batch summary + `AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH` contract).
 - [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
+- [x] Harden operational runner/smoke workflows with explicit disabled summaries plus strict manual-dispatch guardrails when activation variables are off (prevents false-green skipped executions).
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
 - [x] Expand managed-Firestore staged suite with auth/session/access/error boundary assertions for lifecycle and artifact routes (401/403/404/400 contracts).
@@ -113,3 +115,4 @@
 - [x] Local validation for integrations sync hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for workflow Node20-deprecation hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Workflow Node20-deprecation hardening commit `ac8d6c4` verified end-to-end (`CI` run `24919485100` success, `Pages` run `24919485092` success, `Firebase Hosting` run `24919485096` success, `Firestore Managed E2E` run `24919545153` success on `database_id=anotes`).
+- [x] Local validation for operational smoke/runner guardrails package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, plus `node scripts/smoke-notifications.mjs --summary-path ...` non-strict runtime sanity check).
