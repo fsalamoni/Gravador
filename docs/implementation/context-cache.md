@@ -45,6 +45,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Final activation-audit closure snapshot (commit `4bb9ce6`, 2026-04-25 local): `CI` run `24928579016` success, manual `Ops Activation Audit` run `24928594813` success (`strict=false`, explicit gap matrix), manual `Firestore Managed E2E` run `24928596802` success (`database_id=anotes`), manual `Firebase Hosting` run `24928598960` success, manual `Pages` run `24928600630` success.
 - CI now enforces workflow YAML syntax validation via root command `pnpm lint:workflows` (`pnpm dlx yaml-lint .github/workflows/*.yml`) and dedicated `workflow-lint` job in `.github/workflows/ci.yml`.
 - This guardrail was added after activation-audit summary incidents (`24928511832`, `24928546801`) to prevent malformed GitHub Actions definitions from reaching protected branches.
+- Local verification for workflow-lint guardrail package is green: `pnpm lint`, `pnpm lint:workflows`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
+- Release closure snapshot (commit `6aebdb8`, 2026-04-25 local): `CI` run `24932359275` success, `Pages` run `24932359268` success, `Firebase Hosting` run `24932359265` success, manual `Firestore Managed E2E` run `24932364466` success (`database_id=anotes`), manual `Ops Activation Audit` run `24932365170` success.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
