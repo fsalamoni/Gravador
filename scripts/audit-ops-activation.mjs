@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 
-const VALID_TARGETS = new Set(['all', 'notifications', 'audio-edit']);
+const VALID_TARGETS = new Set(['all', 'notifications', 'audio-edit', 'transcription']);
 
 function parseBoolean(value, fallback = false) {
   if (typeof value !== 'string') return fallback;
@@ -181,6 +181,65 @@ function evaluateAudioEditRunner() {
   return checks;
 }
 
+function evaluateTranscription() {
+  const checks = [];
+
+  const hasOpenAIKey = parseBoolean(process.env.HAS_OPENAI_API_KEY, false);
+  const hasGroqKey = parseBoolean(process.env.HAS_GROQ_API_KEY, false);
+  const hasLocalWhisperUrl = parseBoolean(process.env.HAS_LOCAL_WHISPER_URL, false);
+
+  checks.push(
+    check(
+      'transcription.openai_key',
+      hasOpenAIKey ? 'passed' : 'skipped',
+      hasOpenAIKey
+        ? 'OPENAI_API_KEY is configured for cloud transcription.'
+        : 'OPENAI_API_KEY is not configured.',
+      { configured: hasOpenAIKey },
+    ),
+  );
+
+  checks.push(
+    check(
+      'transcription.groq_key',
+      hasGroqKey ? 'passed' : 'skipped',
+      hasGroqKey
+        ? 'GROQ_API_KEY is configured for cloud transcription.'
+        : 'GROQ_API_KEY is not configured.',
+      { configured: hasGroqKey },
+    ),
+  );
+
+  checks.push(
+    check(
+      'transcription.local_endpoint',
+      hasLocalWhisperUrl ? 'passed' : 'skipped',
+      hasLocalWhisperUrl
+        ? 'LOCAL_WHISPER_URL is configured for self-host transcription.'
+        : 'LOCAL_WHISPER_URL is not configured.',
+      { configured: hasLocalWhisperUrl },
+    ),
+  );
+
+  const providerReady = hasOpenAIKey || hasGroqKey || hasLocalWhisperUrl;
+  checks.push(
+    check(
+      'transcription.provider_minimum',
+      providerReady ? 'passed' : 'failed',
+      providerReady
+        ? 'At least one transcription path is configured (OpenAI, Groq, or local whisper).'
+        : 'No transcription path is configured. Configure OPENAI_API_KEY, GROQ_API_KEY, or LOCAL_WHISPER_URL.',
+      {
+        hasOpenAIKey,
+        hasGroqKey,
+        hasLocalWhisperUrl,
+      },
+    ),
+  );
+
+  return checks;
+}
+
 function computeTotals(checks) {
   return {
     passed: checks.filter((entry) => entry.status === 'passed').length,
@@ -208,6 +267,9 @@ async function main() {
   }
   if (target === 'all' || target === 'audio-edit') {
     checks.push(...evaluateAudioEditRunner());
+  }
+  if (target === 'all' || target === 'transcription') {
+    checks.push(...evaluateTranscription());
   }
 
   const totals = computeTotals(checks);

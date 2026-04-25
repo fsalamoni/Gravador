@@ -64,6 +64,7 @@ Go to **GitHub → Settings → Secrets and variables → Actions → Variables*
 | `ENABLE_NOTIFICATIONS_SMOKE` | `false` | Enables scheduled workflow `notifications-smoke.yml` |
 | `EMAIL_NOTIFICATIONS_SMOKE_SEND` | `false` | If `true`, smoke sends POST test payload to e-mail webhook |
 | `EMAIL_NOTIFICATIONS_SMOKE_TO` | _(optional)_ | Target e-mail used by smoke send mode |
+| `LOCAL_WHISPER_URL` | _(optional)_ | Self-host transcription endpoint propagated to Cloud Run runtime |
 | `NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS` | `true` | Build/runtime flag wiring for web deploy |
 | `NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1` | `false` | Build/runtime flag wiring for web deploy |
 | `NEXT_PUBLIC_FF_AUDIO_EDITING_V1` | `false` | Build/runtime flag wiring for web deploy |
@@ -72,7 +73,7 @@ Go to **GitHub → Settings → Secrets and variables → Actions → Variables*
 
 ### Operational Activation Audit (Recommended)
 
-Use workflow `.github/workflows/ops-activation-audit.yml` to collect a deterministic readiness matrix for notification smoke and audio-edit runner activation.
+Use workflow `.github/workflows/ops-activation-audit.yml` to collect a deterministic readiness matrix for notification smoke, audio-edit runner activation, and transcription runtime paths.
 
 ```bash
 # non-strict overview (recommended first)
@@ -81,6 +82,7 @@ gh workflow run "Ops Activation Audit" -f strict=false -f target=all
 # strict gate per scope (fails if gaps remain)
 gh workflow run "Ops Activation Audit" -f strict=true -f target=notifications
 gh workflow run "Ops Activation Audit" -f strict=true -f target=audio-edit
+gh workflow run "Ops Activation Audit" -f strict=true -f target=transcription
 ```
 
 Local operator check:
@@ -92,6 +94,7 @@ pnpm ops:audit:activation
 Notes:
 - `strict=false` is useful while provisioning variables/secrets gradually.
 - `strict=true` should be used for release evidence once all dependencies are provisioned.
+- Transcription strict readiness passes when at least one path is configured: `OPENAI_API_KEY`, `GROQ_API_KEY`, or `LOCAL_WHISPER_URL`.
 
 ### Where to find the Firebase config values
 
@@ -131,7 +134,7 @@ Notes:
 - Container port: `3000`
 - Artifact Registry repository: `gravador-web`
 - Runtime envs: `NEXT_PUBLIC_APP_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIRESTORE_DATABASE_ID`, plus any optional AI/webhook secrets you actually use
-- Runtime envs: `NEXT_PUBLIC_APP_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIRESTORE_DATABASE_ID`, plus optional integration/job secrets (`INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`, AI keys)
+- Runtime envs: `NEXT_PUBLIC_APP_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIRESTORE_DATABASE_ID`, plus optional integration/job secrets (`INTERNAL_JOBS_SECRET`, `WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`, AI keys) and optional `LOCAL_WHISPER_URL` for self-host transcription fallback
 - Optional runtime env: `ANDROID_PREVIEW_URL` to expose the current Android APK on `https://anotes.web.app/download`
 
 ---

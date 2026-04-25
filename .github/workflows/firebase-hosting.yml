@@ -45,6 +45,9 @@ jobs:
           HAS_WHATSAPP_PHONE_ID: ${{ secrets['WHATSAPP_CLOUD_PHONE_NUMBER_ID'] != '' }}
           HAS_EMAIL_WEBHOOK_URL: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_URL'] != '' }}
           HAS_EMAIL_WEBHOOK_TOKEN: ${{ secrets['EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN'] != '' }}
+          HAS_OPENAI_API_KEY: ${{ secrets['OPENAI_API_KEY'] != '' }}
+          HAS_GROQ_API_KEY: ${{ secrets['GROQ_API_KEY'] != '' }}
+          HAS_LOCAL_WHISPER_URL: ${{ vars['LOCAL_WHISPER_URL'] != '' }}
           AUDIO_EDITING_FLAG: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }}
           NOTIFICATIONS_FLAG: ${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] || 'false' }}
         run: |
@@ -77,6 +80,10 @@ jobs:
             if [[ "$HAS_EMAIL_WEBHOOK_TOKEN" != "true" ]]; then
               echo "::warning::NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true but EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN is missing."
             fi
+          fi
+
+          if [[ "$HAS_OPENAI_API_KEY" != "true" && "$HAS_GROQ_API_KEY" != "true" && "$HAS_LOCAL_WHISPER_URL" != "true" ]]; then
+            echo "::warning::No transcription path configured for runtime (missing OPENAI_API_KEY, GROQ_API_KEY, and LOCAL_WHISPER_URL)."
           fi
 
           echo "All deploy secrets present — proceeding with web deploy."
@@ -205,6 +212,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets['OPENAI_API_KEY'] }}
           ANTHROPIC_API_KEY: ${{ secrets['ANTHROPIC_API_KEY'] }}
           GROQ_API_KEY: ${{ secrets['GROQ_API_KEY'] }}
+          LOCAL_WHISPER_URL: ${{ vars['LOCAL_WHISPER_URL'] }}
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets['GOOGLE_GENERATIVE_AI_API_KEY'] }}
         run: |
           env_vars="NEXT_PUBLIC_APP_URL=https://anotes.web.app,FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID,FIREBASE_STORAGE_BUCKET=$FIREBASE_STORAGE_BUCKET,FIRESTORE_DATABASE_ID=anotes,NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS=${NEXT_PUBLIC_FF_WORKSPACE_DOWNLOADS:-true},NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1=${NEXT_PUBLIC_FF_RECORDING_LIFECYCLE_V1:-false},NEXT_PUBLIC_FF_AUDIO_EDITING_V1=${NEXT_PUBLIC_FF_AUDIO_EDITING_V1:-false},NEXT_PUBLIC_FF_NOTIFICATIONS_V1=${NEXT_PUBLIC_FF_NOTIFICATIONS_V1:-false},NEXT_PUBLIC_FF_BULK_OPS_V1=${NEXT_PUBLIC_FF_BULK_OPS_V1:-false}"
@@ -246,6 +254,9 @@ jobs:
           fi
           if [[ -n "$GROQ_API_KEY" ]]; then
             env_vars="$env_vars,GROQ_API_KEY=$GROQ_API_KEY"
+          fi
+          if [[ -n "$LOCAL_WHISPER_URL" ]]; then
+            env_vars="$env_vars,LOCAL_WHISPER_URL=$LOCAL_WHISPER_URL"
           fi
           if [[ -n "$GOOGLE_GENERATIVE_AI_API_KEY" ]]; then
             env_vars="$env_vars,GOOGLE_GENERATIVE_AI_API_KEY=$GOOGLE_GENERATIVE_AI_API_KEY"

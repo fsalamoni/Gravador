@@ -40,3 +40,9 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 3. Run `ops-activation-audit.yml` with `target=notifications` in `strict=true` mode and retain evidence of zero gaps.
 4. Run `notifications-smoke.yml` in strict mode and retain workflow evidence.
 5. Validate `POST /api/integrations/sync` in `mode=test` rejects storage-only requests with `test_mode_unsupported`.
+
+### Transcription readiness (provider contract)
+
+1. Provision at least one transcription path for runtime (`OPENAI_API_KEY`, `GROQ_API_KEY`, or `LOCAL_WHISPER_URL`).
+2. Run `ops-activation-audit.yml` with `target=transcription` in `strict=true` mode and retain evidence of zero gaps.
+3. Ensure deploy preflight does not emit the warning `No transcription path configured for runtime`.
