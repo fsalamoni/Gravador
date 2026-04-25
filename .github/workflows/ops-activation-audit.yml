@@ -70,35 +70,7 @@ jobs:
         shell: bash
         run: |
           if [[ -f ops-activation-audit-summary.json ]]; then
-            node <<'NODE'
-const fs = require('node:fs');
-const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-if (!summaryPath) {
-  throw new Error('GITHUB_STEP_SUMMARY is not set');
-}
-
-const payload = JSON.parse(fs.readFileSync('ops-activation-audit-summary.json', 'utf8'));
-const checks = Array.isArray(payload.checks) ? payload.checks : [];
-const lines = [];
-
-lines.push('## Ops Activation Audit');
-lines.push('');
-lines.push(`- Workflow status: ${process.env.AUDIT_OUTCOME ?? 'unknown'}`);
-lines.push(`- Strict mode: ${payload.strict}`);
-lines.push(`- Target: ${payload.target}`);
-lines.push(`- Passed: ${payload.totals?.passed ?? 0}`);
-lines.push(`- Failed: ${payload.totals?.failed ?? 0}`);
-lines.push(`- Skipped: ${payload.totals?.skipped ?? 0}`);
-lines.push('');
-lines.push('### Checks');
-
-for (const entry of checks) {
-  const details = entry?.details ? ` | details: ${JSON.stringify(entry.details)}` : '';
-  lines.push(`- ${entry?.check ?? 'unknown'}: ${entry?.status ?? 'unknown'} - ${entry?.message ?? ''}${details}`);
-}
-
-fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`, 'utf8');
-NODE
+            node -e "const fs=require('node:fs');const payload=JSON.parse(fs.readFileSync('ops-activation-audit-summary.json','utf8'));const checks=Array.isArray(payload.checks)?payload.checks:[];const lines=[];lines.push('## Ops Activation Audit','', '- Workflow status: ' + (process.env.AUDIT_OUTCOME ?? 'unknown'), '- Strict mode: ' + payload.strict, '- Target: ' + payload.target, '- Passed: ' + (payload.totals?.passed ?? 0), '- Failed: ' + (payload.totals?.failed ?? 0), '- Skipped: ' + (payload.totals?.skipped ?? 0), '', '### Checks');for (const entry of checks){const details=entry?.details ? ' | details: ' + JSON.stringify(entry.details) : '';lines.push('- ' + (entry?.check ?? 'unknown') + ': ' + (entry?.status ?? 'unknown') + ' - ' + (entry?.message ?? '') + details);}process.stdout.write(lines.join('\\n') + '\\n');" >> "$GITHUB_STEP_SUMMARY"
           else
             {
               echo "## Ops Activation Audit"
