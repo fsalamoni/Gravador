@@ -72,6 +72,8 @@
 - [x] Rework personal model catalog UX to be global across providers: provider cards now scope model selection input, while catalog rendering lists all user-selected models regardless of provider.
 - [x] Add embeddings compatibility matrix in settings for all providers, explicitly indicating accepted models and current runtime support boundaries.
 - [x] Ensure default chat model selection from the global catalog also updates `chatProvider` to the selected model provider, preventing provider/model mismatch.
+- [x] Extract settings catalog resolution and embeddings support matrix into reusable lib contracts (`settings-model-catalog.ts`) to reduce UI drift risk.
+- [x] Add regression coverage for global catalog semantics and embeddings matrix contracts (`settings-model-catalog.test.ts`).
 
 ## Release gating before each phase transition
 
@@ -105,3 +107,4 @@
 - [x] Local validation for AI agent reliability + embeddings/rating realism package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for reactive artifact display + transcript editing/history + independent parallel task execution package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for global catalog + embeddings compatibility matrix package completed (`pnpm lint`, `pnpm --filter @gravador/web run typecheck`).
+- [x] Local validation for catalog contract extraction + regression tests package completed (`pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`).

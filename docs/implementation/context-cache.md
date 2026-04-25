@@ -19,6 +19,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Global catalog default selection now updates both `chatModel` and `chatProvider`, ensuring runtime requests route to the selected model provider without stale provider coupling.
 - Embeddings guidance now includes provider-by-provider accepted-model matrix in settings; runtime embedding pipeline remains explicitly limited to `openai` and `ollama` providers.
 - Local verification for global catalog + embeddings matrix package is green: `pnpm lint`, `pnpm --filter @gravador/web run typecheck`.
+- Settings catalog behavior is now centralized in `apps/web/src/lib/settings-model-catalog.ts` (`resolvePersonalCatalogModels`, `resolveAgentCatalogModels`, `EMBEDDING_MODEL_RULES`) to avoid duplicated UI-only resolution logic.
+- Regression tests in `apps/web/src/lib/settings-model-catalog.test.ts` now lock global catalog aggregation/dedup/fallback semantics and embeddings matrix support boundaries.
+- Local verification for catalog contract extraction + regression tests package is green: `pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.

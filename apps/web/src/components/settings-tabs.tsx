@@ -12,6 +12,12 @@ import {
   getModelsForProvider,
 } from '@/lib/model-registry';
 import {
+  type CatalogProvider,
+  EMBEDDING_MODEL_RULES,
+  resolveAgentCatalogModels,
+  resolvePersonalCatalogModels,
+} from '@/lib/settings-model-catalog';
+import {
   AlertTriangle,
   BookOpen,
   Bot,
@@ -33,8 +39,9 @@ import { THEMES, type ThemeId, useTheme } from './theme-provider';
 
 // ── Types ──
 
-type AIProvider = 'openrouter' | 'openai' | 'anthropic' | 'google' | 'groq' | 'ollama';
 type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
+
+type AIProvider = CatalogProvider;
 
 interface AgentModelConfig {
   provider?: string;
@@ -127,49 +134,6 @@ const AGENTS: { key: string; label: string; description: string }[] = [
   { key: 'embed', label: 'Embeddings', description: 'Indexação vetorial para busca' },
   { key: 'transcribe', label: 'Transcrição', description: 'Conversão de áudio para texto' },
 ];
-
-const EMBEDDING_MODEL_RULES: Record<
-  AIProvider,
-  { supported: boolean; acceptedModels: string[]; note: string }
-> = {
-  openrouter: {
-    supported: false,
-    acceptedModels: [],
-    note: 'Embeddings via OpenRouter ainda não são consumidos diretamente pelo pipeline.',
-  },
-  openai: {
-    supported: true,
-    acceptedModels: ['text-embedding-3-small', 'text-embedding-3-large', 'text-embedding-ada-002'],
-    note: 'Suporte nativo no pipeline de embeddings (requer OPENAI_API_KEY).',
-  },
-  anthropic: {
-    supported: false,
-    acceptedModels: [],
-    note: 'Anthropic está habilitado para LLM/chat, sem endpoint direto de embeddings neste fluxo.',
-  },
-  google: {
-    supported: false,
-    acceptedModels: [],
-    note: 'Google está habilitado para LLM/chat, sem endpoint direto de embeddings neste fluxo.',
-  },
-  groq: {
-    supported: false,
-    acceptedModels: [],
-    note: 'Groq está habilitado para chat/transcrição, sem endpoint direto de embeddings neste fluxo.',
-  },
-  ollama: {
-    supported: true,
-    acceptedModels: [
-      'nomic-embed-text',
-      'nomic-embed-text:latest',
-      'mxbai-embed-large',
-      'mxbai-embed-large:latest',
-      'all-minilm',
-      'all-minilm:latest',
-    ],
-    note: 'Suporte nativo via endpoint /api/embeddings do Ollama local.',
-  },
-};
 
 const TRANSCRIPTION_GUIDE_URL =
   'https://github.com/fsalamoni/Gravador/blob/main/docs/transcription-providers.md';
@@ -439,17 +403,12 @@ export function SettingsTabs({ email, uid }: { email: string; uid: string }) {
   /** All personal catalog models across providers (for agent selection).
    *  If no models are manually selected, show all available models from the active provider. */
   const agentCatalogModels = useMemo(() => {
-    const selectedIds = settings.selectedModels ?? [];
-    if (selectedIds.length === 0) {
-      return getProviderModels(selectedProvider);
-    }
-
-    const models = selectedIds
-      .map((modelId) => findModelById(modelId))
-      .filter((model): model is ModelSpec => Boolean(model));
-
-    // Deduplicate in case the same id is repeated in persisted settings.
-    return Array.from(new Map(models.map((model) => [model.id, model])).values());
+    return resolveAgentCatalogModels(
+      settings.selectedModels ?? [],
+      selectedProvider,
+      getProviderModels,
+      findModelById,
+    );
   }, [findModelById, getProviderModels, selectedProvider, settings.selectedModels]);
 
   return (
@@ -709,16 +668,8 @@ function ProvidersTab({
 }) {
   const currentKey = settings.byokKeys?.[selectedProvider] ?? '';
   const providerModels = getProviderModels(selectedProvider);
-  const resolvedCatalogEntries = (settings.selectedModels ?? []).map((modelId) => ({
-    id: modelId,
-    model: findModelById(modelId),
-  }));
-  const personalCatalogModels = resolvedCatalogEntries
-    .filter((entry): entry is { id: string; model: ModelSpec } => Boolean(entry.model))
-    .map((entry) => entry.model);
-  const unresolvedCatalogModelIds = resolvedCatalogEntries
-    .filter((entry) => !entry.model)
-    .map((entry) => entry.id);
+  const { models: personalCatalogModels, unresolvedModelIds: unresolvedCatalogModelIds } =
+    resolvePersonalCatalogModels(settings.selectedModels ?? [], findModelById);
   const catalogCount = selectedModelIds.size;
   const canResolveCatalogWarnings = !openRouterLoading && !ollamaLoading;
   const providerLabelFor = (provider: string) =>
