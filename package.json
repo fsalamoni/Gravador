@@ -18,7 +18,7 @@
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:web:firestore-emulator": "firebase emulators:exec --only firestore \"pnpm --filter @gravador/web run test:firestore-emulator\"",
+    "test:web:firestore-emulator": "node scripts/run-firestore-emulator-tests.mjs",
     "test:web:firestore-managed": "pnpm --filter @gravador/web run test:firestore-managed",
     "smoke:notifications": "node scripts/smoke-notifications.mjs --strict",
     "ops:audit:activation": "node scripts/audit-ops-activation.mjs --target all",

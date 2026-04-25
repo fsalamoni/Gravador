@@ -32,7 +32,7 @@ const FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
 const describeIfEmulator = FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? 'demo-gravador-web';
-const DATABASE_ID = '(default)';
+const DATABASE_ID = process.env.FIRESTORE_EMULATOR_DATABASE_ID ?? '(default)';
 const APP_NAME = `gravador-web-emulator-tests-${PROJECT_ID}`;
 
 let db: Firestore;

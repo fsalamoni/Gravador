@@ -138,7 +138,15 @@ Para local:
 - Padronize idioma quando souber a lingua principal do audio.
 - Sempre registre custo medio por hora de audio para previsibilidade financeira.
 
-## 9. Troubleshooting rapido
+## 9. Fallback automatico em runtime
+
+- O Gravador tenta primeiro o provedor selecionado no workspace.
+- Se ocorrer erro recuperavel de provedor (chave ausente, indisponibilidade, erro HTTP, etc.), o sistema tenta outros provedores com caminho configurado.
+- Ordem de fallback: Groq -> OpenAI -> ElevenLabs -> local faster-whisper.
+- Em fallback para outro provedor, o modelo passa a ser o padrao daquele provedor para evitar incompatibilidade de nome de modelo.
+- Erros de entrada (ex.: `audioUrl`/`audioBytes` ausente ou falha para baixar o audio de origem) interrompem o fluxo sem fallback.
+
+## 10. Troubleshooting rapido
 
 - Erro Missing GROQ_API_KEY: chave Groq nao configurada no workspace/runtime.
 - Erro Missing OPENAI_API_KEY: chave OpenAI nao configurada no workspace/runtime.
@@ -148,4 +156,4 @@ Para local:
 
 ---
 
-Atualizado em 2026-04-23.
+Atualizado em 2026-04-25.

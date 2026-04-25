@@ -128,6 +128,9 @@
 - Managed verification for expanded auth/runtime matrix completed on commit `ecf7f8b` (`Firestore Managed E2E` run `24854615993` success on `database_id=anotes`) alongside green release workflows (`CI` `24854596037`, `Pages` `24854596023`, `Firebase Hosting` `24854596062`).
 - Release verification for commit `b443110`: `Pages` run `24940869029` success, `CI` run `24940869031` success, `Firebase Hosting` run `24940869039` success (`deploy` job completed in `6m49s`).
 - Firebase Hosting run `24940869039` emitted annotation about missing transcription runtime path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`); this remained a non-blocking warning by current readiness policy.
+- Transcription runtime now attempts configured fallback providers when the selected provider fails (`packages/ai/src/providers/index.ts`), reducing single-provider outage/misconfiguration blast radius while preserving hard-stop behavior for non-recoverable input errors.
+- Local emulator reliability hardening now wraps `test:web:firestore-emulator` with Java discovery + Windows fallback + dynamic port rollover + explicit project pinning (`scripts/run-firestore-emulator-tests.mjs`), preventing repeated local false failures from missing Java or occupied port 8080.
+- Wrapper hardening was validated locally with occupied default port (`8080`) and successful reroute to `8081`, with full emulator route suite pass.
 
 ### Rollback path
 

@@ -4,9 +4,9 @@ This folder tracks the phased implementation requested for the platform rollout 
 
 ## Current stage
 
-- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with route-level transition coverage reinforced by notification queue contracts, managed-Firestore staged evidence including auth/session/access/error boundary assertions, workflow/runtime guardrails stabilized, and the latest package delivered for ElevenLabs transcription matrix expansion plus mobile quick-action controls (Android QS tile + lock-screen toggle routing + startup config parity hardening).
-- Focus: continue operational activation by provisioning at least one production transcription runtime path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`) while keeping docs/index/cache synchronization and managed-Firestore boundary evidence discipline.
-- Latest closure evidence: multi-provider + mobile quick-actions commit `b443110` is fully verified (`Pages` `24940869029`, `CI` `24940869031`, `Firebase Hosting` `24940869039` all success; deploy run finished in `6m49s` with non-blocking transcription-path warning).
+- Stage: Phase 1/2/3 delivered + Phase 4/5 hardening bridge expanded (runner/smoke workflows + mobile bootstrap watchdog + deploy/runtime wiring), with route-level transition coverage reinforced by notification queue contracts, managed-Firestore staged evidence including auth/session/access/error boundary assertions, workflow/runtime guardrails stabilized, and current hardening package extending transcription reliability via runtime provider fallback plus resilient local emulator execution.
+- Focus: publish and monitor this reliability package end-to-end while continuing operational activation for at least one production transcription path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`).
+- Latest closure evidence: local validation for the reliability package is green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, `pnpm run test:web:firestore-emulator` with Java fallback + automatic port selection).
 
 ## Files
 

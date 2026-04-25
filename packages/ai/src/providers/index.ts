@@ -245,6 +245,88 @@ export interface TranscribeResult {
   }>;
 }
 
+type TranscribeProvider = NonNullable<TranscribeOptions['provider']>;
+
+const TRANSCRIBE_FALLBACK_ORDER: TranscribeProvider[] = [
+  'groq',
+  'openai',
+  'elevenlabs',
+  'local-faster-whisper',
+];
+
+function resolveRequestedTranscribeProvider(opts: TranscribeOptions): TranscribeProvider {
+  return (
+    opts.provider ?? (process.env.AI_TRANSCRIBE_PROVIDER as TranscribeOptions['provider']) ?? 'groq'
+  );
+}
+
+function hasConfiguredTranscribeProvider(
+  provider: TranscribeProvider,
+  opts: TranscribeOptions,
+): boolean {
+  switch (provider) {
+    case 'groq':
+      return Boolean(opts.keys?.groq ?? process.env.GROQ_API_KEY);
+    case 'openai':
+      return Boolean(opts.keys?.openai ?? process.env.OPENAI_API_KEY);
+    case 'elevenlabs':
+      return Boolean(opts.keys?.elevenlabs ?? process.env.ELEVENLABS_API_KEY);
+    case 'local-faster-whisper':
+      return Boolean(opts.keys?.localBaseUrl ?? process.env.LOCAL_WHISPER_URL);
+  }
+}
+
+function buildTranscribeCandidates(
+  preferredProvider: TranscribeProvider,
+  opts: TranscribeOptions,
+): TranscribeProvider[] {
+  const candidates: TranscribeProvider[] = [preferredProvider];
+
+  for (const provider of TRANSCRIBE_FALLBACK_ORDER) {
+    if (provider === preferredProvider) continue;
+    if (!hasConfiguredTranscribeProvider(provider, opts)) continue;
+    candidates.push(provider);
+  }
+
+  return candidates;
+}
+
+function isRecoverableTranscribeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes('audiourl or audiobytes required')) return false;
+  if (normalized.includes('failed to download audio source')) return false;
+
+  return true;
+}
+
+function getTranscribeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error ?? 'Unknown error');
+}
+
+function withTranscribeProvider(
+  opts: TranscribeOptions,
+  provider: TranscribeProvider,
+  preserveModel: boolean,
+): TranscribeOptions {
+  return {
+    ...opts,
+    provider,
+    model: preserveModel ? opts.model : undefined,
+  };
+}
+
+async function runTranscribeProvider(
+  provider: TranscribeProvider,
+  opts: TranscribeOptions,
+): Promise<TranscribeResult> {
+  if (provider === 'groq') return transcribeGroq(opts);
+  if (provider === 'openai') return transcribeOpenAI(opts);
+  if (provider === 'elevenlabs') return transcribeElevenLabs(opts);
+  return transcribeLocal(opts);
+}
+
 /**
  * Unified transcription entrypoint. Under the hood delegates to the selected
  * provider. Groq Whisper v3 is typically the lowest-latency cloud option,
@@ -252,14 +334,29 @@ export interface TranscribeResult {
  * and local `faster-whisper` is used in self-host mode.
  */
 export async function transcribe(opts: TranscribeOptions): Promise<TranscribeResult> {
-  const provider =
-    opts.provider ??
-    (process.env.AI_TRANSCRIBE_PROVIDER as TranscribeOptions['provider']) ??
-    'groq';
-  if (provider === 'groq') return transcribeGroq(opts);
-  if (provider === 'openai') return transcribeOpenAI(opts);
-  if (provider === 'elevenlabs') return transcribeElevenLabs(opts);
-  return transcribeLocal(opts);
+  const preferredProvider = resolveRequestedTranscribeProvider(opts);
+  const candidates = buildTranscribeCandidates(preferredProvider, opts);
+  const failures: string[] = [];
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const provider = candidates[index]!;
+    const attemptOpts = withTranscribeProvider(opts, provider, provider === preferredProvider);
+    try {
+      return await runTranscribeProvider(provider, attemptOpts);
+    } catch (error) {
+      const message = getTranscribeErrorMessage(error);
+      failures.push(`${provider}: ${message}`);
+      const isLast = index === candidates.length - 1;
+      if (isLast || !isRecoverableTranscribeError(error)) {
+        throw new Error(`Transcription failed (${failures.join(' | ')})`);
+      }
+      console.warn(
+        `[transcribe] provider ${provider} failed and fallback will be attempted: ${message}`,
+      );
+    }
+  }
+
+  throw new Error('Transcription failed: no providers available for attempt.');
 }
 
 async function loadAudioBlob(opts: TranscribeOptions): Promise<Blob> {
