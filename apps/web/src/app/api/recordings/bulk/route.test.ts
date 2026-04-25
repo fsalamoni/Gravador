@@ -394,3 +394,109 @@ describe('POST /api/recordings/bulk (merge execute)', () => {
     expect(primaryMindmap?.payload).toEqual({ source: 'primary-existing' });
   });
 });
+
+describe('POST /api/recordings/bulk (delete)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFeatureFlags.bulkOpsV1 = true;
+    mockGetApiSessionUser.mockResolvedValue({ uid: 'user-1' });
+  });
+
+  it('trashes owned recordings when confirmation contract is valid', async () => {
+    const db = new FakeFirestoreDb();
+    mockGetServerDb.mockReturnValue(db as never);
+
+    const recARef = db.collection('recordings').doc('rec-a');
+    const recBRef = db.collection('recordings').doc('rec-b');
+
+    await recARef.set({ workspaceId: 'ws-1', createdBy: 'user-1', title: 'A' });
+    await recBRef.set({ workspaceId: 'ws-1', createdBy: 'user-1', title: 'B' });
+
+    mockGetAccessibleRecording.mockImplementation(async (_db: unknown, recordingId: string) => {
+      if (recordingId === 'rec-a') {
+        return { ok: true, ref: recARef, data: db.get(recARef.path) };
+      }
+      if (recordingId === 'rec-b') {
+        return { ok: true, ref: recBRef, data: db.get(recBRef.path) };
+      }
+      return { ok: false, error: 'not_found' };
+    });
+
+    const response = await POST(
+      jsonRequest({
+        schemaVersion: 1,
+        operation: 'delete',
+        recordingIds: ['rec-a', 'rec-b'],
+        confirmation: {
+          expectedCount: 2,
+          phrase: 'LIXEIRA 2',
+        },
+        reason: 'cleanup old sessions',
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      processed: number;
+      skipped: number;
+      processedIds: string[];
+      skippedIds: string[];
+    };
+
+    expect(body.processed).toBe(2);
+    expect(body.skipped).toBe(0);
+    expect(body.processedIds).toEqual(['rec-a', 'rec-b']);
+    expect(body.skippedIds).toEqual([]);
+
+    const recAAfter = db.get(recARef.path);
+    const recBAfter = db.get(recBRef.path);
+    expect(recAAfter?.lifecycle).toMatchObject({
+      schemaVersion: 1,
+      status: 'trashed',
+      lastEvent: 'trashed',
+      lastEventBy: 'user-1',
+    });
+    expect(recBAfter?.lifecycle).toMatchObject({
+      schemaVersion: 1,
+      status: 'trashed',
+      lastEvent: 'trashed',
+      lastEventBy: 'user-1',
+    });
+  });
+
+  it('returns 400 when delete confirmation phrase is invalid', async () => {
+    const response = await POST(
+      jsonRequest({
+        schemaVersion: 1,
+        operation: 'delete',
+        recordingIds: ['rec-a'],
+        confirmation: {
+          expectedCount: 1,
+          phrase: 'CONFIRM 1',
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toBe('delete_confirmation_phrase_mismatch');
+  });
+
+  it('returns 400 when delete confirmation count mismatches payload ids', async () => {
+    const response = await POST(
+      jsonRequest({
+        schemaVersion: 1,
+        operation: 'delete',
+        recordingIds: ['rec-a', 'rec-b'],
+        confirmation: {
+          expectedCount: 3,
+          phrase: 'LIXEIRA 3',
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toBe('delete_confirmation_count_mismatch');
+  });
+});

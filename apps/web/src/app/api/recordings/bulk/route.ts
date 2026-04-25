@@ -86,6 +86,12 @@ export async function POST(req: Request) {
     if (error instanceof Error && error.message === 'invalid_recording_id') {
       return NextResponse.json({ error: 'invalid_recording_id' }, { status: 400 });
     }
+    if (error instanceof Error && error.message === 'delete_confirmation_count_mismatch') {
+      return NextResponse.json({ error: 'delete_confirmation_count_mismatch' }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === 'delete_confirmation_phrase_mismatch') {
+      return NextResponse.json({ error: 'delete_confirmation_phrase_mismatch' }, { status: 400 });
+    }
     if (error instanceof Error && error.message === 'primary_and_secondary_must_differ') {
       return NextResponse.json({ error: 'primary_and_secondary_must_differ' }, { status: 400 });
     }

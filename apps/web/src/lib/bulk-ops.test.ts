@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildBulkDeleteConfirmationPhrase } from './bulk-delete-confirmation';
 import { buildBulkAuditEntry, parseBulkOperationRequest } from './bulk-ops';
 
 describe('bulk ops schema contracts', () => {
@@ -7,6 +8,10 @@ describe('bulk ops schema contracts', () => {
       schemaVersion: 1,
       operation: 'delete',
       recordingIds: ['rec-a', 'rec-b'],
+      confirmation: {
+        expectedCount: 2,
+        phrase: buildBulkDeleteConfirmationPhrase(2),
+      },
       reason: 'cleanup',
     });
 
@@ -74,6 +79,38 @@ describe('bulk ops schema contracts', () => {
         schemaVersion: 1,
         operation: 'delete',
         recordingIds: ['rec-a', '../etc/passwd'],
+        confirmation: {
+          expectedCount: 2,
+          phrase: buildBulkDeleteConfirmationPhrase(2),
+        },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects delete payload when confirmation count mismatches selected ids', () => {
+    expect(() =>
+      parseBulkOperationRequest({
+        schemaVersion: 1,
+        operation: 'delete',
+        recordingIds: ['rec-a', 'rec-b'],
+        confirmation: {
+          expectedCount: 3,
+          phrase: buildBulkDeleteConfirmationPhrase(3),
+        },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects delete payload when confirmation phrase is invalid', () => {
+    expect(() =>
+      parseBulkOperationRequest({
+        schemaVersion: 1,
+        operation: 'delete',
+        recordingIds: ['rec-a', 'rec-b'],
+        confirmation: {
+          expectedCount: 2,
+          phrase: 'CONFIRM 2',
+        },
       }),
     ).toThrow();
   });

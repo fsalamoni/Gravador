@@ -1,5 +1,9 @@
 'use client';
 
+import {
+  buildBulkDeleteConfirmationPhrase,
+  isValidBulkDeleteConfirmationPhrase,
+} from '@/lib/bulk-delete-confirmation';
 import { formatDurationMs } from '@gravador/core';
 import {
   ArrowDownAZ,
@@ -153,7 +157,28 @@ export function RecordingsGrid({
 
   const bulkTrash = useCallback(async () => {
     if (!bulkOpsEnabled || selectedIds.size === 0) return;
-    if (!confirm(`Mover ${selectedIds.size} gravações para a lixeira?`)) return;
+
+    const selectedIdsList = [...selectedIds];
+    const selectedCount = selectedIdsList.length;
+    if (selectedCount > 50) {
+      alert('Selecione no máximo 50 gravações por operação de lixeira em lote.');
+      return;
+    }
+
+    const confirmationPhrase = buildBulkDeleteConfirmationPhrase(selectedCount);
+    if (!confirm(`Mover ${selectedCount} gravações para a lixeira?`)) return;
+
+    const typedConfirmation = window.prompt(
+      `Confirmação de segurança: digite "${confirmationPhrase}" para confirmar a operação.`,
+    );
+    if (typedConfirmation === null) return;
+    if (!isValidBulkDeleteConfirmationPhrase(typedConfirmation, selectedCount)) {
+      alert(`Confirmação inválida. Digite exatamente "${confirmationPhrase}".`);
+      return;
+    }
+
+    const reasonInput = window.prompt('Motivo da operação (opcional, até 280 caracteres):', '');
+    const reason = reasonInput?.trim();
 
     setBulkDeleting(true);
     try {
@@ -163,12 +188,31 @@ export function RecordingsGrid({
         body: JSON.stringify({
           schemaVersion: 1,
           operation: 'delete',
-          recordingIds: [...selectedIds],
+          recordingIds: selectedIdsList,
+          confirmation: {
+            expectedCount: selectedCount,
+            phrase: typedConfirmation,
+          },
+          reason: reason && reason.length > 0 ? reason : undefined,
         }),
       });
       if (!response.ok) {
         alert(await getRequestErrorMessage(response, 'Erro ao mover gravações para a lixeira'));
         return;
+      }
+
+      const data = (await response.json()) as { processed?: number; skipped?: number };
+      const processed = typeof data.processed === 'number' ? data.processed : 0;
+      const skipped = typeof data.skipped === 'number' ? data.skipped : 0;
+
+      if (processed === 0) {
+        alert('Nenhuma gravação foi movida para a lixeira.');
+        return;
+      }
+      if (skipped > 0) {
+        alert(
+          `${processed} gravação(ões) movida(s) e ${skipped} ignorada(s) por acesso/permissão.`,
+        );
       }
       window.location.reload();
     } catch {

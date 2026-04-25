@@ -22,6 +22,7 @@ This file captures decisions and assumptions that must survive long implementati
 - Settings catalog behavior is now centralized in `apps/web/src/lib/settings-model-catalog.ts` (`resolvePersonalCatalogModels`, `resolveAgentCatalogModels`, `EMBEDDING_MODEL_RULES`) to avoid duplicated UI-only resolution logic.
 - Regression tests in `apps/web/src/lib/settings-model-catalog.test.ts` now lock global catalog aggregation/dedup/fallback semantics and embeddings matrix support boundaries.
 - Local verification for catalog contract extraction + regression tests package is green: `pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`.
+- Local verification for bulk-delete safety hardening package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
@@ -107,6 +108,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Integrations UI now includes guided setup modals for WhatsApp/email and first-wave test/send actions.
 - Notification delivery contract now standardizes status/error handling for WhatsApp/email in `integration-sync` + `notification-delivery`.
 - Bulk operation contract now rejects unsafe recording IDs (`/`, `\\`, `..`) to harden path isolation assumptions.
+- Bulk delete contract now requires explicit confirmation payload (`confirmation.expectedCount`, `confirmation.phrase`) and validates deterministic phrase `LIXEIRA <count>` before applying trash mutations.
+- Recording list bulk-trash UX now enforces typed confirmation and reports clearer `processed`/`skipped` outcomes, reducing accidental destructive action risk.
+- Route-level coverage for `/api/recordings/bulk` now includes delete-path confirmation mismatch failures plus successful trashed transitions.
 - Mobile app startup now hardens auth restore with timeout/error fallback in `apps/mobile/src/features/auth/session.ts`, preventing indefinite loading when `onAuthStateChanged` stalls.
 - Mobile root layout now includes `StartupErrorBoundary` and explicit background-task registration warnings to surface startup/runtime failures instead of blank screens.
 - Mobile firebase/i18n bootstrap now uses resilient initialization guards (`initializeAuth`/`initializeFirestore` singleton fallback + locale lookup try/catch).

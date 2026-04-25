@@ -31,6 +31,8 @@
 - Added notification event matrix for audio edit state transitions and deterministic no-op behavior when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=false`.
 - Added guided onboarding modals for WhatsApp/email integrations and send/test flows with standardized notification delivery error mapping.
 - Added bulk contract hardening to reject unsafe recording IDs (`/`, `\\`, `..`) and regression test coverage.
+- Added bulk-delete confirmation hardening (`confirmation.expectedCount` + typed phrase `LIXEIRA <count>`) to prevent accidental multi-recording trash actions.
+- Added delete-path route regressions in `apps/web/src/app/api/recordings/bulk/route.test.ts` for confirmation mismatch failures and successful trashed transitions.
 - Hardened mobile app bootstrap against white-screen deadlocks with auth timeout fallback, startup error boundary, and resilient firebase/i18n initialization guards.
 - Added dedicated `workers/ai-pipeline` audio-edit job consumer (`process-audio-edit-jobs.ts`) that claims due jobs and dispatches retry-safe processing calls with `INTERNAL_JOBS_SECRET`.
 - Hardened `.github/workflows/eas-preview.yml` to treat Expo monthly Android quota exhaustion as a degraded `quota_blocked` preview status instead of a hard CI failure.
@@ -86,6 +88,7 @@
 - Local validation after reactive display + transcript edit/history package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Local validation after global catalog + embeddings matrix package remained green (`pnpm lint`, `pnpm --filter @gravador/web run typecheck`).
 - Local validation after catalog contract extraction + regression tests package remained green (`pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`).
+- Local validation after bulk-delete safety hardening package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 - Expanded managed-Firestore staged tests to include auth/session/access/error contracts (`401`, `403`, `400`, `404`) for lifecycle and artifact routes, reducing risk that managed runtime diverges from local/emulator authorization behavior.
 - Local validation after managed-suite expansion remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

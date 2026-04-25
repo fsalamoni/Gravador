@@ -46,7 +46,7 @@
 
 ## Phase 5 - bulk operations and reliability hardening
 
-- [~] Multi-select delete flow with safety constraints and clear confirmations (v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
+- [x] Multi-select delete flow with safety constraints and clear confirmations (typed confirmation phrase + expected-count contract + clear success/skip UX messaging, v1 behind `NEXT_PUBLIC_FF_BULK_OPS_V1`).
 - [x] Multi-select merge flow with side-by-side artifacts and auditability (prepare + execute path delivered with non-destructive reconciliation and execution audit metadata).
 - [x] Add integration-level merge execute transaction regression coverage (API route harness validating copy-on-missing and no-overwrite invariants).
 - [x] Add regression checks around permission/auth/path isolation.
@@ -108,3 +108,4 @@
 - [x] Local validation for reactive artifact display + transcript editing/history + independent parallel task execution package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for global catalog + embeddings compatibility matrix package completed (`pnpm lint`, `pnpm --filter @gravador/web run typecheck`).
 - [x] Local validation for catalog contract extraction + regression tests package completed (`pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local validation for bulk-delete safety hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
