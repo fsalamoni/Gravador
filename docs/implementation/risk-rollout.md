@@ -131,6 +131,8 @@
 - Transcription runtime now attempts configured fallback providers when the selected provider fails (`packages/ai/src/providers/index.ts`), reducing single-provider outage/misconfiguration blast radius while preserving hard-stop behavior for non-recoverable input errors.
 - Local emulator reliability hardening now wraps `test:web:firestore-emulator` with Java discovery + Windows fallback + dynamic port rollover + explicit project pinning (`scripts/run-firestore-emulator-tests.mjs`), preventing repeated local false failures from missing Java or occupied port 8080.
 - Wrapper hardening was validated locally with occupied default port (`8080`) and successful reroute to `8081`, with full emulator route suite pass.
+- Release verification for commit `cb15f31`: `CI` run `24942294925` success, `Pages` run `24942294927` success, `Firebase Hosting` run `24942294926` success (`deploy` job completed in `7m23s`).
+- Firebase Hosting run `24942294926` emitted annotation about missing transcription runtime path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`); this remains a non-blocking warning by current readiness policy.
 
 ### Rollback path
 
