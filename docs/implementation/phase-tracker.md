@@ -56,6 +56,7 @@
 - [x] Add runner observability/failure thresholds (JSON batch summary + `AUDIO_EDIT_RUNNER_MAX_FAILED_DISPATCH` contract).
 - [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 - [x] Harden operational runner/smoke workflows with explicit disabled summaries plus strict manual-dispatch guardrails when activation variables are off (prevents false-green skipped executions).
+- [x] Add centralized operational activation audit workflow + script (`ops-activation-audit.yml` + `scripts/audit-ops-activation.mjs`) to surface deterministic readiness gaps for notifications/audio-runner toggles, flags, and required secrets.
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
 - [x] Expand managed-Firestore staged suite with auth/session/access/error boundary assertions for lifecycle and artifact routes (401/403/404/400 contracts).
@@ -117,3 +118,4 @@
 - [x] Workflow Node20-deprecation hardening commit `ac8d6c4` verified end-to-end (`CI` run `24919485100` success, `Pages` run `24919485092` success, `Firebase Hosting` run `24919485096` success, `Firestore Managed E2E` run `24919545153` success on `database_id=anotes`).
 - [x] Local validation for operational smoke/runner guardrails package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, plus `node scripts/smoke-notifications.mjs --summary-path ...` non-strict runtime sanity check).
 - [x] Operational smoke/runner guardrails commit `ac6b94f` verified end-to-end (`CI` run `24919915820` success, `Pages` run `24919915825` success, `Firebase Hosting` run `24919915814` success, `Firestore Managed E2E` run `24919923253` success on `database_id=anotes`, plus manual `Notifications Smoke` run `24919974054` success via `smoke-disabled` summary path with `strict=false`).
+- [x] Local validation for operational activation audit package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, plus `pnpm ops:audit:activation` and targeted strict/non-strict script checks).

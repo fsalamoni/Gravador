@@ -70,6 +70,29 @@ Go to **GitHub → Settings → Secrets and variables → Actions → Variables*
 | `NEXT_PUBLIC_FF_NOTIFICATIONS_V1` | `false` | Build/runtime flag wiring for web deploy |
 | `NEXT_PUBLIC_FF_BULK_OPS_V1` | `false` | Build/runtime flag wiring for web deploy |
 
+### Operational Activation Audit (Recommended)
+
+Use workflow `.github/workflows/ops-activation-audit.yml` to collect a deterministic readiness matrix for notification smoke and audio-edit runner activation.
+
+```bash
+# non-strict overview (recommended first)
+gh workflow run "Ops Activation Audit" -f strict=false -f target=all
+
+# strict gate per scope (fails if gaps remain)
+gh workflow run "Ops Activation Audit" -f strict=true -f target=notifications
+gh workflow run "Ops Activation Audit" -f strict=true -f target=audio-edit
+```
+
+Local operator check:
+
+```bash
+pnpm ops:audit:activation
+```
+
+Notes:
+- `strict=false` is useful while provisioning variables/secrets gradually.
+- `strict=true` should be used for release evidence once all dependencies are provisioned.
+
 ### Where to find the Firebase config values
 
 1. Go to [Firebase Console](https://console.firebase.google.com/project/hocapp-44760/settings/general)

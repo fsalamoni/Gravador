@@ -1,0 +1,117 @@
+name: Ops Activation Audit
+
+on:
+  schedule:
+    - cron: '35 6 * * *'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail workflow when activation gaps are detected
+        required: false
+        default: 'false'
+      target:
+        description: Activation scope to audit
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - notifications
+          - audio-edit
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Run activation audit
+        id: audit
+        continue-on-error: true
+        shell: bash
+        env:
+          INPUT_STRICT: ${{ github.event.inputs.strict || 'false' }}
+          INPUT_TARGET: ${{ github.event.inputs.target || 'all' }}
+          ENABLE_AUDIO_EDIT_RUNNER: ${{ vars['ENABLE_AUDIO_EDIT_RUNNER'] || 'false' }}
+          ENABLE_NOTIFICATIONS_SMOKE: ${{ vars['ENABLE_NOTIFICATIONS_SMOKE'] || 'false' }}
+          NEXT_PUBLIC_FF_AUDIO_EDITING_V1: ${{ vars['NEXT_PUBLIC_FF_AUDIO_EDITING_V1'] || 'false' }}
+          NEXT_PUBLIC_FF_NOTIFICATIONS_V1: ${{ vars['NEXT_PUBLIC_FF_NOTIFICATIONS_V1'] || 'false' }}
+          HAS_FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+          HAS_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID != '' }}
+          HAS_INTERNAL_JOBS_SECRET: ${{ secrets.INTERNAL_JOBS_SECRET != '' }}
+          HAS_WHATSAPP_CLOUD_ACCESS_TOKEN: ${{ secrets.WHATSAPP_CLOUD_ACCESS_TOKEN != '' }}
+          HAS_WHATSAPP_CLOUD_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_CLOUD_PHONE_NUMBER_ID != '' }}
+          HAS_EMAIL_NOTIFICATIONS_WEBHOOK_URL: ${{ secrets.EMAIL_NOTIFICATIONS_WEBHOOK_URL != '' }}
+          HAS_EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN: ${{ secrets.EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN != '' }}
+        run: |
+          strict="${INPUT_STRICT:-false}"
+          target="${INPUT_TARGET:-all}"
+
+          args=(--summary-path ops-activation-audit-summary.json --target "$target")
+          if [[ "$strict" == "true" ]]; then
+            args+=(--strict)
+          fi
+
+          node scripts/audit-ops-activation.mjs "${args[@]}"
+
+      - name: Publish activation audit summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f ops-activation-audit-summary.json ]]; then
+            node <<'NODE'
+            const fs = require('node:fs');
+            const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+            if (!summaryPath) {
+              throw new Error('GITHUB_STEP_SUMMARY is not set');
+            }
+
+            const payload = JSON.parse(fs.readFileSync('ops-activation-audit-summary.json', 'utf8'));
+            const checks = Array.isArray(payload.checks) ? payload.checks : [];
+            const lines = [];
+
+            lines.push('## Ops Activation Audit');
+            lines.push('');
+            lines.push(`- Workflow status: ${process.env.AUDIT_OUTCOME ?? 'unknown'}`);
+            lines.push(`- Strict mode: ${payload.strict}`);
+            lines.push(`- Target: ${payload.target}`);
+            lines.push(`- Passed: ${payload.totals?.passed ?? 0}`);
+            lines.push(`- Failed: ${payload.totals?.failed ?? 0}`);
+            lines.push(`- Skipped: ${payload.totals?.skipped ?? 0}`);
+            lines.push('');
+            lines.push('### Checks');
+
+            for (const entry of checks) {
+              const details = entry?.details ? ` | details: ${JSON.stringify(entry.details)}` : '';
+              lines.push(`- ${entry?.check ?? 'unknown'}: ${entry?.status ?? 'unknown'} - ${entry?.message ?? ''}${details}`);
+            }
+
+            fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`, 'utf8');
+            NODE
+          else
+            {
+              echo "## Ops Activation Audit"
+              echo ""
+              echo "- Workflow status: ${{ steps.audit.outcome }}"
+              echo "- Summary file was not generated."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+
+      - name: Fail when strict audit detects gaps
+        if: ${{ steps.audit.outcome == 'failure' }}
+        run: |
+          echo "Activation audit detected one or more gaps in strict mode."
+          exit 1

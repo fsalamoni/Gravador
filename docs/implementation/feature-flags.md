@@ -31,10 +31,12 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 1. Enable flag in environment vars used by web runtime and `audio-edit-runner.yml`.
 2. Confirm `audio-edit-runner` summary reports non-zero scanned/claimed jobs only when the flag is enabled.
 3. Verify `/api/recordings/[id]/audio-editing` returns `404` when disabled and operational responses when enabled.
+4. Run `ops-activation-audit.yml` with `target=audio-edit` in `strict=true` mode and retain evidence of zero gaps.
 
 ### Notifications (`NEXT_PUBLIC_FF_NOTIFICATIONS_V1`)
 
 1. Provision `WHATSAPP_CLOUD_*` and `EMAIL_NOTIFICATIONS_WEBHOOK_*` secrets.
 2. Confirm deploy preflight does not emit missing-token warnings.
-3. Run `notifications-smoke.yml` in strict mode and retain workflow evidence.
-4. Validate `POST /api/integrations/sync` in `mode=test` rejects storage-only requests with `test_mode_unsupported`.
+3. Run `ops-activation-audit.yml` with `target=notifications` in `strict=true` mode and retain evidence of zero gaps.
+4. Run `notifications-smoke.yml` in strict mode and retain workflow evidence.
+5. Validate `POST /api/integrations/sync` in `mode=test` rejects storage-only requests with `test_mode_unsupported`.
