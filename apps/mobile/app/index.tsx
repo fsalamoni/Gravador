@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { StudioPanel, StudioPill, StudioScreen } from '../src/components/StudioScreen';
 import { Waveform } from '../src/components/Waveform';
@@ -14,10 +14,82 @@ export default function HomeScreen() {
   const { start, stop, pause, resume } = useRecordingController();
   const state = useRecorder((s) => s.state);
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    quickAction?: string | string[];
+    quickActionNonce?: string | string[];
+  }>();
+  const quickAction = Array.isArray(params.quickAction)
+    ? params.quickAction[0]
+    : params.quickAction;
+  const quickActionNonce = Array.isArray(params.quickActionNonce)
+    ? params.quickActionNonce[0]
+    : params.quickActionNonce;
+  const lastHandledQuickAction = useRef<string | null>(null);
 
   useEffect(() => {
     drainQueue().catch(() => undefined);
   }, []);
+
+  const finalizeAndQueueRecording = useCallback(async () => {
+    const { uri, durationMs, sizeBytes } = await stop();
+    if (!uri || durationMs <= 500) return;
+
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('Not authenticated');
+    }
+
+    await enqueueUpload({
+      workspaceId: userId,
+      uri,
+      durationMs,
+      sizeBytes,
+      mimeType: 'audio/m4a',
+      capturedAt: new Date().toISOString(),
+    });
+    drainQueue().catch(() => undefined);
+    router.push('/recordings');
+  }, [router, stop]);
+
+  useEffect(() => {
+    if (!quickAction) return;
+
+    const actionToken = `${quickAction}:${quickActionNonce ?? 'no-nonce'}`;
+    if (lastHandledQuickAction.current === actionToken) return;
+    lastHandledQuickAction.current = actionToken;
+
+    const executeQuickAction = async () => {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      if (quickAction === 'start') {
+        if (state.phase === 'idle' || state.phase === 'stopped') {
+          await start();
+        }
+        return;
+      }
+
+      if (quickAction === 'stop') {
+        if (state.phase === 'recording' || state.phase === 'paused') {
+          await finalizeAndQueueRecording();
+        }
+        return;
+      }
+
+      if (state.phase === 'recording' || state.phase === 'paused') {
+        await finalizeAndQueueRecording();
+      } else if (state.phase === 'idle' || state.phase === 'stopped') {
+        await start();
+      }
+    };
+
+    executeQuickAction()
+      .catch((error) => {
+        console.warn('[quick-action] failed to apply action', { quickAction, error });
+      })
+      .finally(() => {
+        router.replace('/');
+      });
+  }, [finalizeAndQueueRecording, quickAction, quickActionNonce, router, start, state.phase]);
 
   const isRecording = state.phase === 'recording';
   const isPaused = state.phase === 'paused';
@@ -68,22 +140,8 @@ export default function HomeScreen() {
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 if (state.phase === 'idle' || state.phase === 'stopped') {
                   await start();
-                } else if (isRecording) {
-                  const { uri, durationMs, sizeBytes } = await stop();
-                  if (uri && durationMs > 500) {
-                    const userId = auth.currentUser?.uid;
-                    if (!userId) throw new Error('Not authenticated');
-                    await enqueueUpload({
-                      workspaceId: userId,
-                      uri,
-                      durationMs,
-                      sizeBytes,
-                      mimeType: 'audio/m4a',
-                      capturedAt: new Date().toISOString(),
-                    });
-                    drainQueue().catch(() => undefined);
-                    router.push('/recordings');
-                  }
+                } else if (isRecording || isPaused) {
+                  await finalizeAndQueueRecording();
                 }
               }}
               className={`h-32 w-32 items-center justify-center rounded-full ${isRecording ? 'bg-danger' : 'bg-accent'}`}

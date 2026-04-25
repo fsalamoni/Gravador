@@ -57,6 +57,7 @@ jobs:
           HAS_EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN: ${{ secrets.EMAIL_NOTIFICATIONS_WEBHOOK_TOKEN != '' }}
           HAS_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
           HAS_GROQ_API_KEY: ${{ secrets.GROQ_API_KEY != '' }}
+          HAS_ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY != '' }}
           HAS_LOCAL_WHISPER_URL: ${{ vars['LOCAL_WHISPER_URL'] != '' }}
         run: |
           strict="${INPUT_STRICT:-false}"

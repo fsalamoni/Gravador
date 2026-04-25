@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
 const defaultApiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'https://anotes.web.app';
-const defaultFirestoreDatabaseId = process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ?? 'psico';
+const defaultFirestoreDatabaseId = process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ?? 'anotes';
 const defaultGoogleWebClientId =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
   '143237037612-a95vks10tuuaeeab9ekpk0kf4mng06r2.apps.googleusercontent.com';
@@ -47,7 +47,7 @@ const config: ExpoConfig = {
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0b0e14',
+      backgroundColor: '#120d0a',
     },
     permissions: [
       'RECORD_AUDIO',
@@ -69,7 +69,7 @@ const config: ExpoConfig = {
     [
       'expo-notifications',
       {
-        color: '#7c5cff',
+        color: '#f38a37',
       },
     ],
     [
@@ -79,6 +79,7 @@ const config: ExpoConfig = {
       },
     ],
     'expo-local-authentication',
+    'expo-localization',
     './plugins/quick-settings-tile',
     'expo-share-intent',
   ],

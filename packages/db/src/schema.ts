@@ -57,9 +57,9 @@ export type AgentModelConfig = {
 };
 
 export type WorkspaceAISettings = {
-  transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
+  transcribeProvider?: 'groq' | 'openai' | 'elevenlabs' | 'local-faster-whisper';
   transcribeModel?: string;
-  chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
+  chatProvider?: 'anthropic' | 'openai' | 'google' | 'groq' | 'ollama' | 'openrouter';
   chatModel?: string;
   embeddingProvider?: 'openai' | 'ollama';
   embeddingModel?: string;
@@ -70,6 +70,7 @@ export type WorkspaceAISettings = {
     groq?: string;
     google?: string;
     openrouter?: string;
+    elevenlabs?: string;
     ollamaBaseUrl?: string;
   };
   /** Per-agent/pipeline model overrides */

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as Notifications from 'expo-notifications';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
@@ -89,6 +90,33 @@ function AppNavigator() {
 
     return () => clearTimeout(timeoutId);
   }, [authReady, pathname, user]);
+
+  useEffect(() => {
+    Notifications.setNotificationCategoryAsync('recording-controls', [
+      {
+        identifier: 'toggle_recording',
+        buttonTitle: 'Iniciar/Parar',
+        options: { opensAppToForeground: true },
+      },
+    ]).catch((error) => {
+      console.warn('[notifications] failed to configure recording controls', error);
+    });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (response.actionIdentifier !== 'toggle_recording') return;
+      router.replace({
+        pathname: '/',
+        params: {
+          quickAction: 'toggle',
+          quickActionNonce: String(Date.now()),
+        },
+      });
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
 
   if (!authReady || (!user && !isAuthRoute) || (user && isAuthRoute)) {
     return (

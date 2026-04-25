@@ -57,7 +57,7 @@
 - [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 - [x] Harden operational runner/smoke workflows with explicit disabled summaries plus strict manual-dispatch guardrails when activation variables are off (prevents false-green skipped executions).
 - [x] Add centralized operational activation audit workflow + script (`ops-activation-audit.yml` + `scripts/audit-ops-activation.mjs`) to surface deterministic readiness gaps for notifications/audio-runner toggles, flags, and required secrets.
-- [x] Expand activation-audit scope to transcription runtime readiness (`target=transcription`) and deploy preflight warnings for missing transcription path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `LOCAL_WHISPER_URL`).
+- [x] Expand activation-audit scope to transcription runtime readiness (`target=transcription`) and deploy preflight warnings for missing transcription path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`).
 - [x] Add automated ops-readiness evidence orchestrator (`scripts/run-ops-readiness-evidence.mjs` + `pnpm ops:evidence:*`) to dispatch/watch activation/smoke/runner workflows with deterministic summary output.
 - [x] Add CI workflow YAML lint guardrail (`pnpm lint:workflows` + `workflow-lint` job in `.github/workflows/ci.yml`) to catch malformed GitHub Actions definitions before merge.
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
@@ -81,6 +81,10 @@
 - [x] Ensure default chat model selection from the global catalog also updates `chatProvider` to the selected model provider, preventing provider/model mismatch.
 - [x] Extract settings catalog resolution and embeddings support matrix into reusable lib contracts (`settings-model-catalog.ts`) to reduce UI drift risk.
 - [x] Add regression coverage for global catalog semantics and embeddings matrix contracts (`settings-model-catalog.test.ts`).
+- [x] Expand transcription provider matrix with ElevenLabs across schema/runtime/UI (`transcribeProvider=elevenlabs`, `byokKeys.elevenlabs`, worker/web route wiring, and docs/contracts).
+- [x] Implement Android quick-action start/stop path with generated Quick Settings Tile service (`QuickRecordTileService`) plus deep-link handling in mobile home (`quickAction=start|stop|toggle`).
+- [x] Add lock-screen recording control action via notification category (`recording-controls` -> `toggle_recording`) routed into quick-action deep links.
+- [x] Reduce APK startup drift risk by aligning `app.config.ts` defaults with stable mobile runtime expectations (`firestoreDatabaseId=anotes`, notification color/theme parity, localization plugin parity).
 
 ## Release gating before each phase transition
 

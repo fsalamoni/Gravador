@@ -39,7 +39,7 @@ import { THEMES, type ThemeId, useTheme } from './theme-provider';
 
 // ── Types ──
 
-type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
+type TranscribeProvider = 'groq' | 'openai' | 'elevenlabs' | 'local-faster-whisper';
 
 type AIProvider = CatalogProvider;
 
@@ -141,6 +141,7 @@ const TRANSCRIPTION_GUIDE_URL =
 const TRANSCRIBE_DEFAULT_MODEL: Record<TranscribeProvider, string> = {
   groq: 'whisper-large-v3',
   openai: 'whisper-1',
+  elevenlabs: 'scribe_v2',
   'local-faster-whisper': 'faster-whisper-large-v3',
 };
 
@@ -165,6 +166,18 @@ const TRANSCRIBE_MODEL_OPTIONS: Record<
       id: 'whisper-1',
       label: 'whisper-1 (estável)',
       note: 'Modelo consolidado da OpenAI para transcrição multipropósito.',
+    },
+  ],
+  elevenlabs: [
+    {
+      id: 'scribe_v2',
+      label: 'scribe_v2 (multilíngue + diarização)',
+      note: 'Modelo mais recente da ElevenLabs para transcrição com timestamps detalhados.',
+    },
+    {
+      id: 'scribe_v1',
+      label: 'scribe_v1 (legado estável)',
+      note: 'Versão anterior para cenários que exigem retrocompatibilidade operacional.',
     },
   ],
   'local-faster-whisper': [
@@ -208,6 +221,13 @@ const TRANSCRIBE_PROFILES: Array<{
     model: 'whisper-1',
   },
   {
+    id: 'multilingual',
+    title: '🌍 Multilíngue (diarização)',
+    description: 'ElevenLabs Scribe v2 com boa separação de falantes e timestamps por palavra.',
+    provider: 'elevenlabs',
+    model: 'scribe_v2',
+  },
+  {
     id: 'privacy',
     title: '🔒 Privacidade (self-host)',
     description: 'Processamento local com faster-whisper sem envio externo.',
@@ -218,6 +238,7 @@ const TRANSCRIBE_PROFILES: Array<{
 
 function normalizeTranscribeProvider(raw: string | undefined): TranscribeProvider {
   if (raw === 'openai') return 'openai';
+  if (raw === 'elevenlabs') return 'elevenlabs';
   if (raw === 'local' || raw === 'local-faster-whisper') return 'local-faster-whisper';
   return 'groq';
 }
@@ -988,6 +1009,7 @@ function AgentsTab({
   const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
   const [reprocessing, setReprocessing] = useState(false);
   const [healthChecking, setHealthChecking] = useState(false);
+  const [elevenLabsKeyDraft, setElevenLabsKeyDraft] = useState('');
   const transcribeProvider = normalizeTranscribeProvider(settings.transcribeProvider);
   const transcribeModel = (settings.transcribeModel ?? '').trim();
   const transcribeModelOptions = TRANSCRIBE_MODEL_OPTIONS[transcribeProvider];
@@ -997,21 +1019,36 @@ function AgentsTab({
   const modelSelectValue = selectedPresetModel ? selectedPresetModel.id : '__custom__';
   const hasGroqWorkspaceKey = !!settings.byokKeys?.groq?.trim();
   const hasOpenAIWorkspaceKey = !!settings.byokKeys?.openai?.trim();
+  const hasElevenLabsWorkspaceKey = !!settings.byokKeys?.elevenlabs?.trim();
+  const selectedProviderLabel =
+    transcribeProvider === 'groq'
+      ? 'Groq'
+      : transcribeProvider === 'openai'
+        ? 'OpenAI'
+        : transcribeProvider === 'elevenlabs'
+          ? 'ElevenLabs'
+          : 'faster-whisper local';
   const selectedProviderKeyConfigured =
     transcribeProvider === 'groq'
       ? hasGroqWorkspaceKey
       : transcribeProvider === 'openai'
         ? hasOpenAIWorkspaceKey
-        : true;
-  const selectedProviderNeedsApiKey =
-    transcribeProvider === 'groq' || transcribeProvider === 'openai';
+        : transcribeProvider === 'elevenlabs'
+          ? hasElevenLabsWorkspaceKey
+          : true;
+  const selectedProviderNeedsApiKey = transcribeProvider !== 'local-faster-whisper';
   const transcribeModelReady = transcribeModel.length > 0;
+
+  useEffect(() => {
+    setElevenLabsKeyDraft(settings.byokKeys?.elevenlabs ?? '');
+  }, [settings.byokKeys?.elevenlabs]);
+
   const transcribeReadinessItems: Array<{ label: string; done: boolean }> = [
     { label: 'Provedor selecionado', done: true },
     { label: 'Modelo configurado', done: transcribeModelReady },
     {
       label: selectedProviderNeedsApiKey
-        ? `API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} configurada`
+        ? `API key de ${selectedProviderLabel} configurada`
         : 'Modo local definido (verifique o LOCAL_WHISPER_URL)',
       done: selectedProviderKeyConfigured,
     },
@@ -1021,10 +1058,21 @@ function AgentsTab({
   const transcribeReadinessHint = !transcribeModelReady
     ? 'Defina um modelo para evitar fallback inesperado.'
     : selectedProviderNeedsApiKey && !selectedProviderKeyConfigured
-      ? `Falta API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} em Provedores de IA.`
+      ? `Falta API key de ${selectedProviderLabel} no workspace.`
       : transcribeProvider === 'local-faster-whisper'
         ? 'Valide que o serviço local está ativo no endpoint LOCAL_WHISPER_URL.'
         : 'Pronto para transcrição em produção com as configurações atuais.';
+
+  const saveElevenLabsKey = async () => {
+    const nextKeys = Object.fromEntries(
+      Object.entries(settings.byokKeys ?? {}).filter(([key]) => key !== 'elevenlabs'),
+    ) as Record<string, string>;
+    const normalized = elevenLabsKeyDraft.trim();
+    if (normalized) {
+      nextKeys.elevenlabs = normalized;
+    }
+    await onSave({ ...settings, byokKeys: nextKeys });
+  };
 
   const togglePrompt = (key: string) =>
     setExpandedPrompts((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1109,7 +1157,7 @@ function AgentsTab({
           Escolha o provedor e modelo para transcrição de áudio (speech-to-text). Cada provedor tem
           características e custos diferentes.
         </p>
-        <div className="mt-3 grid gap-2 text-xs text-mute sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 text-xs text-mute sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
             <strong className="text-text">Velocidade:</strong> Groq costuma ser o mais rápido para
             backlog alto.
@@ -1117,6 +1165,10 @@ function AgentsTab({
           <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
             <strong className="text-text">Qualidade:</strong> OpenAI Whisper segue como referência
             estável em múltiplos idiomas.
+          </div>
+          <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
+            <strong className="text-text">Multilíngue:</strong> ElevenLabs Scribe v2 oferece
+            timestamps por palavra e diarização.
           </div>
           <div className="rounded-[14px] border border-border bg-surfaceAlt/45 px-3 py-2">
             <strong className="text-text">Privacidade:</strong> faster-whisper local evita envio de
@@ -1162,6 +1214,21 @@ function AgentsTab({
 
           <div className="rounded-[16px] border border-border bg-bg/50 p-4">
             <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-text">🟣 ElevenLabs (Scribe)</span>
+            </div>
+            <p className="mt-1.5 text-sm leading-6 text-mute">
+              Modelo Scribe com boa qualidade multilíngue, timestamps detalhados e suporte a
+              diarização por falante. Útil quando você precisa sincronizar texto e áudio com mais
+              granularidade.
+            </p>
+            <div className="mt-2 rounded-[12px] bg-surfaceAlt/60 px-3 py-2 text-xs text-mute">
+              <strong className="text-text">Custos:</strong> cobrança BYOK na conta ElevenLabs.
+              Consulte a tabela oficial no painel para confirmar preço vigente por minuto/hora.
+            </div>
+          </div>
+
+          <div className="rounded-[16px] border border-border bg-bg/50 p-4">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-text">⚙️ Local (faster-whisper)</span>
             </div>
             <p className="mt-1.5 text-sm leading-6 text-mute">
@@ -1185,8 +1252,8 @@ function AgentsTab({
           <p className="text-xs uppercase tracking-[0.24em] text-mute">Ativação sem erro</p>
           <ol className="mt-2 space-y-1 text-sm leading-6 text-mute">
             <li>
-              1. Em <strong className="text-text">Provedores de IA</strong>, selecione OpenAI ou
-              Groq e salve sua API key (BYOK).
+              1. Em <strong className="text-text">Provedores de IA</strong>, salve suas chaves
+              OpenAI/Groq e, se usar ElevenLabs, informe a chave na seção desta tela.
             </li>
             <li>
               2. Em <strong className="text-text">Agentes</strong>, escolha aqui o provedor de
@@ -1229,6 +1296,22 @@ function AgentsTab({
               className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
             >
               Billing OpenAI
+            </a>
+            <a
+              href="https://elevenlabs.io/app/settings/api-keys"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
+            >
+              API key ElevenLabs
+            </a>
+            <a
+              href="https://elevenlabs.io/docs/api-reference/speech-to-text/convert"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-border bg-bg/70 px-3 py-1.5 text-mute transition hover:border-accent/40 hover:text-text"
+            >
+              Docs ElevenLabs STT
             </a>
             <a
               href={TRANSCRIPTION_GUIDE_URL}
@@ -1304,8 +1387,8 @@ function AgentsTab({
               }`}
             >
               {selectedProviderKeyConfigured
-                ? `API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} detectada no workspace.`
-                : `Nenhuma API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} salva no workspace. Configure em Provedores de IA para evitar falha de transcrição.`}
+                ? `API key de ${selectedProviderLabel} detectada no workspace.`
+                : `Nenhuma API key de ${selectedProviderLabel} salva no workspace. Configure agora para evitar falha de transcrição.`}
             </div>
           ) : (
             <div className="mt-3 rounded-[12px] border border-ok/30 bg-ok/10 px-3 py-2 text-xs text-ok">
@@ -1313,6 +1396,32 @@ function AgentsTab({
               LOCAL_WHISPER_URL.
             </div>
           )}
+
+          {transcribeProvider === 'elevenlabs' ? (
+            <div className="mt-3 rounded-[14px] border border-border bg-bg/55 p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-mute">API key ElevenLabs</p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="password"
+                  value={elevenLabsKeyDraft}
+                  onChange={(e) => setElevenLabsKeyDraft(e.target.value)}
+                  placeholder="Cole sua ElevenLabs API key"
+                  className="w-full rounded-[12px] border border-border bg-bg/70 px-3 py-2 font-mono text-sm text-text placeholder:text-mute/50 focus:border-accent/60 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={saveElevenLabsKey}
+                  className="rounded-[12px] bg-accent px-4 py-2 text-sm font-semibold text-onAccent transition hover:bg-accentSoft"
+                >
+                  Salvar chave
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-mute">
+                Esta chave é salva no workspace em <code>aiSettings.byokKeys.elevenlabs</code> e
+                usada no pipeline de transcrição quando o provedor ElevenLabs estiver ativo.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1338,6 +1447,7 @@ function AgentsTab({
             >
               <option value="groq">Groq (Whisper v3 — rápido)</option>
               <option value="openai">OpenAI (Whisper — referência)</option>
+              <option value="elevenlabs">ElevenLabs (Scribe — multilíngue)</option>
               <option value="local-faster-whisper">Local (faster-whisper self-hosted)</option>
             </select>
           </div>

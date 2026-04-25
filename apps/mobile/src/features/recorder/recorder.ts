@@ -107,7 +107,8 @@ async function showOngoingNotification() {
       identifier: 'gravador-recording',
       content: {
         title: '🎙️ Gravando…',
-        body: 'Toque para abrir o Gravador',
+        body: 'Abra para controlar ou use a acao de Iniciar/Parar na tela bloqueada.',
+        categoryIdentifier: 'recording-controls',
         sticky: true,
       },
       trigger: null,

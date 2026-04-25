@@ -4,7 +4,7 @@ export type DeploymentMode = 'cloud' | 'selfhost';
 
 export type AIProvider = 'openai' | 'anthropic' | 'groq' | 'google' | 'ollama' | 'openrouter';
 
-export type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
+export type TranscribeProvider = 'groq' | 'openai' | 'elevenlabs' | 'local-faster-whisper';
 
 export type TranscribeModel = string;
 

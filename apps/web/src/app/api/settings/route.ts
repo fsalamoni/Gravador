@@ -17,7 +17,12 @@ const VALID_THEMES = [
   'claro',
 ] as const;
 
-const VALID_TRANSCRIBE_PROVIDERS = new Set(['groq', 'openai', 'local-faster-whisper']);
+const VALID_TRANSCRIBE_PROVIDERS = new Set([
+  'groq',
+  'openai',
+  'elevenlabs',
+  'local-faster-whisper',
+]);
 
 async function getUserWorkspace(db: FirebaseFirestore.Firestore, uid: string) {
   const snap = await db.collection('workspaces').where('ownerId', '==', uid).limit(1).get();
@@ -121,7 +126,14 @@ export async function PUT(req: Request) {
 
   // Sanitize byokKeys: only allow known provider keys, strip empty strings
   if (sanitized.byokKeys && typeof sanitized.byokKeys === 'object') {
-    const allowedKeyProviders = ['openai', 'anthropic', 'groq', 'google', 'openrouter'];
+    const allowedKeyProviders = [
+      'openai',
+      'anthropic',
+      'groq',
+      'google',
+      'openrouter',
+      'elevenlabs',
+    ];
     const rawKeys = sanitized.byokKeys as Record<string, unknown>;
     const cleanKeys: Record<string, string> = {};
     for (const k of allowedKeyProviders) {

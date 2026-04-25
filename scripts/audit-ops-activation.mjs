@@ -186,6 +186,7 @@ function evaluateTranscription() {
 
   const hasOpenAIKey = parseBoolean(process.env.HAS_OPENAI_API_KEY, false);
   const hasGroqKey = parseBoolean(process.env.HAS_GROQ_API_KEY, false);
+  const hasElevenLabsKey = parseBoolean(process.env.HAS_ELEVENLABS_API_KEY, false);
   const hasLocalWhisperUrl = parseBoolean(process.env.HAS_LOCAL_WHISPER_URL, false);
 
   checks.push(
@@ -212,6 +213,17 @@ function evaluateTranscription() {
 
   checks.push(
     check(
+      'transcription.elevenlabs_key',
+      hasElevenLabsKey ? 'passed' : 'skipped',
+      hasElevenLabsKey
+        ? 'ELEVENLABS_API_KEY is configured for cloud transcription.'
+        : 'ELEVENLABS_API_KEY is not configured.',
+      { configured: hasElevenLabsKey },
+    ),
+  );
+
+  checks.push(
+    check(
       'transcription.local_endpoint',
       hasLocalWhisperUrl ? 'passed' : 'skipped',
       hasLocalWhisperUrl
@@ -221,17 +233,18 @@ function evaluateTranscription() {
     ),
   );
 
-  const providerReady = hasOpenAIKey || hasGroqKey || hasLocalWhisperUrl;
+  const providerReady = hasOpenAIKey || hasGroqKey || hasElevenLabsKey || hasLocalWhisperUrl;
   checks.push(
     check(
       'transcription.provider_minimum',
       providerReady ? 'passed' : 'failed',
       providerReady
-        ? 'At least one transcription path is configured (OpenAI, Groq, or local whisper).'
-        : 'No transcription path is configured. Configure OPENAI_API_KEY, GROQ_API_KEY, or LOCAL_WHISPER_URL.',
+        ? 'At least one transcription path is configured (OpenAI, Groq, ElevenLabs, or local whisper).'
+        : 'No transcription path is configured. Configure OPENAI_API_KEY, GROQ_API_KEY, ELEVENLABS_API_KEY, or LOCAL_WHISPER_URL.',
       {
         hasOpenAIKey,
         hasGroqKey,
+        hasElevenLabsKey,
         hasLocalWhisperUrl,
       },
     ),

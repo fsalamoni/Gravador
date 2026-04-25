@@ -1,7 +1,12 @@
 import type { Locale } from '@gravador/core';
 import { type CoreMessage, streamText } from 'ai';
 import { getPrompts } from '../prompts/index.ts';
-import { type ChatModelName, type ProviderKeys, resolveChatModel } from '../providers/index.ts';
+import {
+  type ChatModelName,
+  type ProviderKeys,
+  getDefaultChatModel,
+  resolveChatModel,
+} from '../providers/index.ts';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -24,11 +29,11 @@ export function chatWithRecording(input: {
   context: RetrievedChunk[];
   locale: Locale;
   model?: ChatModelName;
-  provider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
+  provider?: 'anthropic' | 'openai' | 'google' | 'groq' | 'ollama' | 'openrouter';
   keys?: ProviderKeys;
 }) {
   const provider = input.provider ?? 'anthropic';
-  const model = input.model ?? (provider === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4.1-mini');
+  const model = input.model ?? getDefaultChatModel(provider);
 
   const contextBlock = input.context
     .map(

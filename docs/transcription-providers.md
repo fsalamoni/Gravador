@@ -4,10 +4,11 @@ Este guia explica, de forma operacional, como usar transcricao na plataforma com
 
 ## 1. O que ja existe hoje na plataforma
 
-A plataforma ja suporta 3 provedores de transcricao, com selecao direta no settings:
+A plataforma ja suporta 4 provedores de transcricao, com selecao direta no settings:
 
 - Groq (cloud) - modelos Whisper v3
 - OpenAI (cloud) - modelo Whisper-1
+- ElevenLabs (cloud) - modelos Scribe
 - Local faster-whisper (open source, self-host)
 
 Onde selecionar:
@@ -32,6 +33,7 @@ O que existe e combinacao de:
 |---|---|---|---|---|---|---|
 | Groq | Cloud | Sim, conta Groq | Sim | Direto no Groq | ~US$0.04 a ~US$0.111 por hora (modelo dependente) | Pode existir free tier com limite de req/min |
 | OpenAI | Cloud | Sim, conta OpenAI | Sim | Direto na OpenAI | ~US$0.006 por minuto (~US$0.36/hora) | Sem free tier robusto para audio; depende de billing habilitado |
+| ElevenLabs | Cloud | Sim, conta ElevenLabs | Sim | Direto na ElevenLabs | Varia por plano/modelo (consulte painel) | Limites dependem de plano e modo de processamento |
 | Local faster-whisper | Open source self-host | Nao | Nao | Sem token; infra propria | Sem custo por minuto/token | Limitado pelo seu hardware (CPU/GPU/RAM) |
 
 * Valores e limites mudam ao longo do tempo. Sempre confirme no painel oficial do provedor antes de calcular custo de producao.
@@ -39,7 +41,7 @@ O que existe e combinacao de:
 ## 4. Como habilitar no Gravador sem erro
 
 1. Abra Configuracoes -> Provedores de IA.
-2. Selecione o provedor cloud (OpenAI ou Groq) e salve a API key BYOK.
+2. Selecione o provedor cloud (OpenAI ou Groq) e salve a API key BYOK. Para ElevenLabs, salve a chave na secao de transcricao em Configuracoes -> Agentes.
 3. Abra Configuracoes -> Agentes -> Provedor de Transcricao.
 4. Escolha o provedor de transcricao e o modelo.
 5. Salve e execute reprocessamento para aplicacao em gravacoes antigas.
@@ -79,7 +81,21 @@ Modelo suportado no fluxo atual:
 
 - whisper-1
 
-## 5.3 Local faster-whisper (open source)
+## 5.3 ElevenLabs (cloud)
+
+Passos:
+
+1. Criar conta: https://elevenlabs.io/
+2. Gerar API key: https://elevenlabs.io/app/settings/api-keys
+3. Colar a chave no Gravador em Configuracoes -> Agentes -> Provedor de Transcricao (campo API key ElevenLabs).
+4. Em Agentes, selecionar ElevenLabs como provedor de transcricao.
+
+Modelos comuns:
+
+- scribe_v2
+- scribe_v1
+
+## 5.4 Local faster-whisper (open source)
 
 Sem cadastro e sem API key externa.
 
@@ -97,7 +113,7 @@ Modelos locais comuns:
 
 ## 6. Como funciona a cobranca
 
-Para provedores cloud (Groq/OpenAI):
+Para provedores cloud (Groq/OpenAI/ElevenLabs):
 
 - O Gravador usa BYOK (Bring Your Own Key).
 - A cobranca nao e feita pelo Gravador.
@@ -112,6 +128,7 @@ Para local:
 
 - Quer menor latencia com bom custo: Groq
 - Quer baseline consolidada de qualidade: OpenAI Whisper-1
+- Quer diarizacao e timestamps mais granulares em fluxo cloud: ElevenLabs
 - Quer privacidade total e controle de dados: Local faster-whisper
 
 ## 8. Limites e boas praticas de producao
@@ -125,6 +142,7 @@ Para local:
 
 - Erro Missing GROQ_API_KEY: chave Groq nao configurada no workspace/runtime.
 - Erro Missing OPENAI_API_KEY: chave OpenAI nao configurada no workspace/runtime.
+- Erro Missing ELEVENLABS_API_KEY: chave ElevenLabs nao configurada no workspace/runtime.
 - Erro Local whisper failed: LOCAL_WHISPER_URL indisponivel ou servico local offline.
 - Baixa acuracia: testar modelo maior, melhorar captacao, reduzir ruido, revisar idioma.
 

@@ -218,12 +218,13 @@ The web app supports a **dynamic model catalog** via OpenRouter's API:
 
 ## Transcription Providers
 
-The `transcribe()` function in `@gravador/ai` supports 3 providers:
+The `transcribe()` function in `@gravador/ai` supports 4 providers:
 
 | Provider              | Model             | Cost              | Notes                                    |
 |-----------------------|-------------------|-------------------|------------------------------------------|
 | **Groq** (default)    | Whisper Large v3  | ~$0.04-$0.111/h   | Fastest in most workloads (<1x RT)       |
 | **OpenAI**            | Whisper-1         | ~$0.006/min audio | No aggressive rate limit                 |
+| **ElevenLabs**        | Scribe v2 / v1    | BYOK plan pricing | Strong multilingual + word timestamps    |
 | **Local (self-host)** | faster-whisper    | Free              | Requires own GPU                         |
 
 Configuration: `aiSettings.transcribeProvider` + `aiSettings.transcribeModel` in workspace settings. Keys stored in `aiSettings.byokKeys`.

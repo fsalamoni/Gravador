@@ -8,7 +8,7 @@ import { authedApiFetch } from '../src/lib/api-client';
 import { auth } from '../src/lib/firebase';
 import { useI18n } from '../src/lib/i18n';
 
-type TranscribeProvider = 'groq' | 'openai' | 'local-faster-whisper';
+type TranscribeProvider = 'groq' | 'openai' | 'elevenlabs' | 'local-faster-whisper';
 
 const PROVIDER_DETAILS: Array<{
   id: TranscribeProvider;
@@ -27,6 +27,12 @@ const PROVIDER_DETAILS: Array<{
     title: 'OpenAI (Whisper)',
     behavior: 'Referência de qualidade consistente em múltiplos idiomas.',
     costs: 'Cobrança BYOK na conta OpenAI. Referência: ~US$0.006/minuto.',
+  },
+  {
+    id: 'elevenlabs',
+    title: 'ElevenLabs (Scribe)',
+    behavior: 'Modelo multilíngue com timestamps detalhados e suporte a diarização.',
+    costs: 'Cobrança BYOK na conta ElevenLabs. Consulte a tabela vigente no painel.',
   },
   {
     id: 'local-faster-whisper',
@@ -57,6 +63,18 @@ const PROVIDER_MODELS: Record<
       id: 'whisper-1',
       title: 'whisper-1',
       note: 'Padrao estavel',
+    },
+  ],
+  elevenlabs: [
+    {
+      id: 'scribe_v2',
+      title: 'scribe_v2',
+      note: 'Mais recente, com diarizacao e timestamps detalhados',
+    },
+    {
+      id: 'scribe_v1',
+      title: 'scribe_v1',
+      note: 'Versao legada com boa compatibilidade',
     },
   ],
   'local-faster-whisper': [
@@ -100,6 +118,13 @@ const TRANSCRIPTION_PROFILES: Array<{
     model: 'whisper-1',
   },
   {
+    id: 'multilingual',
+    title: '🌍 Multilíngue',
+    description: 'ElevenLabs Scribe v2 para diarização e timestamps por palavra.',
+    provider: 'elevenlabs',
+    model: 'scribe_v2',
+  },
+  {
     id: 'privacy',
     title: '🔒 Privacidade',
     description: 'faster-whisper local para não enviar áudio a terceiros.',
@@ -110,12 +135,14 @@ const TRANSCRIPTION_PROFILES: Array<{
 
 function defaultModelFor(provider: TranscribeProvider) {
   if (provider === 'openai') return 'whisper-1';
+  if (provider === 'elevenlabs') return 'scribe_v2';
   if (provider === 'local-faster-whisper') return 'faster-whisper-large-v3';
   return 'whisper-large-v3';
 }
 
 function normalizeProvider(input: unknown): TranscribeProvider {
   if (input === 'openai') return 'openai';
+  if (input === 'elevenlabs') return 'elevenlabs';
   if (input === 'local' || input === 'local-faster-whisper') return 'local-faster-whisper';
   return 'groq';
 }
@@ -140,19 +167,34 @@ export default function SettingsScreen() {
   const hasGroqKey = typeof byokKeysRaw.groq === 'string' && byokKeysRaw.groq.trim().length > 0;
   const hasOpenAIKey =
     typeof byokKeysRaw.openai === 'string' && byokKeysRaw.openai.trim().length > 0;
-  const providerNeedsKey = transcribeProvider === 'groq' || transcribeProvider === 'openai';
+  const hasElevenLabsKey =
+    typeof byokKeysRaw.elevenlabs === 'string' && byokKeysRaw.elevenlabs.trim().length > 0;
+  const providerNeedsKey =
+    transcribeProvider === 'groq' ||
+    transcribeProvider === 'openai' ||
+    transcribeProvider === 'elevenlabs';
+  const providerLabel =
+    transcribeProvider === 'groq'
+      ? 'Groq'
+      : transcribeProvider === 'openai'
+        ? 'OpenAI'
+        : transcribeProvider === 'elevenlabs'
+          ? 'ElevenLabs'
+          : 'faster-whisper local';
   const providerKeyConfigured =
     transcribeProvider === 'groq'
       ? hasGroqKey
       : transcribeProvider === 'openai'
         ? hasOpenAIKey
-        : true;
+        : transcribeProvider === 'elevenlabs'
+          ? hasElevenLabsKey
+          : true;
   const readinessItems: Array<{ label: string; done: boolean }> = [
     { label: 'Provedor selecionado', done: true },
     { label: 'Modelo preenchido', done: trimmedTranscribeModel.length > 0 },
     {
       label: providerNeedsKey
-        ? `API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} configurada`
+        ? `API key de ${providerLabel} configurada`
         : 'Modo local selecionado (validar endpoint)',
       done: providerKeyConfigured,
     },
@@ -231,7 +273,7 @@ export default function SettingsScreen() {
       setAiSettings(nextAiSettings);
       setSettingsNotice(
         providerNeedsKey && !providerKeyConfigured
-          ? `Configuração salva. Falta API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} no web para evitar falha na execução.`
+          ? `Configuração salva. Falta API key de ${providerLabel} no web para evitar falha na execução.`
           : 'Configuração de transcrição atualizada com sucesso.',
       );
     } catch (error) {
@@ -327,9 +369,9 @@ export default function SettingsScreen() {
           <View className="mt-4 rounded-[20px] border border-border bg-surfaceAlt px-4 py-4">
             <Text className="font-medium text-text">Ativação sem erro</Text>
             <Text className="mt-2 text-sm leading-6 text-mute">
-              Para Groq/OpenAI, configure a API key BYOK no web em Configurações {'>'} Provedores de
-              IA. Para modo local, mantenha o serviço faster-whisper ativo no endpoint da
-              infraestrutura.
+              Para Groq/OpenAI/ElevenLabs, configure a API key BYOK no web em Configurações {'>'}{' '}
+              Provedores de IA ou Agentes. Para modo local, mantenha o serviço faster-whisper ativo
+              no endpoint da infraestrutura.
             </Text>
           </View>
 
@@ -355,7 +397,7 @@ export default function SettingsScreen() {
               {trimmedTranscribeModel.length === 0
                 ? 'Preencha o modelo para evitar fallback inesperado.'
                 : providerNeedsKey && !providerKeyConfigured
-                  ? `Falta API key de ${transcribeProvider === 'groq' ? 'Groq' : 'OpenAI'} no workspace web.`
+                  ? `Falta API key de ${providerLabel} no workspace web.`
                   : transcribeProvider === 'local-faster-whisper'
                     ? 'Valide o serviço local no endpoint LOCAL_WHISPER_URL.'
                     : 'Setup pronto para rodar transcrição em produção.'}

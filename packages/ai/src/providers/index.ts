@@ -220,11 +220,12 @@ export interface TranscribeOptions {
   audioUrl?: string;
   audioBytes?: ArrayBuffer;
   locale?: 'pt-BR' | 'en' | 'auto';
-  provider?: 'groq' | 'openai' | 'local-faster-whisper';
+  provider?: 'groq' | 'openai' | 'elevenlabs' | 'local-faster-whisper';
   model?: string;
   keys?: {
     groq?: string;
     openai?: string;
+    elevenlabs?: string;
     localBaseUrl?: string;
   };
   diarize?: boolean;
@@ -246,8 +247,9 @@ export interface TranscribeResult {
 
 /**
  * Unified transcription entrypoint. Under the hood delegates to the selected
- * provider. Groq Whisper v3 is the fastest cloud option (often <1x realtime);
- * local `faster-whisper` is used in self-host mode.
+ * provider. Groq Whisper v3 is typically the lowest-latency cloud option,
+ * ElevenLabs Scribe adds strong multilingual/word-level timestamp support,
+ * and local `faster-whisper` is used in self-host mode.
  */
 export async function transcribe(opts: TranscribeOptions): Promise<TranscribeResult> {
   const provider =
@@ -256,7 +258,166 @@ export async function transcribe(opts: TranscribeOptions): Promise<TranscribeRes
     'groq';
   if (provider === 'groq') return transcribeGroq(opts);
   if (provider === 'openai') return transcribeOpenAI(opts);
+  if (provider === 'elevenlabs') return transcribeElevenLabs(opts);
   return transcribeLocal(opts);
+}
+
+async function loadAudioBlob(opts: TranscribeOptions): Promise<Blob> {
+  if (opts.audioBytes) {
+    return new Blob([opts.audioBytes]);
+  }
+  if (opts.audioUrl) {
+    const res = await fetch(opts.audioUrl);
+    if (!res.ok) {
+      throw new Error(`Failed to download audio source: ${res.status}`);
+    }
+    return new Blob([await res.arrayBuffer()]);
+  }
+  throw new Error('audioUrl or audioBytes required');
+}
+
+function mapDetectedLocale(language: string | undefined): 'pt-BR' | 'en' | null {
+  const normalized = (language ?? '').toLowerCase();
+  if (normalized.startsWith('pt')) return 'pt-BR';
+  if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+  return null;
+}
+
+function resolveLanguageHint(locale: TranscribeOptions['locale']): string | undefined {
+  if (!locale || locale === 'auto') return undefined;
+  return locale === 'pt-BR' ? 'pt' : 'en';
+}
+
+interface ProviderSegment {
+  start: number;
+  end: number;
+  text: string;
+  avg_logprob?: number;
+}
+
+function mapProviderSegments(segments: ProviderSegment[] | undefined) {
+  return (segments ?? []).map((s) => ({
+    startMs: Math.round(s.start * 1000),
+    endMs: Math.round(s.end * 1000),
+    text: s.text.trim(),
+    confidence: typeof s.avg_logprob === 'number' ? Math.exp(s.avg_logprob) : null,
+    speakerId: null,
+  }));
+}
+
+interface ElevenLabsWord {
+  text?: string;
+  start?: number;
+  end?: number;
+  speaker_id?: string | null;
+  logprob?: number;
+}
+
+function mapElevenLabsWordsToSegments(
+  words: ElevenLabsWord[] | undefined,
+  fallbackText: string,
+): TranscribeResult['segments'] {
+  const tokens = Array.isArray(words) ? words : [];
+  if (tokens.length === 0) {
+    const text = fallbackText.trim();
+    if (!text) return [];
+    const estimatedEndMs = Math.max(1_000, Math.round(text.length * 60));
+    return [
+      {
+        startMs: 0,
+        endMs: estimatedEndMs,
+        text,
+        confidence: null,
+        speakerId: null,
+      },
+    ];
+  }
+
+  const segments: TranscribeResult['segments'] = [];
+  let current:
+    | {
+        startMs: number;
+        endMs: number;
+        speakerId: string | null;
+        words: string[];
+        confidences: number[];
+      }
+    | undefined;
+
+  const flush = () => {
+    if (!current) return;
+    const text = current.words.join(' ').replace(/\s+/g, ' ').trim();
+    if (!text) {
+      current = undefined;
+      return;
+    }
+    const confidence =
+      current.confidences.length > 0
+        ? current.confidences.reduce((sum, value) => sum + value, 0) / current.confidences.length
+        : null;
+    segments.push({
+      startMs: current.startMs,
+      endMs: Math.max(current.endMs, current.startMs + 1),
+      text,
+      confidence,
+      speakerId: current.speakerId,
+    });
+    current = undefined;
+  };
+
+  for (const token of tokens) {
+    const text = (token.text ?? '').trim();
+    if (!text) continue;
+
+    const startMs =
+      typeof token.start === 'number'
+        ? Math.max(0, Math.round(token.start * 1000))
+        : (current?.endMs ?? 0);
+    const endMs =
+      typeof token.end === 'number'
+        ? Math.max(startMs + 1, Math.round(token.end * 1000))
+        : startMs + Math.max(300, Math.round(text.length * 45));
+    const speakerId = typeof token.speaker_id === 'string' ? token.speaker_id : null;
+    const confidence = typeof token.logprob === 'number' ? Math.exp(token.logprob) : null;
+
+    const shouldSplit =
+      !current ||
+      current.speakerId !== speakerId ||
+      current.endMs - current.startMs > 12_000 ||
+      /[.!?…]$/.test(current.words[current.words.length - 1] ?? '');
+
+    if (shouldSplit) {
+      flush();
+      current = {
+        startMs,
+        endMs,
+        speakerId,
+        words: [text],
+        confidences: confidence == null ? [] : [confidence],
+      };
+      continue;
+    }
+
+    if (!current) {
+      current = {
+        startMs,
+        endMs,
+        speakerId,
+        words: [text],
+        confidences: confidence == null ? [] : [confidence],
+      };
+      continue;
+    }
+
+    current.endMs = endMs;
+    current.words.push(text);
+    if (confidence != null) {
+      current.confidences.push(confidence);
+    }
+  }
+
+  flush();
+  return segments;
 }
 
 async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult> {
@@ -264,19 +425,13 @@ async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult
   if (!apiKey) throw new Error('Missing GROQ_API_KEY for Groq transcription');
   const model = opts.model ?? process.env.AI_TRANSCRIBE_MODEL ?? 'whisper-large-v3';
   const form = new FormData();
-  if (opts.audioBytes) {
-    form.append('file', new Blob([opts.audioBytes]), 'audio.m4a');
-  } else if (opts.audioUrl) {
-    const res = await fetch(opts.audioUrl);
-    form.append('file', new Blob([await res.arrayBuffer()]), 'audio.m4a');
-  } else {
-    throw new Error('audioUrl or audioBytes required');
-  }
+  form.append('file', await loadAudioBlob(opts), 'audio.m4a');
   form.append('model', model);
   form.append('response_format', 'verbose_json');
   form.append('timestamp_granularities[]', 'segment');
-  if (opts.locale && opts.locale !== 'auto') {
-    form.append('language', opts.locale === 'pt-BR' ? 'pt' : 'en');
+  const languageHint = resolveLanguageHint(opts.locale);
+  if (languageHint) {
+    form.append('language', languageHint);
   }
 
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
@@ -294,19 +449,9 @@ async function transcribeGroq(opts: TranscribeOptions): Promise<TranscribeResult
   return {
     provider: 'groq',
     model,
-    detectedLocale: json.language?.startsWith('pt')
-      ? 'pt-BR'
-      : json.language === 'en'
-        ? 'en'
-        : null,
+    detectedLocale: mapDetectedLocale(json.language),
     fullText: json.text,
-    segments: (json.segments ?? []).map((s) => ({
-      startMs: Math.round(s.start * 1000),
-      endMs: Math.round(s.end * 1000),
-      text: s.text.trim(),
-      confidence: typeof s.avg_logprob === 'number' ? Math.exp(s.avg_logprob) : null,
-      speakerId: null,
-    })),
+    segments: mapProviderSegments(json.segments),
   };
 }
 
@@ -315,18 +460,12 @@ async function transcribeOpenAI(opts: TranscribeOptions): Promise<TranscribeResu
   if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
   const model = opts.model ?? process.env.AI_TRANSCRIBE_MODEL ?? 'whisper-1';
   const form = new FormData();
-  if (opts.audioBytes) {
-    form.append('file', new Blob([opts.audioBytes]), 'audio.m4a');
-  } else if (opts.audioUrl) {
-    const res = await fetch(opts.audioUrl);
-    form.append('file', new Blob([await res.arrayBuffer()]), 'audio.m4a');
-  } else {
-    throw new Error('audioUrl or audioBytes required');
-  }
+  form.append('file', await loadAudioBlob(opts), 'audio.m4a');
   form.append('model', model);
   form.append('response_format', 'verbose_json');
-  if (opts.locale && opts.locale !== 'auto') {
-    form.append('language', opts.locale === 'pt-BR' ? 'pt' : 'en');
+  const languageHint = resolveLanguageHint(opts.locale);
+  if (languageHint) {
+    form.append('language', languageHint);
   }
 
   const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -344,19 +483,56 @@ async function transcribeOpenAI(opts: TranscribeOptions): Promise<TranscribeResu
   return {
     provider: 'openai',
     model,
-    detectedLocale: json.language?.startsWith('pt')
-      ? 'pt-BR'
-      : json.language === 'en'
-        ? 'en'
-        : null,
+    detectedLocale: mapDetectedLocale(json.language),
     fullText: json.text,
-    segments: (json.segments ?? []).map((s) => ({
-      startMs: Math.round(s.start * 1000),
-      endMs: Math.round(s.end * 1000),
-      text: s.text.trim(),
-      confidence: typeof s.avg_logprob === 'number' ? Math.exp(s.avg_logprob) : null,
-      speakerId: null,
-    })),
+    segments: mapProviderSegments(json.segments),
+  };
+}
+
+async function transcribeElevenLabs(opts: TranscribeOptions): Promise<TranscribeResult> {
+  const apiKey = opts.keys?.elevenlabs ?? process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing ELEVENLABS_API_KEY for ElevenLabs transcription');
+  }
+
+  const model = opts.model ?? process.env.AI_TRANSCRIBE_MODEL ?? 'scribe_v2';
+  const form = new FormData();
+  form.append('file', await loadAudioBlob(opts), 'audio.m4a');
+  form.append('model_id', model);
+  form.append('timestamps_granularity', 'word');
+  if (typeof opts.diarize === 'boolean') {
+    form.append('diarize', String(opts.diarize));
+  }
+
+  const languageHint = resolveLanguageHint(opts.locale);
+  if (languageHint) {
+    form.append('language_code', languageHint);
+  }
+
+  const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey },
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`ElevenLabs transcription failed: ${res.status} ${await res.text()}`);
+  }
+
+  const json = (await res.json()) as {
+    text?: string;
+    language_code?: string;
+    words?: ElevenLabsWord[];
+  };
+
+  const fullText = (json.text ?? '').trim();
+  const segments = mapElevenLabsWordsToSegments(json.words, fullText);
+
+  return {
+    provider: 'elevenlabs',
+    model,
+    detectedLocale: mapDetectedLocale(json.language_code),
+    fullText,
+    segments,
   };
 }
 

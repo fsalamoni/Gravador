@@ -57,6 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       | 'anthropic'
       | 'openai'
       | 'google'
+      | 'groq'
       | 'ollama'
       | 'openrouter',
     model: workspaceAI.agentModels[agent]?.model ?? workspaceAI.chatModel,
@@ -119,6 +120,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         keys: {
           groq: workspaceAI.keys.groq,
           openai: workspaceAI.keys.openai,
+          elevenlabs: workspaceAI.keys.elevenlabs,
           localBaseUrl: process.env.LOCAL_WHISPER_URL,
         },
       });
@@ -341,9 +343,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 async function loadWorkspaceAI(db: Firestore, workspaceId: string) {
   const wsDoc = await db.collection('workspaces').doc(workspaceId).get();
   const s = (wsDoc.data()?.aiSettings ?? {}) as {
-    transcribeProvider?: 'groq' | 'openai' | 'local-faster-whisper';
+    transcribeProvider?: 'groq' | 'openai' | 'elevenlabs' | 'local-faster-whisper';
     transcribeModel?: string;
-    chatProvider?: 'anthropic' | 'openai' | 'google' | 'ollama' | 'openrouter';
+    chatProvider?: 'anthropic' | 'openai' | 'google' | 'groq' | 'ollama' | 'openrouter';
     chatModel?: string;
     embeddingProvider?: 'openai' | 'ollama';
     embeddingModel?: string;
