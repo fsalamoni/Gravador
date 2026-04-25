@@ -320,6 +320,11 @@ export default function IntegrationsPage() {
 
   const handleSendTest = useCallback(
     async (integrationId: IntegrationId) => {
+      if (integrationId !== 'whatsapp' && integrationId !== 'email') {
+        showToast('Teste disponível apenas para integrações de WhatsApp e e-mail.');
+        return;
+      }
+
       setBusyKey(`test:${integrationId}`);
       try {
         const res = await fetch('/api/integrations/sync', {
@@ -525,19 +530,6 @@ export default function IntegrationsPage() {
                         <Save className="h-4 w-4" />
                       )}
                       Salvar pasta
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSendTest(integration.id)}
-                      disabled={testBusy}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-surfaceAlt/90 px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-surfaceAlt disabled:opacity-50"
-                    >
-                      {testBusy ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                      Enviar teste
                     </button>
                     <button
                       type="button"

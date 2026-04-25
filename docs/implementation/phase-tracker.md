@@ -40,7 +40,7 @@
 ## Phase 4 - integrations and communication ops
 
 - [x] Build richer WhatsApp/email setup modals with guided onboarding.
-- [~] Add send/test flows for email integration and notification paths (test + send APIs and UI actions delivered; provider wiring remains env-dependent).
+- [x] Add send/test flows for email integration and notification paths (strict sync contract validation for `mode`/`integrationId`/`limit`, storage test-mode guard to prevent false-positive test success, and route-level regression coverage delivered; provider wiring for real delivery remains env-dependent).
 - [~] Validate first-wave notification scope end-to-end (contract and deterministic flag behavior validated via API/unit tests; smoke workflow `notifications-smoke.yml` added, awaiting provider activation/strict pass evidence).
 - [x] Persist notification event queue contracts for recording lifecycle/artifact/audio-edit transitions (`notification_queue`, status=`pending`, retry metadata fields) when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.
 
@@ -109,3 +109,4 @@
 - [x] Local validation for global catalog + embeddings compatibility matrix package completed (`pnpm lint`, `pnpm --filter @gravador/web run typecheck`).
 - [x] Local validation for catalog contract extraction + regression tests package completed (`pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for bulk-delete safety hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local validation for integrations sync hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

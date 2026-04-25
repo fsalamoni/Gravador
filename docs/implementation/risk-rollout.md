@@ -30,6 +30,9 @@
 - Added audio processing observability payloads in job metrics and ffmpeg metadata (duration/error/attempt tracking).
 - Added notification event matrix for audio edit state transitions and deterministic no-op behavior when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=false`.
 - Added guided onboarding modals for WhatsApp/email integrations and send/test flows with standardized notification delivery error mapping.
+- Hardened `/api/integrations/sync` contract with explicit payload validation (`mode`, `integrationId`, `limit`) and deterministic `mode=test` scoping to notification integrations only, preventing false-positive storage test acknowledgements.
+- Added route-level regression coverage for integrations sync contract (`apps/web/src/app/api/integrations/sync/route.test.ts`) covering invalid input rejection, storage test-mode behavior, and structured failure-code persistence.
+- Updated integrations UI to block unsupported test actions for storage providers, reducing operator confusion between test-only notification flows and storage sync flows.
 - Added bulk contract hardening to reject unsafe recording IDs (`/`, `\\`, `..`) and regression test coverage.
 - Added bulk-delete confirmation hardening (`confirmation.expectedCount` + typed phrase `LIXEIRA <count>`) to prevent accidental multi-recording trash actions.
 - Added delete-path route regressions in `apps/web/src/app/api/recordings/bulk/route.test.ts` for confirmation mismatch failures and successful trashed transitions.
@@ -89,6 +92,7 @@
 - Local validation after global catalog + embeddings matrix package remained green (`pnpm lint`, `pnpm --filter @gravador/web run typecheck`).
 - Local validation after catalog contract extraction + regression tests package remained green (`pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`).
 - Local validation after bulk-delete safety hardening package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- Local validation after integrations sync hardening package remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Release verification for commit `baf23be`: `CI` run `24852990874` success, `Pages` run `24852990897` success, `Firebase Hosting` run `24852990941` success.
 - Expanded managed-Firestore staged tests to include auth/session/access/error contracts (`401`, `403`, `400`, `404`) for lifecycle and artifact routes, reducing risk that managed runtime diverges from local/emulator authorization behavior.
 - Local validation after managed-suite expansion remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

@@ -22,6 +22,7 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 6. Audio editing flows (`/api/recordings/[id]/audio-editing` + lifecycle panel controls) must stay hidden/inert when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 7. Audio-edit worker claiming must remain no-op when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false` (runner workflow must propagate this flag into worker env).
 8. Notification event side effects must enqueue into `notification_queue` only when `NEXT_PUBLIC_FF_NOTIFICATIONS_V1=true`.
+9. Integrations sync test mode (`POST /api/integrations/sync`, `mode=test`) must stay restricted to notification channels (`whatsapp`, `email`) to avoid false-positive storage test acknowledgements.
 
 ## Activation checkpoints
 
@@ -36,3 +37,4 @@ All flags are read from `apps/web/src/lib/feature-flags.ts`.
 1. Provision `WHATSAPP_CLOUD_*` and `EMAIL_NOTIFICATIONS_WEBHOOK_*` secrets.
 2. Confirm deploy preflight does not emit missing-token warnings.
 3. Run `notifications-smoke.yml` in strict mode and retain workflow evidence.
+4. Validate `POST /api/integrations/sync` in `mode=test` rejects storage-only requests with `test_mode_unsupported`.
