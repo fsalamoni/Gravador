@@ -96,6 +96,30 @@ Notes:
 - `strict=true` should be used for release evidence once all dependencies are provisioned.
 - Transcription strict readiness passes when at least one path is configured: `OPENAI_API_KEY`, `GROQ_API_KEY`, or `LOCAL_WHISPER_URL`.
 
+### Automated Evidence Orchestration (Recommended)
+
+Use `scripts/run-ops-readiness-evidence.mjs` for deterministic workflow dispatch + completion tracking + JSON summary output.
+
+```bash
+# baseline evidence (activation audit scopes only; non-strict)
+pnpm ops:evidence:baseline
+
+# strict evidence chain (activation audit scopes + notifications smoke + audio runner)
+pnpm ops:evidence:strict
+
+# strict custom example (skip smoke/runner, save summary)
+node scripts/run-ops-readiness-evidence.mjs \
+	--strict=true \
+	--include-smoke=false \
+	--include-runner=false \
+	--summary-path ops-readiness-evidence.json
+```
+
+Notes:
+- `ops:evidence:strict` exits non-zero if any dispatched workflow run fails or times out.
+- Keep `--send-email-test=false` until email provider credentials and target mailbox are validated.
+- This orchestration does not bypass provisioning requirements; it only reduces manual dispatch/monitoring errors.
+
 ### Where to find the Firebase config values
 
 1. Go to [Firebase Console](https://console.firebase.google.com/project/hocapp-44760/settings/general)

@@ -22,6 +22,8 @@
     "test:web:firestore-managed": "pnpm --filter @gravador/web run test:firestore-managed",
     "smoke:notifications": "node scripts/smoke-notifications.mjs --strict",
     "ops:audit:activation": "node scripts/audit-ops-activation.mjs --target all",
+    "ops:evidence:baseline": "node scripts/run-ops-readiness-evidence.mjs --strict=false --include-smoke=false --include-runner=false",
+    "ops:evidence:strict": "node scripts/run-ops-readiness-evidence.mjs --strict",
     "worker:audio-jobs:once": "pnpm --filter @gravador/ai-pipeline run audio-jobs:once",
     "worker:audio-jobs:loop": "pnpm --filter @gravador/ai-pipeline run audio-jobs:loop",
     "mobile:whoami": "pnpm dlx eas-cli whoami --non-interactive",
