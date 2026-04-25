@@ -5,6 +5,9 @@ This file captures decisions and assumptions that must survive long implementati
 ## Locked decisions
 
 
+- Release closure snapshot (commit `b443110`, 2026-04-25 local): `Pages` run `24940869029` success, `CI` run `24940869031` success, `Firebase Hosting` run `24940869039` success.
+- Firebase Hosting run `24940869039` completed in `6m49s`; deploy annotation flagged no configured transcription runtime path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`), which is currently treated as non-blocking by design.
+- Workflow monitoring contract refined: for long-running jobs, prefer `gh run watch <runId> --exit-status` and/or the run jobs endpoint over `updatedAt` snapshots from `gh run list`, which can remain static while steps continue.
 - Chat-oriented agents now execute through centralized multi-candidate fallback orchestration (`runAgentTaskWithFallback`) in both `apps/web/src/app/api/recordings/[id]/run-task/route.ts` and `workers/ai-pipeline/src/tasks/process-recording.ts`, retrying only recoverable provider/model routing failures.
 - Structured-output tasks now use `packages/ai/src/pipelines/structured-output.ts`: first attempt with `generateObject`, fallback to `generateText` + strict JSON candidate parsing + Zod validation when tool-use/json-schema capabilities are unavailable.
 - Embeddings resolution now honors per-agent overrides (`agentModels.embed`) and provider-aware fallback semantics; OpenAI embeddings automatically fall back to Ollama when `OPENAI_API_KEY` is absent, with clearer provider-specific error signaling.

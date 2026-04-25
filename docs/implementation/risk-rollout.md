@@ -126,6 +126,8 @@
 - Expanded managed-Firestore staged tests to include auth/session/access/error contracts (`401`, `403`, `400`, `404`) for lifecycle and artifact routes, reducing risk that managed runtime diverges from local/emulator authorization behavior.
 - Local validation after managed-suite expansion remained green (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - Managed verification for expanded auth/runtime matrix completed on commit `ecf7f8b` (`Firestore Managed E2E` run `24854615993` success on `database_id=anotes`) alongside green release workflows (`CI` `24854596037`, `Pages` `24854596023`, `Firebase Hosting` `24854596062`).
+- Release verification for commit `b443110`: `Pages` run `24940869029` success, `CI` run `24940869031` success, `Firebase Hosting` run `24940869039` success (`deploy` job completed in `6m49s`).
+- Firebase Hosting run `24940869039` emitted annotation about missing transcription runtime path (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `LOCAL_WHISPER_URL`); this remained a non-blocking warning by current readiness policy.
 
 ### Rollback path
 
@@ -142,4 +144,4 @@
 - Notification smoke workflow exists but still requires provider environment activation (`ENABLE_NOTIFICATIONS_SMOKE`) and missing provider secrets (`WHATSAPP_CLOUD_*`, `EMAIL_NOTIFICATIONS_WEBHOOK_*`) for strict-pass evidence.
 - Activation-audit workflow is now available to surface these gaps deterministically, but strict-pass evidence still depends on real secret/variable provisioning in repository settings.
 - Expo Free-plan Android preview capacity remains a delivery constraint; quota reset or paid capacity is needed for uninterrupted APK generation.
-- Transcription UX now minimizes misconfiguration risk and activation/deploy guardrails expose missing runtime path early, but strict transcription readiness still depends on provisioning valid BYOK secrets (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`) and/or a reachable `LOCAL_WHISPER_URL` endpoint.
+- Transcription UX now minimizes misconfiguration risk and activation/deploy guardrails expose missing runtime path early, but strict transcription readiness still depends on provisioning valid BYOK secrets (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ELEVENLABS_API_KEY`) and/or a reachable `LOCAL_WHISPER_URL` endpoint; latest deploy run `24940869039` confirmed this gap through a non-blocking preflight annotation.
