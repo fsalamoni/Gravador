@@ -40,6 +40,9 @@ This file captures decisions and assumptions that must survive long implementati
 - Centralized operational activation audit now exists in `.github/workflows/ops-activation-audit.yml` with scope targeting (`all|notifications|audio-edit`) and strict/non-strict modes for deterministic readiness gating.
 - Script `scripts/audit-ops-activation.mjs` now evaluates toggles (`ENABLE_*`, `NEXT_PUBLIC_FF_*`) plus required secret presence contracts and emits machine-readable summary JSON consumed by workflow summary.
 - Root command `pnpm ops:audit:activation` now provides local/operator parity with workflow readiness checks.
+- Initial manual `Ops Activation Audit` run `24928511832` revealed a shell heredoc delimiter bug in summary publishing, and push validation run `24928546801` confirmed malformed workflow parsing after the first fix attempt.
+- Summary publishing path is now stabilized by replacing heredoc execution with a single `node -e` writer command in `.github/workflows/ops-activation-audit.yml` (commit `4bb9ce6`), eliminating delimiter/indentation fragility.
+- Final activation-audit closure snapshot (commit `4bb9ce6`, 2026-04-25 local): `CI` run `24928579016` success, manual `Ops Activation Audit` run `24928594813` success (`strict=false`, explicit gap matrix), manual `Firestore Managed E2E` run `24928596802` success (`database_id=anotes`), manual `Firebase Hosting` run `24928598960` success, manual `Pages` run `24928600630` success.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
