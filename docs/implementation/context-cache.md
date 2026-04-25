@@ -35,6 +35,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Manual dispatch of disabled runner/smoke workflows now fails fast in strict mode, preventing false-green confirmation when activation flags are off.
 - `scripts/smoke-notifications.mjs` now enforces provider-readiness (`notifications_provider_readiness`) and applies timeout-safe probe behavior + safe JSON parsing for more deterministic strict outcomes.
 - Local verification for operational smoke/runner guardrails package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`, plus non-strict runtime sanity execution of `scripts/smoke-notifications.mjs`.
+- Manual `Notifications Smoke` dispatch with `strict=false` now validates disabled-path observability: run `24919974054` executed job `smoke-disabled` successfully and emitted explicit activation guidance instead of silent skip behavior.
+- Release closure snapshot (commit `ac6b94f`, 2026-04-24 local): `CI` run `24919915820` success, `Pages` run `24919915825` success, `Firebase Hosting` run `24919915814` success, `Firestore Managed E2E` run `24919923253` success (`database_id=anotes`).
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
