@@ -58,6 +58,7 @@
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
 - [x] Expand managed-Firestore staged suite with auth/session/access/error boundary assertions for lifecycle and artifact routes (401/403/404/400 contracts).
 - [x] Harden workflow runtime compatibility by upgrading core setup actions to Node 24-targeting majors (`actions/checkout@v6`, `actions/setup-node@v6`, `actions/setup-java@v5`, `pnpm/action-setup@v5`).
+- [x] Remove remaining Node 20 deprecation exposure in Google deploy actions by upgrading to `google-github-actions/auth@v3` and `google-github-actions/setup-gcloud@v3` across deploy/release managed workflows.
 - [x] Migrate GitHub Pages delivery from legacy dynamic workflow to repository-managed `pages.yml` (checkout/configure-pages/upload-pages-artifact/deploy-pages on current majors) with extended deploy timeout and retries.
 - [x] Harden web recorder upload reliability by adding server-side upload fallback route (`/api/recordings/upload`) and automatic retry path when browser Firebase Storage returns unauthorized/session-race failures.
 - [x] Harden transcription provider onboarding UX on web/mobile with one-click profiles, readiness scorecards, and save-time guardrails (model requirement + provider key guidance).
@@ -110,3 +111,4 @@
 - [x] Local validation for catalog contract extraction + regression tests package completed (`pnpm lint`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/web run typecheck`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for bulk-delete safety hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
 - [x] Local validation for integrations sync hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).
+- [x] Local validation for workflow Node20-deprecation hardening package completed (`pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

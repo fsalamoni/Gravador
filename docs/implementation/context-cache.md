@@ -27,6 +27,8 @@ This file captures decisions and assumptions that must survive long implementati
 - Integrations UI now blocks unsupported test actions for storage providers and keeps test action available only for WhatsApp/email cards.
 - Route-level regressions in `apps/web/src/app/api/integrations/sync/route.test.ts` now lock invalid input handling, storage test-mode rejection/skip semantics, and structured failure-code persistence to user integration docs.
 - Local verification for integrations sync hardening package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
+- Deployment/release workflows now use `google-github-actions/auth@v3` and `google-github-actions/setup-gcloud@v3` in place of v2 to remove remaining Node 20 deprecation exposure from Google action steps.
+- Local verification for workflow Node20-deprecation hardening package is green: `pnpm lint`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`.
 
 
 - Initial package commit `f4368f2` outcomes: `CI` run `24815425692` failed on lifecycle/version assertions; `firebase-hosting` run `24815425679` cancelled by superseding hotfix push; `pages` run `24815425349` succeeded.
