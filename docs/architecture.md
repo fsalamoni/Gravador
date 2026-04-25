@@ -233,7 +233,7 @@ Detailed onboarding (provider registration, API keys, costs, limits, self-host s
 
 ## CI/CD
 
-- **GitHub Actions CI** (`.github/workflows/ci.yml`): lint (biome) → typecheck (turbo) → tests — runs on push to `main` and PRs.
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): lint (biome) → typecheck (turbo) → workflow YAML lint (`pnpm lint:workflows`) → tests — runs on push to `main` and PRs.
 - **Firebase Hosting** (`.github/workflows/firebase-hosting.yml`): Deploys Firestore indexes and hosting on push to `main`.
 - **Cloud Build** (`infra/cloudbuild/web.yaml`): Builds Docker image with all `NEXT_PUBLIC_*` env vars baked in, pushes to Artifact Registry.
 - **Cloud Run**: Serves the web app at `anotes.web.app` via custom domain mapping. Deployed manually via `gcloud run deploy`.

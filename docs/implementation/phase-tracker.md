@@ -57,6 +57,7 @@
 - [x] Enforce worker-side audio editing flag guard so job claiming/dispatch is skipped deterministically when `NEXT_PUBLIC_FF_AUDIO_EDITING_V1=false`.
 - [x] Harden operational runner/smoke workflows with explicit disabled summaries plus strict manual-dispatch guardrails when activation variables are off (prevents false-green skipped executions).
 - [x] Add centralized operational activation audit workflow + script (`ops-activation-audit.yml` + `scripts/audit-ops-activation.mjs`) to surface deterministic readiness gaps for notifications/audio-runner toggles, flags, and required secrets.
+- [x] Add CI workflow YAML lint guardrail (`pnpm lint:workflows` + `workflow-lint` job in `.github/workflows/ci.yml`) to catch malformed GitHub Actions definitions before merge.
 - [x] Stabilize EAS preview CI against Expo quota exhaustion (degraded `quota_blocked` status path + non-failing summary contract).
 - [x] Add staged managed-Firestore route validation path (`apps/web/src/app/api/recordings/managed-routes.test.ts` + manual workflow `.github/workflows/firestore-managed-e2e.yml`).
 - [x] Expand managed-Firestore staged suite with auth/session/access/error boundary assertions for lifecycle and artifact routes (401/403/404/400 contracts).
@@ -122,3 +123,4 @@
 - [x] Operational activation audit implementation commit `834e8ef` verified (`CI` run `24928487774` success, `Pages` run `24928487777` success, `Firebase Hosting` run `24928487778` success, manual `Firestore Managed E2E` run `24928509646` success).
 - [x] Initial manual `Ops Activation Audit` evidence run `24928511832` surfaced a summary-step heredoc shell parse defect, and follow-up push validation run `24928546801` surfaced malformed workflow indentation; both defects were corrected in follow-up workflow-fix commits.
 - [x] Workflow-fix closure commit `4bb9ce6` verified end-to-end (`CI` run `24928579016` success, manual `Ops Activation Audit` run `24928594813` success, manual `Firestore Managed E2E` run `24928596802` success, manual `Firebase Hosting` run `24928598960` success, manual `Pages` run `24928600630` success).
+- [x] Local validation for workflow-lint guardrail package completed (`pnpm lint`, `pnpm lint:workflows`, `pnpm typecheck`, `pnpm --filter @gravador/web run test`, `pnpm --filter @gravador/web run build`, `pnpm --filter @gravador/mobile run typecheck`).

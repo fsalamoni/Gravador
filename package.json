@@ -13,6 +13,7 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "biome check .",
+    "lint:workflows": "pnpm dlx yaml-lint .github/workflows/*.yml",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
